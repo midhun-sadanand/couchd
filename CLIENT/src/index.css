@@ -1,0 +1,45 @@
+@import "tailwindcss/base"; 
+@import "tailwindcss/components";  
+@import "tailwindcss/utilities";
+
+body {
+  margin: 0;
+  font-family: 'Graphik', sans-serif;
+  font-weight: 300; /* This targets GraphikLight */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@font-face {
+  font-family: 'Graphik';
+  src: url('./fonts/graphik/GraphikLight.otf') format('opentype');
+  font-weight: 300; /* Light */
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Graphik';
+  src: url('./fonts/graphik/GraphikRegular.otf') format('opentype');
+  font-weight: 400; /* Regular */
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Graphik';
+  src: url('./fonts/graphik/GraphikMedium.otf') format('opentype');
+  font-weight: 500; /* Medium */
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Graphik';
+  src: url('./fonts/graphik/GraphikBold.otf') format('opentype');
+  font-weight: 700; /* Bold */
+  font-style: normal;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+

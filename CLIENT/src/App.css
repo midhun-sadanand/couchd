@@ -1,0 +1,115 @@
+@import "tailwindcss/base"; 
+@import "tailwindcss/components";  
+@import "tailwindcss/utilities";
+
+/* App.css or another CSS file */
+@font-face {
+  font-family: 'GraphikLight';
+  src: url('./fonts/graphik/GraphikLight.otf') format('opentype');
+}
+
+body {
+  font-family: 'GraphikLight', sans-serif;
+}
+
+
+
+.App-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.errorMessage {
+  color: blue;
+  font-size: 1.2rem;
+  text-align: center;
+  margin-top: 20px;
+}
+
+/* Center the forms on the page with margin from the right edge and bottom of the header */
+.form-container {
+  position: absolute;
+  top: -80px; /* Adjust based on the height of your header */
+  right: -80px; /* Adjust margin from the right edge */
+  width: 300px; /* Adjust width of the form */
+  max-width: 100%; /* Ensure form does not exceed screen width */
+  padding: 20px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 50;
+}
+
+@media (max-width: 640px) {
+  .form-container {
+    width: 90%; /* Make the form take 90% of the screen width on smaller screens */
+    right: 5%; /* Center it on smaller screens */
+  }
+}
+
+/* Adjustments for smaller screens */
+@media (max-width: 1024px) {
+  .form-container {
+    width: 250px;
+  }
+}
+
+@media (max-width: 768px) {
+  .form-container {
+    width: 200px;
+    top: 50px; /* Adjust top position for smaller screens */
+  }
+}
+
+@media (max-width: 640px) {
+  .form-container {
+    width: 90%; /* Make the form take 90% of the screen width on smaller screens */
+    right: 5%; /* Center it on smaller screens */
+    top: 50px; /* Adjust top position for smaller screens */
+  }
+}
+
+
