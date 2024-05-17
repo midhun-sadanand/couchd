@@ -11,39 +11,54 @@ const SignupPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        console.log("Signing up with:", email, username, password);
 
-        // First, sign up the user with Supabase Auth
-        const { data: user, error: authError } = await supabase.auth.signUp({
-            email,
-            password,
-        });
+        try {
+            const { data, error: signUpError } = await supabase.auth.signUp({
+                email,
+                password,
+            });
 
-        if (authError) {
-            setError(authError.message);
-        } else {
-            // Get the user's UID from the signed-up user
-            const userId = user.user.id();
-
-            // Then, insert the additional details into your custom `profiles` table
-            const { error: insertError } = await supabase
-                .from('profiles')
-                .insert([
-                    { id: userId, username: username, email: email }
-                ]);
-
-            if (insertError) {
-                setError(insertError.message);
-            } else {
-                console.log('Signup successful:', user);
-                navigate('/user/' + username);
+            if (signUpError) {
+                console.error("Signup error:", signUpError.message);
+                setError("Signup error: " + signUpError.message);
+                return;
             }
+
+            console.log("SIGNUP RESPONSE:", JSON.stringify(data, null, 2));
+
+            // If user data is available, proceed to insert the additional details into your custom `profiles` table
+            if (data && data.user) {
+                const userId = data.user.id;
+                console.log("User ID:", userId);
+
+                const { error: insertError } = await supabase
+                    .from('profiles')
+                    .insert([
+                        { user_id: userId, username: username, email: email }
+                    ]);
+
+                if (insertError) {
+                    console.error("Database insertion error:", insertError.message);
+                    setError("Database insertion error: " + insertError.message);
+                } else {
+                    console.log('Signup and profile creation successful:', data.user);
+                    navigate('/user/' + username); // Navigate to user profile or dashboard
+                }
+            } else {
+                setError("No user data available after signup.");
+                console.error("No user data available after signup.");
+            }
+        } catch (err) {
+            console.error("Unexpected error during signup:", err);
+            setError("Unexpected error occurred");
         }
     };
 
     return (
         <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-lg">
             <h1 className="text-2xl text-center">Create an Account</h1>
-            {error && <p className="text-stone-500 text-sm font-bold text-center">{error}</p>}
+            {error && <p className="text-red-500 text-sm font-bold text-center">{error}</p>}
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                     <input
@@ -75,7 +90,7 @@ const SignupPage = () => {
                         required
                     />
                 </div>
-                <button type="submit" className="w-full bg-stone-500 hover:bg-neutral-400 text-black py-2 px-4 rounded transition-colors duration-300">
+                <button type="submit" className="w-full bg-stone-500 hover:bg-neutral-400 text-white py-2 px-4 rounded transition-colors duration-300">
                     Sign Up
                 </button>
             </form>
