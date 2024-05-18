@@ -39,7 +39,7 @@ const LoginPage = () => {
             if (loginError) {
                 setError(loginError.message);
             } else {
-                console.log('Login successful:', user);
+                console.log('Login successful:', data.user);
                 navigate('/profile'); // Redirect to the profile page
             }
         } else {

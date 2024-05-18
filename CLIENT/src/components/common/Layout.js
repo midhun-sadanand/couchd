@@ -1,13 +1,24 @@
-// src/components/common/Layout.js
 import React from 'react';
-import { Outlet } from 'react-router-dom';
-import Header from './Header';
+import { Outlet, useLocation } from 'react-router-dom';
+import Header from './HomepageHeader';
+import ProfileHeader from './ProfileHeader';  // Ensure this is imported correctly
 import Footer from './Footer';
 
 const Layout = ({ showLogin, showSignup, toggleLogin, toggleSignup }) => {
+  const location = useLocation();  // This hook gives you the current route location
+
+  // Decide which header to display based on the route
+  const getHeader = () => {
+    if (location.pathname === '/profile') {
+      return <ProfileHeader />;  // Profile page gets a special header
+    } else {
+      return <Header toggleLogin={toggleLogin} toggleSignup={toggleSignup} />;
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
-      <Header toggleLogin={toggleLogin} toggleSignup={toggleSignup} />
+      {getHeader()} 
       <main className="flex-grow">
         <Outlet />
       </main>

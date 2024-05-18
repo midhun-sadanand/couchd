@@ -43,7 +43,7 @@ const SignupPage = () => {
                     setError("Database insertion error: " + insertError.message);
                 } else {
                     console.log('Signup and profile creation successful:', data.user);
-                    navigate('/user/' + username); // Navigate to user profile or dashboard
+                    navigate('/profile'); // Navigate to user profile or dashboard
                 }
             } else {
                 setError("No user data available after signup.");
