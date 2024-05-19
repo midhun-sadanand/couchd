@@ -9,7 +9,8 @@ const HomePage = lazy(() => import('./pages/HomePage'));
 const SignupPage = lazy(() => import('./pages/SignupPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
-
+const WatchlistPage = lazy(() => import('./pages/WatchlistPage'));
+const MediaPage = lazy(() => import('./pages/MediaPage'));
 
 function App() {
   const [showLogin, setShowLogin] = useState(false);
@@ -54,6 +55,8 @@ function App() {
               />
               <Route path="signup" element={<SignupPage />} />
               <Route path="profile" element={<ProfilePage />} />
+              <Route path="lists" element={<WatchlistPage />} />
+              <Route path="/list/:username/:watchlistName" element={<MediaPage />} />
             </Route>
           </Routes>
         </Suspense>

@@ -72,8 +72,8 @@ body {
 /* Center the forms on the page with margin from the right edge and bottom of the header */
 .form-container {
   position: absolute;
-  top: -80px; /* Adjust based on the height of your header */
-  right: -80px; /* Adjust margin from the right edge */
+  top: -20px; /* Adjust based on the height of your header */
+  right: -100px; /* Adjust margin from the right edge */
   width: 300px; /* Adjust width of the form */
   max-width: 100%; /* Ensure form does not exceed screen width */
   padding: 20px;

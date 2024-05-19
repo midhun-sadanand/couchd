@@ -9,7 +9,7 @@ const Layout = ({ showLogin, showSignup, toggleLogin, toggleSignup }) => {
 
   // Decide which header to display based on the route
   const getHeader = () => {
-    if (location.pathname === '/profile') {
+    if (location.pathname === '/profile' || location.pathname === '/lists' || location.pathname.includes('/list')) {
       return <ProfileHeader />;  // Profile page gets a special header
     } else {
       return <Header toggleLogin={toggleLogin} toggleSignup={toggleSignup} />;
