@@ -1,12 +1,42 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { sortableContainer, sortableElement } from 'react-sortable-hoc';
+import { arrayMoveImmutable as arrayMove } from 'array-move';
 import { supabase } from '../supabaseClient';
 import MovieCard from '../components/common/MovieCard';
+import Search from '../components/common/MovieSearch';
+
+const SortableItem = sortableElement(({ item, onDelete }) => {
+    return (
+      <div> {/* Wrapping in a native div element */}
+        <MovieCard
+            key={item.id}
+            id={item.id}
+            title={item.title}
+            medium={item.medium}
+            length={item.length}
+            date={item.release_date.substring(0, 4)}
+            synopsis={item.synopsis}
+            image={item.image}
+            onDelete={() => onDelete(item.id, item.medium)}
+        />
+      </div>
+    );
+});
+
+
+const SortableList = sortableContainer(({ items, onDelete }) => {
+  return (
+    <div>
+      {items.map((item, index) => (
+        <SortableItem key={`item.id`} index={index} item={item} onDelete={onDelete} />
+      ))}
+    </div>
+  );
+});
 
 const MediaPage = () => {
     const [mediaItems, setMediaItems] = useState([]);
-    const [newMedia, setNewMedia] = useState('');
-    const [medium, setMedium] = useState('Movie');
     const { username, watchlistName } = useParams();
 
     useEffect(() => {
@@ -24,75 +54,74 @@ const MediaPage = () => {
             const { data: media } = await supabase
                 .from('media_items')
                 .select('*')
-                .eq('watchlist_id', watchlist.id);
-                
+                .eq('watchlist_id', watchlist.id)
+                .order('order', { ascending: true });
+
             setMediaItems(media || []);
         }
     };
 
-    const addMediaItem = async () => {
-        if (!newMedia || !medium) return;
-
-        const { data: watchlist } = await supabase
-            .from('watchlists')
-            .select('id')
-            .eq('name', watchlistName)
-            .single();
-
-        if (watchlist) {
-            const { data: newMedium } = await supabase
-                .from('media_items')
-                .insert([{ title: newMedia, watchlist_id: watchlist.id, medium }])
-                .select();
-
-            if (newMedium) {
-                setMediaItems([...mediaItems, ...newMedium]);
-                setNewMedia('');
-                setMedium('Movie');
-            }
+    const onSortEnd = async ({ oldIndex, newIndex }) => {
+        const reorderedItems = arrayMove(mediaItems, oldIndex, newIndex);
+        setMediaItems(reorderedItems);
+    
+        try {
+            await Promise.all(reorderedItems.map((item, index) => 
+                supabase.from('media_items').update({ order: index }).match({ id: item.id })
+            ));
+        } catch (error) {
+            console.error('Error updating order on backend:', error);
+            // Optionally rollback to previous state
+            fetchMediaItems();
         }
     };
     
-    const handleDeleteMediaItem = (deletedId) => {
-        setMediaItems(currentMediaItems => currentMediaItems.filter(item => item.id !== deletedId));
-    };
     
+
+
+    const handleSelectItem = async (item) => {
+        const imageUrl = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '';
+        const { data: newMedia, error } = await supabase
+            .from('media_items')
+            .insert([{
+                title: item.title || item.name,
+                medium: item.media_type === 'movie' ? 'Movie' : 'TV',
+                watchlist_id: (await supabase.from('watchlists').select('id').eq('name', watchlistName).single()).data.id,
+                image: imageUrl,
+                release_date: item.release_date || '',
+                order: mediaItems.length  // Assigning the next order index
+            }])
+            .select();
+
+        if (error) {
+            console.error('Failed to add item:', error.message);
+        } else {
+            setMediaItems([...mediaItems, ...newMedia]);
+        }
+    };
+
+    const handleDeleteMediaItem = async (deletedId, medium) => {
+        if (window.confirm(`Are you sure you want to delete this ${medium}?`)) {
+            const { error } = await supabase
+                .from('media_items')
+                .delete()
+                .match({ id: deletedId });
+
+            if (error) {
+                console.error('Error deleting media item:', error.message);
+            } else {
+                setMediaItems(currentMediaItems => currentMediaItems.filter(item => item.id !== deletedId));
+            }
+        }
+    };
+
+    console.log("THESE ARE DA ITEMS: ", mediaItems);
+
     return (
         <div className="container mx-auto p-4">
             <h1 className="text-xl font-bold">{`Media in "${watchlistName}"`}</h1>
-            {mediaItems.map((item) => (
-                <MovieCard 
-                    key={item.id} 
-                    id={item.id} 
-                    title={item.title} 
-                    medium={item.medium} 
-                    length={item.length} 
-                    date={item.date} 
-                    synopsis={item.synopsis} 
-                    onDelete={handleDeleteMediaItem} 
-                />
-            
-            ))}
-            <input
-                type="text"
-                value={newMedia}
-                onChange={(e) => setNewMedia(e.target.value)}
-                placeholder="Add New Media"
-                className="border p-2 mt-4"
-            />
-            <select
-                value={medium}
-                onChange={(e) => setMedium(e.target.value)}
-                className="border p-2 mt-4"
-            >
-                <option value="Movie">Movie</option>
-                <option value="Book">Book</option>
-                <option value="YouTube">YouTube</option>
-                <option value="TV">TV Show</option>
-            </select>
-            <button onClick={addMediaItem} className="ml-2 bg-blue-500 text-white p-2 rounded">
-                Add Media
-            </button>
+            <Search onSelect={handleSelectItem} />
+            <SortableList items={mediaItems} onSortEnd={onSortEnd} onDelete={handleDeleteMediaItem} useDragHandle={true} />
         </div>
     );
 };
