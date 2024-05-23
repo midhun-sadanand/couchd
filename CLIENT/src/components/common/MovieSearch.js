@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const Search = ({ onSelect }) => {
+const MovieSearch = ({ onSelect }) => {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState([]);
 
@@ -65,4 +65,4 @@ const Search = ({ onSelect }) => {
     );
 };
 
-export default Search;
+export default MovieSearch;
