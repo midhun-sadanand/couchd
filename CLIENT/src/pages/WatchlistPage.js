@@ -36,17 +36,45 @@ const WatchlistPage = () => {
     }, [navigate]);
 
     const fetchWatchlists = async (userId) => {
-        const { data, error } = await supabase
+        // Query to fetch watchlists that the user owns
+        const ownWatchlistsQuery = supabase
             .from('watchlists')
             .select('*')
             .eq('user_id', userId);
-
-        if (error) {
+    
+        // Query to fetch watchlists that are shared with the user
+        const sharedWatchlistsQuery = supabase
+            .from('watchlist_shares')
+            .select(`
+                watchlist_id,
+                watchlist:watchlist_id (id, name, user_id)  // Assuming a foreign key from watchlist_shares to watchlists
+            `)
+            .eq('shared_with_user_id', userId);
+    
+        try {
+            let { data: ownWatchlists, error: ownError } = await ownWatchlistsQuery;
+            let { data: sharedWatchlistsData, error: sharedError } = await sharedWatchlistsQuery;
+    
+            if (ownError) {
+                console.error('Error fetching own watchlists:', ownError.message);
+                return;
+            }
+            if (sharedError) {
+                console.error('Error fetching shared watchlists:', sharedError.message);
+                return;
+            }
+    
+            // Map shared watchlists to have the same structure as own watchlists
+            const sharedWatchlists = sharedWatchlistsData.map(item => item.watchlist);
+    
+            // Combine own and shared watchlists
+            const combinedWatchlists = [...ownWatchlists, ...sharedWatchlists];
+            setWatchlists(combinedWatchlists);
+        } catch (error) {
             console.error('Error fetching watchlists:', error.message);
-        } else {
-            setWatchlists(data);
         }
     };
+    
 
     const createWatchlist = async () => {
         if (!watchlistName) return;

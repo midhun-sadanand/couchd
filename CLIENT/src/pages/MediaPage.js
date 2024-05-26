@@ -1,48 +1,45 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { sortableContainer, sortableElement } from 'react-sortable-hoc';
-import { arrayMoveImmutable as arrayMove } from 'array-move';
+import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
 import { supabase } from '../supabaseClient';
 import MovieCard from '../components/common/MovieCard';
 import MovieSearch from '../components/common/MovieSearch';
 import YoutubeSearch from '../components/common/YoutubeSearch';
-
-const SortableItem = sortableElement(({ item, onDelete }) => {
-    return (
-      <div> {/* Wrapping in a native div element */}
-        <MovieCard
-            key={item.id}
-            id={item.id}
-            title={item.title}
-            medium={item.medium}
-            length={item.length}
-            date={item.release_date.substring(0, 4)}
-            synopsis={item.synopsis}
-            image={item.image}
-            url={item.url}
-            onDelete={() => onDelete(item.id, item.medium)}
-        />
-      </div>
-    );
-});
-
-
-const SortableList = sortableContainer(({ items, onDelete }) => {
-  return (
-    <div>
-      {items.map((item, index) => (
-        <SortableItem key={`item.id`} index={index} item={item} onDelete={onDelete} />
-      ))}
-    </div>
-  );
-});
+import ShareWatchlist from '../components/common/ShareWatchlist';
+import { arrayMoveImmutable as arrayMove } from 'array-move';
 
 const MediaPage = () => {
     const [mediaItems, setMediaItems] = useState([]);
-    const { username, watchlistName } = useParams();
+    const [watchlistId, setWatchlistId] = useState('');
+    const [userId, setUserId] = useState('');
+    const { watchlistName } = useParams();
 
     useEffect(() => {
-        fetchMediaItems();
+        async function fetchData() {
+            const { data: user } = await supabase.auth.getUser();
+            if (user) {
+                setUserId(user.user.id);
+            }
+
+            const { data: watchlist } = await supabase
+                .from('watchlists')
+                .select('id')
+                .eq('name', watchlistName)
+                .single();
+
+            if (watchlist) {
+                setWatchlistId(watchlist.id);
+                const { data: media } = await supabase
+                    .from('media_items')
+                    .select('*')
+                    .eq('watchlist_id', watchlist.id)
+                    .order('order', { ascending: true });
+
+                setMediaItems(media || []);
+            }
+        }
+
+        fetchData();
     }, [watchlistName]);
 
     const fetchMediaItems = async () => {
@@ -50,10 +47,10 @@ const MediaPage = () => {
             .from('watchlists')
             .select('id')
             .eq('name', watchlistName)
-            .single()
-            .select();
+            .single();
 
         if (watchlist) {
+            setWatchlistId(watchlist.id);
             const { data: media } = await supabase
                 .from('media_items')
                 .select('*')
@@ -64,10 +61,54 @@ const MediaPage = () => {
         }
     };
 
-    const onSortEnd = async ({ oldIndex, newIndex }) => {
-        const reorderedItems = arrayMove(mediaItems, oldIndex, newIndex);
+    
+    const SortableList = ({ items, onDelete, watchlistName }) => (
+        <Droppable droppableId={`droppable-${watchlistId}`}>
+          {(provided) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}>
+              {items.map((item, index) => (
+                <SortableItem key={item.id} item={item} index={index} onDelete={onDelete} />
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      );
+      
+    const SortableItem = ({ item, index, onDelete }) => (
+      <Draggable draggableId={item.id.toString()} index={index}>
+        {(provided) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}>
+            <MovieCard
+              key={item.id}
+              id={item.id}
+              title={item.title}
+              medium={item.medium}
+              length={item.length}
+              date={item.release_date.substring(0, 4)}
+              synopsis={item.synopsis}
+              image={item.image}
+              url={item.url}
+              onDelete={() => onDelete(item.id, item.medium)}
+              index={index}
+            />
+          </div>
+        )}
+      </Draggable>
+    );
+    
+    const onSortEnd = async (result) => {
+        if (!result.destination) return;
+    
+        const reorderedItems = arrayMove(mediaItems, result.source.index, result.destination.index);
         setMediaItems(reorderedItems);
     
+        // Since you're using await, the function must be marked as async
         try {
             await Promise.all(reorderedItems.map((item, index) => 
                 supabase.from('media_items').update({ order: index }).match({ id: item.id })
@@ -79,8 +120,28 @@ const MediaPage = () => {
         }
     };
     
-    
 
+    const onShare = async (friendId) => {
+        if (!watchlistId) {
+            alert('Watchlist ID not available');
+            return;
+        }
+
+        const { error } = await supabase
+            .from('watchlist_shares')
+            .insert([{
+                watchlist_id: watchlistId,
+                shared_with_user_id: friendId,
+                permission_type: 'edit'
+            }]);
+
+        if (error) {
+            console.error('Failed to share watchlist:', error.message);
+            alert('Failed to share watchlist.');
+        } else {
+            alert('Watchlist shared successfully!');
+        }
+    };
 
     const handleSelectItem = async (item, type) => {
         let newMedia;
@@ -97,7 +158,7 @@ const MediaPage = () => {
                 order: mediaItems.length
             }])
             .select();
-        } else {  // Existing code for movies/TV shows
+        } else { 
             const imageUrl = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '';
             newMedia = await supabase.from('media_items').insert([{
                 title: item.title || item.name,
@@ -133,14 +194,15 @@ const MediaPage = () => {
         }
     };
 
-    console.log("THESE ARE DA ITEMS: ", mediaItems);
-
     return (
         <div className="container mx-auto p-4">
             <h1 className="text-xl font-bold">{`Media in "${watchlistName}"`}</h1>
             <MovieSearch onSelect={(item) => handleSelectItem(item, 'movie')} />
             <YoutubeSearch onSelect={(item) => handleSelectItem(item, 'youtube')} />
-            <SortableList items={mediaItems} onSortEnd={onSortEnd} onDelete={handleDeleteMediaItem} useDragHandle={true} />
+            <DragDropContext onDragEnd={onSortEnd}>
+                <SortableList items={mediaItems} onDelete={(id, medium) => handleDeleteMediaItem(id, medium)} />
+            </DragDropContext>
+            {userId && <ShareWatchlist onShare={onShare} userId={userId} />}
         </div>
     );
 };

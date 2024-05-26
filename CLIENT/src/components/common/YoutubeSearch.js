@@ -25,7 +25,7 @@ const YoutubeSearch = ({ onSelect }) => {
     }, [query]);
 
     const fetchVideos = async () => {
-        const API_KEY = 'AIzaSyAjxXnuRYFH5M8w8-QAZ7yXt1Di8b1OH70';  // Ensure to replace this with your actual YouTube API key
+        const API_KEY = process.env.REACT_APP_YOUTUBE_API_KEY;  // Ensure to replace this with your actual YouTube API key
         const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=10&key=${API_KEY}`;
 
         try {
