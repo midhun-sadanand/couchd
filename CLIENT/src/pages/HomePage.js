@@ -4,6 +4,7 @@ import MovieCard from '../components/common/MovieCard';
 import LoginPage from './LoginPage';
 import SignupPage from './SignupPage';
 
+
 function HomePage({ showLogin, showSignup, toggleLogin, toggleSignup }) {
   const [media, setMovies] = useState([]);
   const loginFormRef = useRef(null);
