@@ -9,8 +9,114 @@
 }
 
 body {
-  font-family: 'GraphikLight', sans-serif;
+  font-family: 'Inter', sans-serif;
 }
+
+@font-face {
+  font-family: 'GeneralSansMedium';
+  src: url('./fonts/GeneralSans_Complete/Fonts/OTF/GeneralSans-Medium.otf') format('opentype'); /* Adjust the path and file name if necessary */
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('./fonts/Inter-4.0/extras/otf/Inter-Regular.otf') format('opentype');
+  font-style: normal;
+}
+
+.status-indicator {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-right: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.status-to-consume {
+  background-color: #f0ad4e;
+  color: #fff;
+}
+
+.status-consuming {
+  background-color: #5bc0de;
+  color: #fff;
+}
+
+.status-consumed {
+  background-color: #5cb85c;
+  color: #fff;
+}
+
+.movie-card {
+  background-color: #333; /* Dark background color */
+  color: #fff; /* White text color */
+  border-radius: 8px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 10px;
+  width: 80%; 
+  margin-top: 10px;
+  margin-bottom: 10px; 
+  font-family: 'GeneralSansMedium', sans-serif; 
+}
+
+.movie-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.item-title {
+  display: flex;
+  align-items: center;
+}
+
+.medium-icon {
+  margin-right: 10px;
+}
+
+.remove-button {
+  background-color: #444;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 5px 10px;
+  margin-left: 10px;
+}
+
+.arrow {
+  transition: transform 0.3s ease;
+}
+
+.arrow-down {
+  transform: rotate(0deg);
+}
+
+.arrow-up {
+  transform: rotate(180deg);
+}
+
+.movie-card-content {
+  margin-top: 10px;
+}
+
+.iframe-container {
+  margin-top: 10px;
+}
+
+.notes {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #555;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+}
+
 
 .App-center {
   display: flex;
