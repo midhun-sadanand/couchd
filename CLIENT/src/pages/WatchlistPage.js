@@ -93,28 +93,44 @@ const WatchlistPage = () => {
         }
     };
 
+    const deleteWatchlist = async (deletedId) => {
+        if (window.confirm(`Are you sure you want to delete this list?`)) {
+            const { error } = await supabase
+                .from('watchlists')
+                .delete()
+                .match({ id: deletedId });
+
+            if (error) {
+                console.error('Error deleting list:', error.message);
+            } else {
+                setWatchlists(currentWatchlists => currentWatchlists.filter(list => list.id !== deletedId));
+            }
+        }
+    };
+
     return (
-        <div className="container mx-auto p-4">
-            <h1 className="text-xl font-bold">Your Watchlists</h1>
-            {watchlists.map((list) => (
-                <div key={list.id} className="p-2 border-b">
-                    <button className="text-blue-500 hover:text-blue-600" onClick={() => navigate(`/list/${username}/${list.name}`)}>
-                        {list.name}
-                    </button>
-                </div>
-            ))}
-            <div>
+        <div className="container mx-auto p-4 grid grid-cols-3">
+            <h1 className="text-xl font-bold col-span-3">Your Watchlists</h1>
+            <div className="col-span-3 flex justify-end">
                 <input
                     type="text"
                     value={watchlistName}
                     onChange={(e) => setWatchlistName(e.target.value)}
                     placeholder="Enter Watchlist Name"
-                    className="border p-2 mt-4"
+                    className="border p-2 my-4"
                 />
-                <button onClick={createWatchlist} className="ml-2 bg-blue-500 text-white p-2 rounded">
+                <button onClick={() => createWatchlist()} className="ml-2 my-4 bg-blue-500 text-white p-2 rounded">
                     Create Watchlist
                 </button>
             </div>
+            {watchlists.map((list) => (
+                <div key={list.id} className="p-2 m-4 border-2">
+                    <button className="text-blue-500 hover:text-blue-600" onClick={() => navigate(`/list/${username}/${list.name}`)}>
+                        {list.name}
+                    </button>
+                    <button className="block hover:underline" onClick={() => deleteWatchlist(list.id)}>remove</button>
+                </div>
+            ))}
         </div>
     );
 };
