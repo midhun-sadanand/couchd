@@ -55,18 +55,27 @@ const FriendsBar = ({ userId }) => {
         }
     };
 
+    const handleKeypress = e => {
+        if (e.keyCode === 13) {
+            sendFriendRequest();
+        }
+    };
+
     return (
         <div className="relative">
-            <input
-                type="text"
-                placeholder="Enter friend's name"
-                value={friendName}
-                onChange={searchFriends}
-                className="border p-2"
-            />
-            <button onClick={sendFriendRequest} className="ml-2 btn bg-blue-500 hover:bg-blue-700 text-white">
-                Send Request
-            </button>
+            <form>
+                <input
+                    type="text"
+                    placeholder="Enter friend's name"
+                    value={friendName}
+                    onChange={searchFriends}
+                    onKeypress={handleKeypress}
+                    className="border p-2"
+                />
+                <button onClick={sendFriendRequest} className="ml-2 btn bg-blue-500 hover:bg-blue-700 text-white">
+                    Send Request
+                </button>
+            </form>
             {showDropdown && searchResults.length > 0 && (
                 <div className="absolute mt-1 w-52 bg-white shadow-lg">
                     <ul>
