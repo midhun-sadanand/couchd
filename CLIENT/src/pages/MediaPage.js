@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
 import { supabase } from '../supabaseClient';
@@ -12,13 +12,28 @@ const MediaPage = () => {
     const [mediaItems, setMediaItems] = useState([]);
     const [watchlistId, setWatchlistId] = useState('');
     const [userId, setUserId] = useState('');
+    const [username, setUsername] = useState('Guest');
     const { watchlistName } = useParams();
+    const [openCards, setOpenCards] = useState({});
 
     useEffect(() => {
         async function fetchData() {
             const { data: user } = await supabase.auth.getUser();
             if (user) {
                 setUserId(user.user.id);
+                
+                // Fetch the username
+                const { data: profile, error } = await supabase
+                    .from('profiles')
+                    .select('username')
+                    .eq('user_id', user.user.id)
+                    .single();
+
+                if (error) {
+                    console.error('Error fetching user data:', error.message);
+                } else if (profile) {
+                    setUsername(profile.username);
+                }
             }
 
             const { data: watchlist } = await supabase
@@ -61,65 +76,102 @@ const MediaPage = () => {
         }
     };
 
-    
-    const SortableList = ({ items, onDelete, watchlistName }) => (
+    const handleNotesChange = async (id, notes) => {
+        const { error } = await supabase.from('media_items').update({ notes }).eq('id', id);
+        if (error) {
+            console.error('Error updating notes:', error.message);
+        } else {
+            setMediaItems(currentItems => currentItems.map(item => item.id === id ? { ...item, notes } : item));
+        }
+    };
+
+    const handleStatusChange = async (id, status) => {
+        const { error } = await supabase.from('media_items').update({ status }).eq('id', id);
+        if (error) {
+            console.error('Error updating status:', error.message);
+        } else {
+            setMediaItems(currentItems => currentItems.map(item => item.id === id ? { ...item, status } : item));
+        }
+    };
+
+    const handleRatingChange = async (id, rating) => {
+        const { error } = await supabase.from('media_items').update({ rating }).eq('id', id);
+        if (error) {
+            console.error('Error updating rating:', error.message);
+        } else {
+            setMediaItems(currentItems => currentItems.map(item => item.id === id ? { ...item, rating } : item));
+        }
+    };
+
+    const setIsOpen = useCallback((id, isOpen) => {
+        setOpenCards(prevOpenCards => ({ ...prevOpenCards, [id]: isOpen }));
+    }, []);
+
+    const SortableList = ({ items, onDelete }) => (
         <Droppable droppableId={`droppable-${watchlistId}`}>
-          {(provided) => (
-            <div
-              ref={provided.innerRef}
-              {...provided.droppableProps}>
-              {items.map((item, index) => (
-                <SortableItem key={item.id} item={item} index={index} onDelete={onDelete} />
-              ))}
-              {provided.placeholder}
-            </div>
-          )}
+            {(provided) => (
+                <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}>
+                    {items.map((item, index) => (
+                        <SortableItem key={item.id} item={item} index={index} onDelete={onDelete} />
+                    ))}
+                    {provided.placeholder}
+                </div>
+            )}
         </Droppable>
-      );
-      
-    const SortableItem = ({ item, index, onDelete }) => (
-      <Draggable draggableId={item.id.toString()} index={index}>
-        {(provided) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.draggableProps}
-            {...provided.dragHandleProps}>
-            <MovieCard
-              key={item.id}
-              id={item.id}
-              title={item.title}
-              medium={item.medium}
-              length={item.length}
-              date={item.release_date.substring(0, 4)}
-              synopsis={item.synopsis}
-              image={item.image}
-              url={item.url}
-              onDelete={() => onDelete(item.id, item.medium)}
-              index={index}
-            />
-          </div>
-        )}
-      </Draggable>
     );
-    
+
+    const SortableItem = ({ item, index, onDelete }) => (
+        <Draggable draggableId={item.id.toString()} index={index}>
+            {(provided) => (
+                <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}>
+                    <MovieCard
+                        key={item.id}
+                        id={item.id}
+                        title={item.title}
+                        medium={item.medium}
+                        length={item.length}
+                        date={item.release_date}
+                        synopsis={item.synopsis}
+                        image={item.image}
+                        url={item.url}
+                        creator={item.creator}
+                        status={item.status}
+                        notes={item.notes}
+                        rating={item.rating}
+                        onDelete={() => onDelete(item.id, item.medium)}
+                        onNotesChange={handleNotesChange}
+                        onStatusChange={handleStatusChange}
+                        onRatingChange={handleRatingChange}
+                        index={index}
+                        isOpen={openCards[item.id] || false}
+                        setIsOpen={setIsOpen}
+                        addedBy={username}
+                    />
+                </div>
+            )}
+        </Draggable>
+    );
+
     const onSortEnd = async (result) => {
         if (!result.destination) return;
-    
+
         const reorderedItems = arrayMove(mediaItems, result.source.index, result.destination.index);
         setMediaItems(reorderedItems);
-    
-        // Since you're using await, the function must be marked as async
+
         try {
-            await Promise.all(reorderedItems.map((item, index) => 
+            await Promise.all(reorderedItems.map((item, index) =>
                 supabase.from('media_items').update({ order: index }).match({ id: item.id })
             ));
         } catch (error) {
             console.error('Error updating order on backend:', error);
-            // Optionally rollback to previous state
             fetchMediaItems();
         }
     };
-    
 
     const onShare = async (friendId) => {
         if (!watchlistId) {
@@ -155,10 +207,13 @@ const MediaPage = () => {
                 image: imageUrl,
                 url: videoUrl,  // Storing YouTube video URL
                 release_date: item.snippet.publishedAt.substring(0, 10),
+                creator: item.snippet.channelTitle,
+                added_by: username,  // Adding the username who creates the card
+                status: 'to consume',  
                 order: mediaItems.length
             }])
-            .select();
-        } else { 
+                .select();
+        } else {
             const imageUrl = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '';
             newMedia = await supabase.from('media_items').insert([{
                 title: item.title || item.name,
@@ -166,18 +221,21 @@ const MediaPage = () => {
                 watchlist_id: (await supabase.from('watchlists').select('id').eq('name', watchlistName).single()).data.id,
                 image: imageUrl,
                 release_date: item.release_date || '',
+                creator: item.director || '',
+                added_by: username,  // Adding the username who creates the card
+                status: 'to consume',
                 order: mediaItems.length
             }])
-            .select();
+                .select();
         }
-    
+
         const { data, error } = newMedia;
         if (error) {
             console.error('Failed to add item:', error.message);
         } else {
             setMediaItems([...mediaItems, ...data]);
         }
-    };    
+    };
 
     const handleDeleteMediaItem = async (deletedId, medium) => {
         if (window.confirm(`Are you sure you want to delete this ${medium}?`)) {
