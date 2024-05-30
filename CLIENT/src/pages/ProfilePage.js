@@ -27,7 +27,6 @@ const ProfilePage = () => {
                 return;
             }
 
-
             setUserId(user.id);
 
 
@@ -89,7 +88,6 @@ const ProfilePage = () => {
     const updateToggle = (id) => {
         setToggle(id);
     }
-
 
 
 
