@@ -70,17 +70,24 @@ const FriendRequestsDropdown = ({ userId }) => {
 
     console.log(requests);
 
+
     return (
         <div>
-            <button onClick={() => setShowDropdown(!showDropdown)} className="btn">
-                Friend Requests ({requests.length})
+            <div className="flex justify-between items-center w-3/4">
+            <button onClick={() => setShowDropdown(!showDropdown)} className="btn flex">
+                <span className="border-2 rounded-full py-3 px-5 mx-2">{requests.length}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6 p-1 my-3">
+                    <path fill-rule="evenodd" d="M12.53 16.28a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 0 1 1.06-1.06L12 14.69l6.97-6.97a.75.75 0 1 1 1.06 1.06l-7.5 7.5Z" clip-rule="evenodd" />
+                </svg>
             </button>
+            <span className="p-2 mx-16">incoming</span>
+            </div>
             {showDropdown && requests.length > 0 && (
                 <div className="absolute bg-white shadow-md mt-2 rounded">
                     <ul>
                         {requests.map(request => (
                             <li key={request.id} className="p-2 border-b border-gray-200">
-                                Request from {request.sender ? request.sender.username : "Unknown"}
+                                <span className="mr-2">Request from {request.sender ? request.sender.username : "Unknown"}</span>
                                 <button onClick={() => handleResponse(request.id, 'accepted')} className="ml-2 btn bg-green-500 hover:bg-green-600">
                                     Accept
                                 </button>
