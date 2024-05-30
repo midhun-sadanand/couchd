@@ -89,40 +89,60 @@ const ProfilePage = () => {
         setToggle(id);
     }
 
+    const deleteFriend = async (deletedId) => {
+        if (window.confirm(`Are you sure you want to delete this friend?`)) {
+            const { error } = await supabase
+                .from('friends')
+                .delete()
+                .eq( 'user_id' , userId )
+                .eq( 'friend_id' , deletedId )
 
+            if (error) {
+                console.error('Error deleting friend:', error.message);
+            } else {
+                setFriends(currentFriends => currentFriends.filter(friend => friend.id !== deletedId ));
+            }
+        }
+    };
 
     return (
-        <div className="w-screen h-screen flex flex-col items-center pt-20">
-            <h1 className="text-2xl text-center mb-10">
-                Welcome back, <span className="underline">{username}</span>
-            </h1>
-            <div className="w-3/4">
-                <ul className="tab-bar flex justify-center border-2 bg-gray-300">
-                    <li className="px-4 py-2 cursor-pointer hover:bg-gray-500" onClick={()=>updateToggle(1)}>Add Item</li>
-                    <li className="px-7 py-2 cursor-pointer hover:bg-gray-500" onClick={()=>updateToggle(2)}>Lists</li>
-                    <li className="px-4 py-2 cursor-pointer hover:bg-gray-500" onClick={()=>updateToggle(3)}>Friends</li>
-                </ul>
-                <div className={toggle === 1 ? "show" : "hidden"}>
-                    <h1>Add media:</h1>
-                    <p>this is where you add media!</p>
+        <div className="w-screen h-screen flex flex-col items-center pt-10">
+            <div className="flex justify-end w-5/6">
+                <div className="tab-bar grid grid-col-1">
+                    <span className="py-1 cursor-pointer text-right border-b border-black" onClick={()=>updateToggle(1)}>Profile</span>
+                    <span className="py-1 cursor-pointer text-right border-b border-black" onClick={()=>updateToggle(2)}>Lists</span>
+                    <span className="pl-4 py-1 cursor-pointer text-right border-b border-black" onClick={()=>updateToggle(3)}>Friends</span>
                 </div>
-                <div className={toggle === 2 ? "show" : "hidden"}>
+            </div>
+                <div className={toggle === 1 ? "show w-5/6" : "hidden"}>
+                    <h1 className="text-2xl mb-16 text-left">profpic {username}</h1>
+                    <div className="mt-16">
+                        <span className="border-2 m-4 rounded-full py-8 px-4">lists: {friends.length}</span>
+                        <span className="border-2 m-4 rounded-full py-8 px-4">to consume: </span>
+                        <span className="border-2 m-4 rounded-full py-8 px-4">consuming: </span>
+                        <span className="border-2 m-4 rounded-full py-8 px-4">consumed: </span>
+                    </div>
+                </div>
+                <div className={toggle === 2 ? "w-screen" : "hidden"}>
                     <WatchlistPage />
                 </div>
                 <div className={toggle === 3 ? "grid grid-cols-2" : "hidden"}>
-                    <div className="h-screen border-r-2">
+                    <div className="h-screen border-r-2 flex flex-col items-center">
+                        <div className="m-6">requests</div>
                         <div className="m-6"><FriendsBar userId={userId}/></div>
                         <FriendRequestsDropdown userId={userId}/>
                     </div>
-                    <div>
-                    <h2 className="p-2 mt-4">Friends: </h2>
-                    {friends.map(friend => (
-                    <p>{friend.username}</p>
-                ))}
+                    <div className="flex flex-col items-center">
+                        <h2 className="p-2 my-4">friends</h2>
+                        {friends.map(friend => (
+                        <div className="border-b flex justify-between w-3/4">
+                            {friend.username}
+                            <button className="hover:underline" onClick={() => deleteFriend(friend.id)}>remove</button>
+                        </div>
+                        ))}
                     </div>
                 </div>
             </div>
-        </div>
     );
 };
 

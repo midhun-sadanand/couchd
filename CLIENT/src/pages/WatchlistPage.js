@@ -122,7 +122,7 @@ const WatchlistPage = () => {
 
 
     return (
-        <div className="container mx-auto p-4 grid grid-cols-3">
+        <div className="container mx-auto p-4 grid grid-cols-3 w-full">
             <h1 className="text-xl font-bold col-span-3">Your Watchlists</h1>
             <div className="col-span-3 flex justify-end">
                 <input
