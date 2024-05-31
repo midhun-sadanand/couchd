@@ -3,12 +3,14 @@ import { Draggable } from 'react-beautiful-dnd';
 import { motion, AnimatePresence } from 'framer-motion';
 import VideoPlayer from './VideoPlayer'; // Adjust the path as needed
 import NotesInput from './Notes'; // Ensure this path is correct
+import Rating from './Rating'; // Ensure this path is correct
 
 const MovieCard = ({
   id, title, medium, length, date, synopsis, image, url, creator, addedBy, status, notes, rating, onDelete, onNotesChange, onStatusChange, onRatingChange, index, isOpen, setIsOpen
 }) => {
   const [localRating, setLocalRating] = useState(rating);
   const [localStatus, setLocalStatus] = useState(status);
+  const [notesOpen, setNotesOpen] = useState(false);
   const hasChanges = useRef(false);
 
   useEffect(() => {
@@ -58,16 +60,6 @@ const MovieCard = ({
   const formatDate = (date) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Intl.DateTimeFormat('en-US', options).format(new Date(date));
-  };
-
-  const incrementRating = () => {
-    const newRating = Math.min(5, parseFloat((localRating + 0.25).toFixed(2)));
-    handleRatingChange(newRating);
-  };
-
-  const decrementRating = () => {
-    const newRating = Math.max(0, parseFloat((localRating - 0.25).toFixed(2)));
-    handleRatingChange(newRating);
   };
 
   const handleIcon = (medium) => {
@@ -147,52 +139,36 @@ const MovieCard = ({
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                className="p-4 flex"
+                className="p-4 flex flex-col"
               >
-                {url && url.includes('youtube') && (
-                  <div className="w-1/2">
-                    <VideoPlayer url={url} title={title} />
-                  </div>
-                )}
-                <div className="w-1/2 pl-4 flex flex-col justify-between">
-                  <div>
-                    <div className="text-sm text-gray-400 text-right">
-                      Added by <span className="underline">{addedBy}</span>
-                      <div>{formatDate(new Date())}</div>
+                <div className="flex">
+                  {url && url.includes('youtube') && (
+                    <div className="w-1/2 mb-4">
+                      <VideoPlayer url={url} title={title} />
                     </div>
-                    <div className="text-sm text-gray-400 flex items-center justify-end">
-                      Rating:
-                      <div className="flex items-center ml-2">
-                        <input
-                          type="text"
-                          className="p-1 bg-gray-200 text-gray-800 rounded w-12 text-center"
-                          value={localRating}
-                          onChange={(e) => handleRatingChange(parseFloat(e.target.value) || 0)}
-                          onBlur={(e) => handleRatingChange(parseFloat(e.target.value) || 0)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.target.blur();
-                            }
-                          }}
-                        />
-                        <div className="flex flex-col ml-2">
-                          <button onClick={incrementRating} className="p-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                            </svg>
-                          </button>
-                          <button onClick={decrementRating} className="p-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15" />
-                            </svg>
-                          </button>
-                        </div>
+                  )}
+                  <div className="w-1/2 pl-4 flex flex-col justify-between">
+                    <div>
+                      <div className="text-sm text-gray-400 text-right">
+                        Added by <span className="underline">{addedBy}</span>
+                        <div>{formatDate(new Date())}</div>
+                      </div>
+                      <div className="mt-2 flex justify-end">
+                        <Rating rating={localRating} onRatingChange={handleRatingChange} />
                       </div>
                     </div>
                   </div>
-                  <div className="w-full pt-4">
-                    <NotesInput initialNotes={notes} onChange={(newNotes) => onNotesChange(id, newNotes)} />
+                </div>
+                <div className="w-full pt-4 mt-auto">
+                  <div className="flex items-center cursor-pointer" onClick={() => setNotesOpen(!notesOpen)}>
+                    <div className="text-sm text-gray-400">thoughts</div>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className={`w-4 h-4 ml-1 ${notesOpen ? 'transform rotate-180' : ''}`}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+                    </svg>
                   </div>
+                  {notesOpen && (
+                    <NotesInput initialNotes={notes} onChange={(newNotes) => onNotesChange(id, newNotes)} />
+                  )}
                 </div>
               </motion.div>
             )}

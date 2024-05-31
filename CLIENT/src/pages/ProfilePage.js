@@ -27,7 +27,6 @@ const ProfilePage = () => {
                 return;
             }
 
-
             setUserId(user.id);
 
 
