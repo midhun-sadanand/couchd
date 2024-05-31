@@ -95,8 +95,7 @@ const ProfilePage = () => {
             const { error } = await supabase
                 .from('friends')
                 .delete()
-                .eq( 'user_id' , userId )
-                .eq( 'friend_id' , deletedId )
+                .or(`and(user_id.eq.${userId},friend_id.eq.${deletedId}),and(user_id.eq.${deletedId},friend_id.eq.${userId})`)
 
             if (error) {
                 console.error('Error deleting friend:', error.message);
@@ -115,10 +114,13 @@ const ProfilePage = () => {
                     <span className="pl-4 py-1 cursor-pointer text-right border-b border-black" onClick={()=>updateToggle(3)}>Friends</span>
                 </div>
             </div>
-                <div className={toggle === 1 ? "show w-5/6" : "hidden"}>
+                <div className={toggle === 1 ? "w-5/6" : "hidden"}>
                     <h1 className="text-2xl mb-16 text-left">profpic {username}</h1>
-                    <div className="mt-16">
-                        <span className="border-2 m-4 rounded-full py-8 px-4">lists: {friends.length}</span>
+                    <div className="mt-16 grid grid-cols-4">
+                        <div className="border-2 m-4 rounded-full py-8 px-4 grid grid-cols-1">
+                            <span>lists: </span>
+                            <span>{friends.length}</span>
+                        </div>
                         <span className="border-2 m-4 rounded-full py-8 px-4">to consume: </span>
                         <span className="border-2 m-4 rounded-full py-8 px-4">consuming: </span>
                         <span className="border-2 m-4 rounded-full py-8 px-4">consumed: </span>

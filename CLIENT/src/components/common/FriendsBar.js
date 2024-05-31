@@ -40,10 +40,38 @@ const FriendsBar = ({ userId }) => {
         setShowDropdown(false);
     };
 
+    const checkAccepted = async (userId, requestId) => {
+        const { data, error } = await supabase
+            .from('friends')
+            .select()
+            .match({ 'user_id' : userId , 'friend_id' : requestId, 'status' : 'accepted'})
+        
+        console.log('this is the data: ', data);
+        
+        if (error) {
+            console.error('Error checking row existence: ', error);
+            return false;
+        } else if (data.length > 0) {
+            console.log('i am returning');
+            return true;
+        } else {
+            console.log('hello');
+            return false;
+        }
+    }
+
+
     const sendFriendRequest = async () => {
         if (!selectedFriendId) return;
+        setFriendName('');
 
         try {
+            const isAccepted = await checkAccepted(userId, selectedFriendId);
+            if (isAccepted) {
+                alert('You are already friends!');
+                return;
+            }
+
             const { error } = await supabase
                 .from('friend_requests')
                 .insert([{ sender_id: userId, receiver_id: selectedFriendId }]);
