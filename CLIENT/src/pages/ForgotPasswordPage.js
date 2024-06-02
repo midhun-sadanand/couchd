@@ -1,6 +1,6 @@
 // ForgotPasswordPage.js
 import React, { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import supabase from '../utils/supabaseClient';
 
 const ForgotPasswordPage = () => {
     const [email, setEmail] = useState('');

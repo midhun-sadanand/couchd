@@ -1,22 +1,24 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../supabaseClient';
-import FriendsBar from './FriendsBar'
+import supabase from '../../utils/supabaseClient';
+import { useAuth } from '@clerk/clerk-react';
 
 const ProfileHeader = () => {
     const navigate = useNavigate();
+    const { signOut: clerkSignOut } = useAuth();
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
+        await clerkSignOut();
         navigate('/');
     };
 
     const goToWatchlists = () => {
         navigate('/lists');  // Navigation to watchlist page
     };
-    
+
     const goToProfile = () => {
-        navigate('/profile');  // Navigation to watchlist page
+        navigate('/profile');  // Navigation to profile page
     };
 
     return (

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
-import { supabase } from '../supabaseClient';
+import supabase from '../utils/supabaseClient';
 import MovieCard from '../components/common/MovieCard';
 import MovieSearch from '../components/common/MovieSearch';
 import YoutubeSearch from '../components/common/YoutubeSearch';

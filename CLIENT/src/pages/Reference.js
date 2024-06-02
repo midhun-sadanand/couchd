@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
-import { supabase } from '../../supabaseClient'; // Adjust the path as needed
+import supabase from '../../supabaseClient'; // Adjust the path as needed
 
 // Drag handle component
 const DragHandle = ({ id, index }) => (

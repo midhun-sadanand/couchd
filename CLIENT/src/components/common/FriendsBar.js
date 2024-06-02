@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '../../supabaseClient';  // Adjust path as needed
+import supabase from '../../utils/supabaseClient';  // Adjust path as needed
 
 const FriendsBar = ({ userId }) => {
     const [friendName, setFriendName] = useState('');
