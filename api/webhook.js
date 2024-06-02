@@ -14,6 +14,8 @@ export default async function handler(req, res) {
       const emailAddress = data.email_addresses[0].email_address;
       const username = data.username;
       
+      console.log('user data:', clerkId, emailAddress, username);
+      
       const { data: supabaseData, error } = await supabase
         .from('profiles')
         .insert([
