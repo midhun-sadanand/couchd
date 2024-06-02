@@ -8,9 +8,15 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
-      const { data: { id: clerkId, emailAddress, username } } = req.body;
+      const { data } = req.body;
 
-      const { data, error } = await supabase
+      const clerkId = data.id;
+      const emailAddress = data.email_addresses[0].email_address;
+      const username = data.username;
+
+      console.log(username);
+
+      const { data: supabaseData, error } = await supabase
         .from('profiles')
         .insert([
           { clerk_id: clerkId, email: emailAddress, username: username }
