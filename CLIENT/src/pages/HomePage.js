@@ -12,6 +12,24 @@ function HomePage({ showLogin, showSignup, toggleLogin, toggleSignup }) {
     }
   }, [isSignedIn, navigate]);
 
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        if (showLogin) toggleLogin();
+        if (showSignup) toggleSignup();
+      }
+    };
+
+    // Add event listener for keydown events
+    window.addEventListener('keydown', handleKeyDown);
+
+    // Clean up event listener
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showLogin, showSignup, toggleLogin, toggleSignup]); // Depend on the state variables and toggle functions
+
+
   return (
     <div className={`bg-[#232323] text-white min-h-screen relative flex items-center justify-center`}>
       <div className="container mx-auto mt-10 px-4">
