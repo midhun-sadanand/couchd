@@ -8,13 +8,13 @@ import Rating from './Rating'; // Ensure this path is correct
 const MovieCard = ({
   id, title, medium, length, date, synopsis, image, url, creator, addedBy, status, notes, rating, onDelete, onNotesChange, onStatusChange, onRatingChange, index, isOpen, setIsOpen
 }) => {
-  const [localRating, setLocalRating] = useState(rating);
-  const [localStatus, setLocalStatus] = useState(status);
+  const [localRating, setLocalRating] = useState(rating || 0); // Default rating to 0
+  const [localStatus, setLocalStatus] = useState(status || 'to consume');
   const [notesOpen, setNotesOpen] = useState(false);
   const hasChanges = useRef(false);
 
   useEffect(() => {
-    setLocalRating(rating);
+    setLocalRating(rating || 0);
   }, [rating]);
 
   useEffect(() => {

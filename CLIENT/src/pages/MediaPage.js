@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
+import { useUser, useClerk } from '@clerk/clerk-react'; // Import Clerk's useUser and useClerk hooks
 import supabase from '../utils/supabaseClient';
 import MovieCard from '../components/common/MovieCard';
 import MovieSearch from '../components/common/MovieSearch';
@@ -11,51 +12,35 @@ import { arrayMoveImmutable as arrayMove } from 'array-move';
 const MediaPage = () => {
     const [mediaItems, setMediaItems] = useState([]);
     const [watchlistId, setWatchlistId] = useState('');
-    const [userId, setUserId] = useState('');
-    const [username, setUsername] = useState('Guest');
+    const { user: clerkUser } = useUser(); // Get Clerk user
+    const { client: clerkClient } = useClerk(); // Get Clerk client
     const { watchlistName } = useParams();
     const [openCards, setOpenCards] = useState({});
 
     useEffect(() => {
         async function fetchData() {
-            const { data: user } = await supabase.auth.getUser();
-            if (user) {
-                setUserId(user.user.id);
-                
-                // Fetch the username
-                const { data: profile, error } = await supabase
-                    .from('profiles')
-                    .select('username')
-                    .eq('user_id', user.user.id)
+            if (clerkUser) {
+                const { data: watchlist } = await supabase
+                    .from('watchlists')
+                    .select('id')
+                    .eq('name', watchlistName)
                     .single();
 
-                if (error) {
-                    console.error('Error fetching user data:', error.message);
-                } else if (profile) {
-                    setUsername(profile.username);
+                if (watchlist) {
+                    setWatchlistId(watchlist.id);
+                    const { data: media } = await supabase
+                        .from('media_items')
+                        .select('*')
+                        .eq('watchlist_id', watchlist.id)
+                        .order('order', { ascending: true });
+
+                    setMediaItems(media || []);
                 }
-            }
-
-            const { data: watchlist } = await supabase
-                .from('watchlists')
-                .select('id')
-                .eq('name', watchlistName)
-                .single();
-
-            if (watchlist) {
-                setWatchlistId(watchlist.id);
-                const { data: media } = await supabase
-                    .from('media_items')
-                    .select('*')
-                    .eq('watchlist_id', watchlist.id)
-                    .order('order', { ascending: true });
-
-                setMediaItems(media || []);
             }
         }
 
         fetchData();
-    }, [watchlistName]);
+    }, [watchlistName, clerkUser]);
 
     const fetchMediaItems = async () => {
         const { data: watchlist } = await supabase
@@ -150,7 +135,7 @@ const MediaPage = () => {
                         index={index}
                         isOpen={openCards[item.id] || false}
                         setIsOpen={setIsOpen}
-                        addedBy={username}
+                        addedBy={clerkUser.username || 'Guest'} // Update username handling
                     />
                 </div>
             )}
@@ -203,13 +188,13 @@ const MediaPage = () => {
             newMedia = await supabase.from('media_items').insert([{
                 title: item.snippet.title,
                 medium: 'YouTube',
-                watchlist_id: (await supabase.from('watchlists').select('id').eq('name', watchlistName).single()).data.id,
+                watchlist_id: watchlistId,
                 image: imageUrl,
                 url: videoUrl,  // Storing YouTube video URL
                 release_date: item.snippet.publishedAt.substring(0, 10),
                 creator: item.snippet.channelTitle,
-                added_by: username,  // Adding the username who creates the card
-                status: 'to consume',  
+                added_by: clerkUser.username || 'Guest',  // Adding the username who creates the card
+                status: 'to consume',
                 order: mediaItems.length
             }])
                 .select();
@@ -218,11 +203,11 @@ const MediaPage = () => {
             newMedia = await supabase.from('media_items').insert([{
                 title: item.title || item.name,
                 medium: item.media_type === 'movie' ? 'Movie' : 'TV',
-                watchlist_id: (await supabase.from('watchlists').select('id').eq('name', watchlistName).single()).data.id,
+                watchlist_id: watchlistId,
                 image: imageUrl,
                 release_date: item.release_date || '',
                 creator: item.director || '',
-                added_by: username,  // Adding the username who creates the card
+                added_by: clerkUser.username || 'Guest',  // Adding the username who creates the card
                 status: 'to consume',
                 order: mediaItems.length
             }])
@@ -260,7 +245,7 @@ const MediaPage = () => {
             <DragDropContext onDragEnd={onSortEnd}>
                 <SortableList items={mediaItems} onDelete={(id, medium) => handleDeleteMediaItem(id, medium)} />
             </DragDropContext>
-            {userId && <ShareWatchlist onShare={onShare} userId={userId} />}
+            {clerkUser && <ShareWatchlist onShare={onShare} userId={clerkUser.id} />}
         </div>
     );
 };

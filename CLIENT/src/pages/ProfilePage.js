@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useClerk, useUser } from '@clerk/clerk-react';
+import { useUser, useClerk } from '@clerk/clerk-react';
 import { SupabaseContext } from '../utils/auth'; // Import the context directly
-import WatchlistPage from './WatchlistPage';
 import FriendsBar from '../components/common/FriendsBar';
 import FriendRequestsDropdown from '../components/common/FriendRequests';
 
@@ -10,8 +9,8 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const { user: clerkUser } = useUser(); // Get Clerk user
   const { client: supabase, isLoading: supabaseLoading } = useContext(SupabaseContext); // Use context to get Supabase client and its loading state
+  const { client: clerkClient } = useClerk(); // Get Clerk client
 
-  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [friends, setFriends] = useState([]);
 
@@ -26,52 +25,42 @@ const ProfilePage = () => {
       return;
     }
 
-    const fetchProfileData = async () => {
+    const fetchFriends = async () => {
       if (!clerkUser) {
         console.error("No Clerk user information available.");
-        navigate('/login');
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('clerk_id', clerkUser.id)
-        .single();
-
-      if (error) {
-        console.log("CLERKKK", clerkUser.id)
-        console.error('Error fetching Supabase profile:', error.message);
         navigate('/');
         return;
       }
 
-      setProfile(data);
-      setLoading(false);
-    };
-
-    fetchProfileData();
-  }, [clerkUser, navigate, supabase, supabaseLoading]);
-
-  useEffect(() => {
-    if (!profile) return;
-
-    const fetchFriends = async () => {
-      const { data, error } = await supabase
+      const { data: friendsData, error } = await supabase
         .from('friends')
-        .select('friend_id, friend_profile:friend_id (username)')
-        .eq('user_id', profile.user_id)
+        .select('friend_id')
+        .eq('user_id', clerkUser.id)
         .eq('status', 'accepted');
 
       if (error) {
         console.error('Error fetching friends:', error.message);
-      } else {
-        setFriends(data);
+        return;
       }
+
+      const friendsDetails = await Promise.all(
+        friendsData.map(async (friend) => {
+          try {
+            const friendDetails = await clerkClient.users.getUser(friend.friend_id);
+            return { id: friend.friend_id, username: friendDetails.username };
+          } catch (error) {
+            console.error('Error fetching friend details:', error.message);
+            return null;
+          }
+        })
+      );
+
+      setFriends(friendsDetails.filter(friend => friend !== null));
+      setLoading(false);
     };
 
     fetchFriends();
-  }, [profile, supabase]);
+  }, [clerkUser, navigate, supabase, supabaseLoading, clerkClient]);
 
   if (loading || supabaseLoading) {
     return <div>Loading...</div>;
@@ -86,16 +75,12 @@ const ProfilePage = () => {
           <span className="py-1 cursor-pointer text-right border-b border-black">Friends</span>
         </div>
       </div>
-      <h1 className="text-2xl mb-16 text-center">{profile ? `Profile: ${profile.username}` : 'No Profile Data'}</h1>
-      <div>
-        <strong>Email:</strong> {clerkUser.emailAddresses.length > 0 ? clerkUser.emailAddresses[0].emailAddress : 'No email available'}
-        <br/>
-        <strong>Account Created:</strong> {new Date(clerkUser.createdAt).toLocaleString()}
-      </div>
+      <h1 className="text-2xl mb-16 text-center">{`Welcome back, ${clerkUser.username || 'No Profile Data'}`}</h1>
+      <FriendsBar userId={clerkUser.id} />
       <div className={friends.length > 0 ? "grid grid-cols-2" : "hidden"}>
         {friends.map(friend => (
           <div key={friend.id} className="border-b flex justify-between w-3/4">
-            {friend.friend_profile.username}
+            {friend.username}
             {/* Add delete button or other interaction */}
           </div>
         ))}
@@ -105,6 +90,117 @@ const ProfilePage = () => {
 };
 
 export default ProfilePage;
+
+
+// PREVIOUS RUNNING VERSION (WRONG BECAUSE IT USED PROFILE TABLE)
+
+// import React, { useEffect, useState, useContext } from 'react';
+// import { useNavigate } from 'react-router-dom';
+// import { useClerk, useUser } from '@clerk/clerk-react';
+// import { SupabaseContext } from '../utils/auth'; // Import the context directly
+// import WatchlistPage from './WatchlistPage';
+// import FriendsBar from '../components/common/FriendsBar';
+// import FriendRequestsDropdown from '../components/common/FriendRequests';
+
+// const ProfilePage = () => {
+//   const navigate = useNavigate();
+//   const { user: clerkUser } = useUser(); // Get Clerk user
+//   const { client: supabase, isLoading: supabaseLoading } = useContext(SupabaseContext); // Use context to get Supabase client and its loading state
+
+//   const [profile, setProfile] = useState(null);
+//   const [loading, setLoading] = useState(true);
+//   const [friends, setFriends] = useState([]);
+
+//   useEffect(() => {
+//     if (supabaseLoading) {
+//       console.log("Supabase client is still loading");
+//       return; // Do nothing while the client is loading
+//     }
+//     if (!supabase) {
+//       console.error("Supabase client is not available");
+//       navigate('/');
+//       return;
+//     }
+
+//     const fetchProfileData = async () => {
+//       if (!clerkUser) {
+//         console.error("No Clerk user information available.");
+//         navigate('/login');
+//         return;
+//       }
+
+//       const { data, error } = await supabase
+//         .from('profiles')
+//         .select('*')
+//         .eq('clerk_id', clerkUser.id)
+//         .single();
+
+//       if (error) {
+//         console.log("CLERKKK", clerkUser.id)
+//         console.error('Error fetching Supabase profile:', error.message);
+//         navigate('/');
+//         return;
+//       }
+
+//       setProfile(data);
+//       setLoading(false);
+//     };
+
+//     fetchProfileData();
+//   }, [clerkUser, navigate, supabase, supabaseLoading]);
+
+//   useEffect(() => {
+//     if (!profile) return;
+
+//     const fetchFriends = async () => {
+//       const { data, error } = await supabase
+//         .from('friends')
+//         .select('friend_id, friend_profile:friend_id (username)')
+//         .eq('user_id', profile.user_id)
+//         .eq('status', 'accepted');
+
+//       if (error) {
+//         console.error('Error fetching friends:', error.message);
+//       } else {
+//         setFriends(data);
+//       }
+//     };
+
+//     fetchFriends();
+//   }, [profile, supabase]);
+
+//   if (loading || supabaseLoading) {
+//     return <div>Loading...</div>;
+//   }
+
+//   return (
+//     <div className="w-screen h-screen flex flex-col items-center pt-10">
+//       <div className="flex justify-end w-5/6">
+//         <div className="tab-bar grid grid-cols-3">
+//           <span className="py-1 cursor-pointer text-right border-b border-black">Profile</span>
+//           <span className="py-1 cursor-pointer text-right border-b border-black">Lists</span>
+//           <span className="py-1 cursor-pointer text-right border-b border-black">Friends</span>
+//         </div>
+//       </div>
+//       <h1 className="text-2xl mb-16 text-center">{profile ? `Profile: ${profile.username}` : 'No Profile Data'}</h1>
+//       <div>
+//         <strong>Email:</strong> {clerkUser.emailAddresses.length > 0 ? clerkUser.emailAddresses[0].emailAddress : 'No email available'}
+//         <br/>
+//         <strong>Account Created:</strong> {new Date(clerkUser.createdAt).toLocaleString()}
+//       </div>
+//       <div className={friends.length > 0 ? "grid grid-cols-2" : "hidden"}>
+//         {friends.map(friend => (
+//           <div key={friend.id} className="border-b flex justify-between w-3/4">
+//             {friend.friend_profile.username}
+//             {/* Add delete button or other interaction */}
+//           </div>
+//         ))}
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default ProfilePage;
 
 
 // =====
