@@ -8,23 +8,114 @@
   src: url('./fonts/graphik/GraphikLight.otf') format('opentype');
 }
 
+@font-face {
+  font-family: 'EinaSemibold';
+  src: url('./fonts/eina/eina-03-semibold.ttf') format('truetype');
+}
+
 body, html, #root {
   margin: 0;
   padding: 0;
   height: 100%;
   background-color: #171717; /* Tailwind's gray-900 */
+  ;
+}
+
+.plus-button {
+  background-color: #d1d5db; /* Tailwind gray-300 */
+  border-radius: 50%;
+  padding: 16px; /* Tailwind p-4 */
+  color: #374151; /* Tailwind gray-700 */
+  transition: background-color 0.3s;
+}
+
+.plus-button:hover {
+  background-color: #9ca3af; /* Tailwind gray-400 */
+}
+
+.modal {
+  background-color: rgba(0, 0, 0, 0.5); /* Tailwind black with opacity-50 */
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.modal-content {
+  background-color: #ffffff; /* Tailwind white */
+  padding: 24px; /* Tailwind p-6 */
+  border-radius: 8px; /* Tailwind rounded-lg */
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); /* Tailwind shadow-lg */
+  width: 33.3333%; /* Tailwind w-1/3 */
+}
+
+.watchlist-widget {
+  background-color: #1c1c1c;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 300px;
+}
+
+.title-container {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.watchlist-widget .text-2xl {
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.watchlist-widget .text-sm {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.watchlist-widget .flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.watchlist-widget .flex-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.watchlist-widget .text-red-500 {
+  color: #f87171;
+}
+
+.watchlist-widget .text-yellow-500 {
+  color: #fbbf24;
+}
+
+.watchlist-widget .text-green-500 {
+  color: #34d399;
 }
 
 header {
-  background-color: #1a202c; /* Tailwind's gray-900 */
+  background-color: #0a0a0d; /* Tailwind's gray-900 */
 }
 
 main {
-  background-color: #1a202c; /* Tailwind's gray-900 */
+  background-color: #0a0a0d; /* Tailwind's gray-900 */
 }
 
 .footer {
-  background-color: #1a202c; /* Tailwind's gray-900 */
+  background-color: #0a0a0d; /* Tailwind's gray-900 */
 }
 
 .blur-bg::before {

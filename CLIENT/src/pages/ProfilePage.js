@@ -67,12 +67,12 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="w-screen h-screen flex flex-col items-center pt-10">
+    <div className="w-screen h-screen flex flex-col items-center pt-10 text-[#e6e6e6]">
       <div className="flex justify-end w-5/6">
         <div className="tab-bar grid grid-cols-3">
-          <span className="py-1 cursor-pointer text-right border-b border-black">Profile</span>
-          <span className="py-1 cursor-pointer text-right border-b border-black">Lists</span>
-          <span className="py-1 cursor-pointer text-right border-b border-black">Friends</span>
+          <span className="py-1 cursor-pointer text-right border-b border-[#e6e6e6]">Profile</span>
+          <span className="py-1 cursor-pointer text-right border-b border-[#e6e6e6]">Lists</span>
+          <span className="py-1 cursor-pointer text-right border-b border-[#e6e6e6]">Friends</span>
         </div>
       </div>
       <h1 className="text-2xl mb-16 text-center">{`Welcome back, ${clerkUser.username || 'No Profile Data'}`}</h1>
