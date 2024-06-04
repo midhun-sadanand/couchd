@@ -51,7 +51,7 @@ const WatchlistPage = () => {
         .from('watchlist_shares')
         .select(`
           watchlist_id,
-          watchlist:watchlist_id (id, name, user_id)
+          watchlist:watchlist_id (id, name, user_id, description, tags)
         `)
         .eq('shared_with_user_id', userId);
 
@@ -151,11 +151,12 @@ const WatchlistPage = () => {
           unwatchedCount={list.unwatchedCount}
           watchingCount={list.watchingCount}
           watchedCount={list.watchedCount}
+          tags={list.tags || []} // Ensure tags is always an array
         />
       ))}
       <button 
         onClick={() => setShowModal(true)} 
-        className="fixed bottom-4 right-4 bg-[#303035] bg-opacity-80 rounded-full p-4 text-[#ffffff] focus:outline-none hover:bg-opacity-100"
+        className="fixed bottom-20 right-20 bg-[#303035] bg-opacity-80 rounded-full p-4 text-[#ffffff] focus:outline-none hover:bg-opacity-100"
       >
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-6 h-6">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

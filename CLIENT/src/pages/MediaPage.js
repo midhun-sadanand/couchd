@@ -12,52 +12,75 @@ import { arrayMoveImmutable as arrayMove } from 'array-move';
 const MediaPage = () => {
     const [mediaItems, setMediaItems] = useState([]);
     const [watchlistId, setWatchlistId] = useState('');
-    const { user: clerkUser } = useUser(); // Get Clerk user
-    const { client: clerkClient } = useClerk(); // Get Clerk client
+    const { user: clerkUser, isLoaded } = useUser(); // Get Clerk user and isLoaded property
     const { watchlistName } = useParams();
     const [openCards, setOpenCards] = useState({});
 
     useEffect(() => {
         async function fetchData() {
-            if (clerkUser) {
-                const { data: watchlist } = await supabase
-                    .from('watchlists')
-                    .select('id')
-                    .eq('name', watchlistName)
-                    .single();
+            if (isLoaded && clerkUser) {
+                try {
+                    const { data: watchlist, error: watchlistError } = await supabase
+                        .from('watchlists')
+                        .select('id')
+                        .eq('name', watchlistName)
+                        .single();
 
-                if (watchlist) {
-                    setWatchlistId(watchlist.id);
-                    const { data: media } = await supabase
-                        .from('media_items')
-                        .select('*')
-                        .eq('watchlist_id', watchlist.id)
-                        .order('order', { ascending: true });
+                    if (watchlistError) {
+                        throw watchlistError;
+                    }
 
-                    setMediaItems(media || []);
+                    if (watchlist) {
+                        setWatchlistId(watchlist.id);
+                        const { data: media, error: mediaError } = await supabase
+                            .from('media_items')
+                            .select('*')
+                            .eq('watchlist_id', watchlist.id)
+                            .order('order', { ascending: true });
+
+                        if (mediaError) {
+                            throw mediaError;
+                        }
+
+                        setMediaItems(media || []);
+                    }
+                } catch (error) {
+                    console.error('Error fetching data:', error.message);
                 }
             }
         }
 
         fetchData();
-    }, [watchlistName, clerkUser]);
+    }, [watchlistName, clerkUser, isLoaded]);
 
     const fetchMediaItems = async () => {
-        const { data: watchlist } = await supabase
-            .from('watchlists')
-            .select('id')
-            .eq('name', watchlistName)
-            .single();
+        try {
+            const { data: watchlist, error: watchlistError } = await supabase
+                .from('watchlists')
+                .select('id')
+                .eq('name', watchlistName)
+                .single();
 
-        if (watchlist) {
-            setWatchlistId(watchlist.id);
-            const { data: media } = await supabase
-                .from('media_items')
-                .select('*')
-                .eq('watchlist_id', watchlist.id)
-                .order('order', { ascending: true });
+            if (watchlistError) {
+                throw watchlistError;
+            }
 
-            setMediaItems(media || []);
+            if (watchlist) {
+                setWatchlistId(watchlist.id);
+                const { data: media, error: mediaError } = await supabase
+                    .from('media_items')
+                    .select('*')
+                    .eq('watchlist_id', watchlist.id)
+                    .order('order', { ascending: true });
+
+                if (mediaError) {
+                    throw mediaError;
+                }
+
+                setMediaItems(media || []);
+            }
+        } catch (error) {
+            console.error('Error fetching media items:', error.message);
         }
     };
 

@@ -1,114 +1,74 @@
-import React, { useState } from 'react';
-import { useUser, useClerk } from '@clerk/clerk-react'; // Import Clerk's useUser and useClerk hooks
-import supabase from '../../utils/supabaseClient';  // Adjust path as needed
+import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-const FriendsBar = ({ userId }) => {
-    const [friendName, setFriendName] = useState('');
-    const [selectedFriendId, setSelectedFriendId] = useState(null);
-    const [searchResults, setSearchResults] = useState([]);
-    const [showDropdown, setShowDropdown] = useState(false);
+const WatchlistWidget = ({ username, name, description, unwatchedCount, watchingCount, watchedCount, tags }) => {
+  const navigate = useNavigate();
+  const titleRef = useRef(null);
+  const numberContainerRef = useRef(null);
+  const [fontSize, setFontSize] = useState('2.5rem');
 
-    const { user: clerkUser } = useUser(); // Get Clerk user
-    const { client } = useClerk(); // Get Clerk client
+  // Ensure tags is always an array
+  const tagArray = Array.isArray(tags) ? tags : [];
 
-    const searchFriends = async (event) => {
-        const name = event.target.value;
-        setFriendName(name);
-        if (name.length >= 3) {
-            try {
-                const users = await client.users.getUserList({
-                    query: name,
-                    limit: 10
-                });
-                setSearchResults(users);
-                setShowDropdown(true);
-            } catch (error) {
-                console.error('Error searching for friends:', error.message);
-                setSearchResults([]);
-            }
+  useEffect(() => {
+    const adjustFontSize = () => {
+      const titleElement = titleRef.current;
+      const numberContainerElement = numberContainerRef.current;
+      if (titleElement && numberContainerElement) {
+        const gap = 10; // minimum gap between title and number container
+        const numberContainerWidth = numberContainerElement.offsetWidth;
+        const widgetWidth = titleElement.parentElement.offsetWidth;
+        const availableWidth = widgetWidth - numberContainerWidth - gap;
+
+        let fontSize = 2.5; // Initial font size in rem
+        titleElement.style.fontSize = `${fontSize}rem`;
+
+        while (titleElement.scrollWidth > availableWidth && fontSize > 1.2) {
+          fontSize -= 0.1;
+          titleElement.style.fontSize = `${fontSize}rem`;
+        }
+
+        if (titleElement.scrollWidth > availableWidth) {
+          titleElement.style.whiteSpace = 'normal';
         } else {
-            setSearchResults([]);
-            setShowDropdown(false);
+          titleElement.style.whiteSpace = 'nowrap';
         }
+
+        setFontSize(`${fontSize}rem`);
+      }
     };
 
-    const handleSelectFriend = (friendId) => {
-        setSelectedFriendId(friendId);
-        const friend = searchResults.find(friend => friend.id === friendId);
-        setFriendName(friend ? friend.username : '');
+    adjustFontSize();
+    window.addEventListener('resize', adjustFontSize);
+    return () => window.removeEventListener('resize', adjustFontSize);
+  }, [name]);
 
-        console.log('Selected friend:', friend);   
-        setShowDropdown(false);
-    };
+  const handleClick = () => {
+    navigate(`/list/${username}/${name}`);
+  };
 
-    const checkAccepted = async (userId, requestId) => {
-        const { data, error } = await supabase
-            .from('friends')
-            .select()
-            .match({ 'user_id' : userId , 'friend_id' : requestId, 'status' : 'accepted'});
-        
-        console.log('this is the data: ', data);
-        
-        if (error) {
-            console.error('Error checking row existence: ', error);
-            return false;
-        } else if (data.length > 0) {
-            console.log('i am returning');
-            return true;
-        } else {
-            console.log('hello');
-            return false;
-        }
-    };
-
-    const sendFriendRequest = async () => {
-        if (!selectedFriendId) return;
-        setFriendName('');
-
-        try {
-            const isAccepted = await checkAccepted(clerkUser.id, selectedFriendId);
-            if (isAccepted) {
-                alert('You are already friends!');
-                return;
-            }
-
-            const { error } = await supabase
-                .from('friend_requests')
-                .insert([{ sender_id: clerkUser.id, receiver_id: selectedFriendId }]);
-
-            if (error) throw error;
-            alert('Friend request sent!');
-        } catch (error) {
-            console.error('Error sending friend request:', error.message);
-        }
-    };
-
-    return (
-        <div className="relative">
-            <input
-                type="text"
-                placeholder="Enter friend's name"
-                value={friendName}
-                onChange={searchFriends}
-                className="border p-2"
-            />
-            <button onClick={sendFriendRequest} className="ml-2 btn bg-blue-500 hover:bg-blue-700 text-white">
-                Send Request
-            </button>
-            {showDropdown && searchResults.length > 0 && (
-                <div className="absolute mt-1 w-52 bg-white shadow-lg">
-                    <ul>
-                        {searchResults.map(friend => (
-                            <li key={friend.id} className="p-2 hover:bg-gray-200 cursor-pointer"
-                                onClick={() => handleSelectFriend(friend.id)}>
-                                {friend.username}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
+  return (
+    <div onClick={handleClick} className="watchlist-widget text-[#e6e6e6] rounded-lg p-4 shadow-lg flex flex-col justify-between w-full cursor-pointer">
+      <div className="flex justify-between items-start mb-2">
+        <div className="flex flex-col" style={{ marginTop: '5px' }}>
+          <div ref={titleRef} className="title-container font-bold mr-3" style={{ fontSize, textAlign: 'left' }}>{name}</div>
+          <div className="text-sm text-gray-400" style={{ textAlign: 'left', marginTop: '2px' }}>{description}</div>
         </div>
-    );
+        <div className="number-container flex flex-col items-end" ref={numberContainerRef}>
+          <div className="text-red-500">{unwatchedCount}</div>
+          <div className="text-yellow-500">{watchingCount}</div>
+          <div className="text-green-500">{watchedCount}</div>
+        </div>
+      </div>
+      <div className="flex flex-wrap">
+        {tagArray.map((tag, index) => (
+          <div key={index} className="bg-gray-700 text-gray-300 px-2 py-1 rounded-full mr-2 mb-2">
+            {tag}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
 
-export default FriendsBar;
+export default WatchlistWidget;

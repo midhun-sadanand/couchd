@@ -1,5 +1,5 @@
-@import "tailwindcss/base"; 
-@import "tailwindcss/components";  
+@import "tailwindcss/base";
+@import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
 /* App.css or another CSS file */
@@ -18,7 +18,6 @@ body, html, #root {
   padding: 0;
   height: 100%;
   background-color: #171717; /* Tailwind's gray-900 */
-  ;
 }
 
 .plus-button {
@@ -51,6 +50,7 @@ body, html, #root {
   width: 33.3333%; /* Tailwind w-1/3 */
 }
 
+/* Dynamic widget and text styling */
 .watchlist-widget {
   background-color: #1c1c1c;
   border-radius: 20px;
@@ -64,45 +64,63 @@ body, html, #root {
 }
 
 .title-container {
+  margin-top: -5px;
   font-size: 2.5rem;
   font-weight: bold;
-  margin-bottom: 10px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: nowrap; /* Ensure no wrapping initially */
+  overflow-wrap: break-word; /* Ensure text wraps within the container */
 }
 
-.watchlist-widget .text-2xl {
+.number-container {
+  margin-top: 5px; /* Adjust this value as needed */
+}
+
+.number-container div {
+  margin-bottom: 5px; /* Ensure a margin between each number */
+}
+
+.number-container div:last-child {
+  margin-bottom: 20px; /* Minimum margin below the last number */
+}
+
+/* Add responsive font size */
+@media (max-width: 1024px) {
+  .title-container {
+    font-size: 2.3rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .title-container {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .title-container {
+    font-size: 1.8rem;
+  }
+}
+
+.text-2xl {
   font-size: 2rem;
   font-weight: bold;
 }
 
-.watchlist-widget .text-sm {
+.text-sm {
   font-size: 0.875rem;
   color: #6b7280;
 }
 
-.watchlist-widget .flex {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.watchlist-widget .flex-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.watchlist-widget .text-red-500 {
+.text-red-500 {
   color: #f87171;
 }
 
-.watchlist-widget .text-yellow-500 {
+.text-yellow-500 {
   color: #fbbf24;
 }
 
-.watchlist-widget .text-green-500 {
+.text-green-500 {
   color: #34d399;
 }
 
@@ -130,7 +148,6 @@ main {
   z-index: 50; 
 }
 
-
 .fixed {
   position: fixed;
 }
@@ -156,7 +173,6 @@ main {
   z-index: 999; /* Ensure it's below the form but above other content */
 }
 
-
 /* Center the forms on the page with margin from the right edge and bottom of the header */
 .form-container {
   position: fixed;
@@ -171,15 +187,14 @@ main {
   z-index: 1000; /* Keep it above all other content */
 }
 
-
-.login-form{
-    display: flex;
-    align-items: center; /* Vertically center */
-    justify-content: center; /* Horizontally center */
-    width: 100%; /* Take full width of its container */
-    height: 100%; /* Take full height of its container */
-  
+.login-form {
+  display: flex;
+  align-items: center; /* Vertically center */
+  justify-content: center; /* Horizontally center */
+  width: 100%; /* Take full width of its container */
+  height: 100%; /* Take full height of its container */
 }
+
 .items-center {
   align-items: center;
 }
@@ -223,7 +238,6 @@ main {
   box-sizing: border-box;
 }
 
-
 @font-face {
   font-family: 'GeneralSansMedium';
   src: url('./fonts/GeneralSans_Complete/Fonts/OTF/GeneralSans-Medium.otf') format('opentype'); /* Adjust the path and file name if necessary */
@@ -234,7 +248,6 @@ main {
   src: url('./fonts/Inter-4.0/extras/otf/Inter-Regular.otf') format('opentype');
   font-style: normal;
 }
-
 
 .video-wrapper {
   position: relative;
@@ -256,16 +269,18 @@ main {
 .half-circle {
   clip-path: inset(0 50% 0 0);
 }
+
 .fill-half {
   clip-path: inset(0 50% 0 0);
 }
+
 .text-gray-800 {
   fill: #4a5568; /* Adjust this color to match your theme */
 }
+
 .text-gray-300 {
   fill: #d1d5db; /* Adjust this color to match your theme */
 }
-
 
 .status-indicator {
   padding: 0.25rem 0.5rem;
@@ -299,10 +314,10 @@ main {
   margin-left: auto;
   margin-right: auto;
   padding: 10px;
-  width: 80%; 
+  width: 80%;
   margin-top: 10px;
-  margin-bottom: 10px; 
-  font-family: 'GeneralSansMedium', sans-serif; 
+  margin-bottom: 10px;
+  font-family: 'GeneralSansMedium', sans-serif;
 }
 
 .movie-card-header {
@@ -361,7 +376,6 @@ main {
   color: #fff;
 }
 
-
 .App-center {
   display: flex;
   flex-direction: column;
@@ -369,7 +383,6 @@ main {
   justify-content: center;
   height: 100vh;
 }
-
 
 .App {
   text-align: center;
@@ -445,5 +458,3 @@ main {
     top: 50px; /* Adjust top position for smaller screens */
   }
 }
-
-
