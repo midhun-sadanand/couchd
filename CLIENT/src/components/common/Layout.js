@@ -22,7 +22,6 @@ const Layout = ({ showLogin, showSignup, toggleLogin, toggleSignup }) => {
       <main className="flex-grow">
         <Outlet />
       </main>
-      <Footer />
     </div>
   );
 };

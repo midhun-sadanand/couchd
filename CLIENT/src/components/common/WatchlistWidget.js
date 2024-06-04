@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-const WatchlistWidget = ({ name, unwatchedCount, watchingCount, watchedCount }) => {
+const WatchlistWidget = ({ username, name, description, unwatchedCount, watchingCount, watchedCount }) => {
+  const navigate = useNavigate();
   const titleRef = useRef(null);
   const [fontSize, setFontSize] = useState('2.5rem');
 
@@ -25,9 +27,14 @@ const WatchlistWidget = ({ name, unwatchedCount, watchingCount, watchedCount }) 
     return () => window.removeEventListener('resize', adjustFontSize);
   }, [name]);
 
+  const handleClick = () => {
+    navigate(`/list/${username}/${name}`);
+  };
+
   return (
-    <div className="watchlist-widget text-[#e6e6e6] rounded-lg p-4 shadow-lg flex flex-col justify-between w-full">
+    <div onClick={handleClick} className="watchlist-widget text-[#e6e6e6] rounded-lg p-4 shadow-lg flex flex-col justify-between w-full cursor-pointer">
       <div ref={titleRef} className="title-container font-bold mb-2" style={{ fontSize }}>{name}</div>
+      <div className="text-sm text-gray-400 mb-2">{description}</div>
       <div className="flex justify-between items-center">
         <div className="flex flex-col items-center">
           <div className="text-2xl text-red-500">{unwatchedCount}</div>

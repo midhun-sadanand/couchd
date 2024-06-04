@@ -7,6 +7,7 @@ import WatchlistWidget from '../components/common/WatchlistWidget'; // Ensure th
 const WatchlistPage = () => {
   const [watchlists, setWatchlists] = useState([]);
   const [watchlistName, setWatchlistName] = useState('');
+  const [description, setDescription] = useState(''); // New state for description
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -92,7 +93,7 @@ const WatchlistPage = () => {
     try {
       const { data, error } = await supabase
         .from('watchlists')
-        .insert([{ name: watchlistName, user_id: clerkUser.id, tags }]);
+        .insert([{ name: watchlistName, user_id: clerkUser.id, description, tags }]);
 
       if (error) {
         throw error;
@@ -100,6 +101,7 @@ const WatchlistPage = () => {
 
       setWatchlists([...watchlists, ...data]); // Update local state with new watchlist
       setWatchlistName(''); // Clear the field after creation
+      setDescription(''); // Clear the description field
       setTags([]); // Clear tags
       setShowModal(false); // Close the modal
     } catch (error) {
@@ -143,26 +145,27 @@ const WatchlistPage = () => {
       {watchlists.map((list) => (
         <WatchlistWidget
           key={list.id}
+          username={clerkUser.username}
           name={list.name}
+          description={list.description} // Pass the description to the widget
           unwatchedCount={list.unwatchedCount}
           watchingCount={list.watchingCount}
           watchedCount={list.watchedCount}
         />
       ))}
-      <div className="flex items-center justify-center">
-        <button 
-          onClick={() => setShowModal(true)} 
-          className="bg-[#303035] bg-opacity-80 rounded-full p-4 text-[#ffffff] focus:outline-none hover:bg-opacity-100 absolute bottom-4 right-4 md:static"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-6 h-6">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-        </button>
-      </div>
+      <button 
+        onClick={() => setShowModal(true)} 
+        className="fixed bottom-4 right-4 bg-[#303035] bg-opacity-80 rounded-full p-4 text-[#ffffff] focus:outline-none hover:bg-opacity-100"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-6 h-6">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      </button>
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-1/3">
             <h2 className="text-2xl mb-4">Create a New Watchlist</h2>
+            <label className="block mb-2">Watchlist Name</label>
             <input
               type="text"
               value={watchlistName}
@@ -170,27 +173,35 @@ const WatchlistPage = () => {
               placeholder="Enter Watchlist Name"
               className="border p-2 w-full mb-4"
             />
-            <div className="mb-4">
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagInput}
-                placeholder="Enter tags and press enter"
-                className="border p-2 w-full mb-2"
-              />
-              <div className="flex flex-wrap">
-                {tags.map((tag, index) => (
-                  <div key={index} className="bg-gray-200 text-gray-700 p-2 rounded-full flex items-center mr-2 mb-2">
-                    {tag}
-                    <button onClick={() => removeTag(index)} className="ml-2 text-gray-500 hover:text-gray-700 focus:outline-none">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-4 h-4">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
+            <label className="block mb-2">Description</label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Enter Description"
+              maxLength={150} // Set a reasonable character limit
+              className="border p-2 w-full mb-4"
+            />
+            <label className="block mb-2">Tags</label>
+            <input
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={handleTagInput}
+              placeholder="Enter tags and press enter"
+              className="border p-2 w-full mb-2"
+            />
+            <div className="flex flex-wrap mb-4">
+              {tags.map((tag, index) => (
+                <div key={index} className="bg-gray-200 text-gray-700 p-2 rounded-full flex items-center mr-2 mb-2">
+                  {tag}
+                  <button onClick={() => removeTag(index)} className="ml-2 text-gray-500 hover:text-gray-700 focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
             </div>
             <div className="flex justify-end">
               <button 
