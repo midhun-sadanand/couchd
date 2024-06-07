@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
 import { motion, AnimatePresence } from 'framer-motion';
 import VideoPlayer from './VideoPlayer'; // Adjust the path as needed
-import NotesInput from './Notes'; // Ensure this path is correct
+import NotesInput from './common/Notes'; // Ensure this path is correct
 import Rating from './Rating'; // Ensure this path is correct
 
 const MovieCard = ({

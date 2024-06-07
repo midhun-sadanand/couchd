@@ -10,8 +10,8 @@ function Header({ toggleLogin, toggleSignup, showLogin, showSignup }) {
       <div className="container mx-auto flex justify-between items-center">
         <div className="flex items-center">
           <div className="my-1 mr-6">
-            <h1 className="font-bold text-2xl text-left">kittler</h1>
-            <h2 className="italic text-left">switch off all apparatuses.</h2>
+            <h1 className="font-bold text-2xl text-left">couchd</h1>
+            <h2 className="italic text-left">conscious consumption</h2>
           </div>
         </div>
         <nav className="flex items-center">

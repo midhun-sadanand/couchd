@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import supabase from '../../utils/supabaseClient';
+import supabase from '../utils/supabaseClient';
 
 const FriendRequestsDropdown = ({ userId }) => {
     const [requests, setRequests] = useState([]);
@@ -10,7 +10,7 @@ const FriendRequestsDropdown = ({ userId }) => {
 
         const fetchRequests = async () => {
             const { data, error } = await supabase
-                .from('friend_requests')
+                .from('friend_requests')    
                 .select(`
                     id,
                     status,

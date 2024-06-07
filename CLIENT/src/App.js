@@ -40,48 +40,49 @@ function App() {
   };
 
   return (
-    <ClerkProvider appearance={{ baseTheme: dark }} publishableKey={clerkPubKey}>
-      <SupabaseProvider>
-        <Router>
-          <div className="App">
-            <Suspense fallback={<div>Loading...</div>}>
-              <Routes>
-                <Route
-                  path="/"
-                  element={
-                    <Layout
-                      showLogin={showLogin}
-                      showSignup={showSignup}
-                      toggleLogin={toggleLogin}
-                      toggleSignup={toggleSignup}
-                    />
-                  }
-                >
+
+      <ClerkProvider appearance={{ baseTheme: dark }} publishableKey={clerkPubKey}>
+        <SupabaseProvider>
+          <Router>
+            <div className="App">
+              <Suspense fallback={<div>Loading...</div>}>
+                <Routes>
                   <Route
-                    index
+                    path="/"
                     element={
-                      <HomePage
+                      <Layout
                         showLogin={showLogin}
                         showSignup={showSignup}
                         toggleLogin={toggleLogin}
                         toggleSignup={toggleSignup}
                       />
                     }
-                  />
-                  <Route path="signup" element={<SignupPage />} />
-                  <Route path="profile" element={<SignedIn><SupabaseProvider><TestConsumer /><ProfilePage /></SupabaseProvider></SignedIn>} />
-                  <Route path="lists" element={<WatchlistPage />} />
-                  <Route path="/list/:username/:watchlistName" element={<MediaPage />} />
-                </Route>
-                <Route path="/" element={<SignedOut><LoginPage /></SignedOut>} />
-                <Route path="/signup" element={<SignedOut><SignupPage /></SignedOut>} />
-              </Routes>
-            </Suspense>
-          </div>
+                  >
+                    <Route
+                      index
+                      element={
+                        <HomePage
+                          showLogin={showLogin}
+                          showSignup={showSignup}
+                          toggleLogin={toggleLogin}
+                          toggleSignup={toggleSignup}
+                        />
+                      }
+                    />
+                    <Route path="signup" element={<SignupPage />} />
+                    <Route path="profile" element={<SignedIn><SupabaseProvider><TestConsumer /><ProfilePage /></SupabaseProvider></SignedIn>} />
+                    <Route path="lists" element={<WatchlistPage />} />
+                    <Route path="/list/:username/:watchlistName" element={<MediaPage />} />
+                  </Route>
+                  <Route path="/" element={<SignedOut><LoginPage /></SignedOut>} />
+                  <Route path="/signup" element={<SignedOut><SignupPage /></SignedOut>} />
+                </Routes>
+              </Suspense>
+            </div>
+          </Router>
+        </SupabaseProvider>
+      </ClerkProvider>
 
-        </Router>
-      </SupabaseProvider>
-    </ClerkProvider>
   );
 }
 

@@ -25,8 +25,8 @@ const ProfileHeader = () => {
         <header className="bg-zinc-700 text-white p-4 shadow-md">
             <div className="container mx-auto flex justify-between items-center">
                 <div className="my-1 mr-6">
-                    <h1 className="font-bold text-2xl text-left">kittler</h1>
-                    <h2 className="italic text-left">switch off all apparatuses.</h2>
+                    <h1 className="font-bold text-2xl text-left">couchd</h1>
+                    <h2 className="italic text-left">conscious consumption</h2>
                 </div>
                 <div className="flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="w-8 h-8 mr-10" onClick={goToProfile}>

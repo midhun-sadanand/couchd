@@ -1,22 +1,34 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
-import { useUser, useClerk } from '@clerk/clerk-react'; // Import Clerk's useUser and useClerk hooks
+import { useUser } from '@clerk/clerk-react';
 import supabase from '../utils/supabaseClient';
-import MovieCard from '../components/common/MovieCard';
-import MovieSearch from '../components/common/MovieSearch';
-import YoutubeSearch from '../components/common/YoutubeSearch';
+import MovieCard from '../components/MovieCard';
 import ShareWatchlist from '../components/common/ShareWatchlist';
 import { arrayMoveImmutable as arrayMove } from 'array-move';
+import SearchBar from '../components/SearchBar';
+import SearchModal from '../components/SearchModal';
 
 const MediaPage = () => {
     const [mediaItems, setMediaItems] = useState([]);
     const [watchlistId, setWatchlistId] = useState('');
-    const { user: clerkUser, isLoaded } = useUser(); // Get Clerk user and isLoaded property
+    const { user: clerkUser, isLoaded } = useUser();
     const { watchlistName } = useParams();
+    const { state } = useLocation();
     const [openCards, setOpenCards] = useState({});
+    const [successMessage, setSuccessMessage] = useState('');
+    const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
+        if (state && state.successMessage) {
+            setSuccessMessage(state.successMessage);
+            setShowSuccessMessage(true);
+            setTimeout(() => {
+                handleCloseSuccessMessage();
+            }, 5000);
+        }
+
         async function fetchData() {
             if (isLoaded && clerkUser) {
                 try {
@@ -51,7 +63,7 @@ const MediaPage = () => {
         }
 
         fetchData();
-    }, [watchlistName, clerkUser, isLoaded]);
+    }, [watchlistName, clerkUser, isLoaded, state]);
 
     const fetchMediaItems = async () => {
         try {
@@ -158,7 +170,7 @@ const MediaPage = () => {
                         index={index}
                         isOpen={openCards[item.id] || false}
                         setIsOpen={setIsOpen}
-                        addedBy={clerkUser.username || 'Guest'} // Update username handling
+                        addedBy={clerkUser.username || 'Guest'}
                     />
                 </div>
             )}
@@ -213,10 +225,10 @@ const MediaPage = () => {
                 medium: 'YouTube',
                 watchlist_id: watchlistId,
                 image: imageUrl,
-                url: videoUrl,  // Storing YouTube video URL
+                url: videoUrl,
                 release_date: item.snippet.publishedAt.substring(0, 10),
                 creator: item.snippet.channelTitle,
-                added_by: clerkUser.username || 'Guest',  // Adding the username who creates the card
+                added_by: clerkUser.username || 'Guest',
                 status: 'to consume',
                 order: mediaItems.length
             }])
@@ -230,7 +242,7 @@ const MediaPage = () => {
                 image: imageUrl,
                 release_date: item.release_date || '',
                 creator: item.director || '',
-                added_by: clerkUser.username || 'Guest',  // Adding the username who creates the card
+                added_by: clerkUser.username || 'Guest',
                 status: 'to consume',
                 order: mediaItems.length
             }])
@@ -260,15 +272,31 @@ const MediaPage = () => {
         }
     };
 
+    const handleCloseSuccessMessage = () => {
+        setShowSuccessMessage(false);
+        setTimeout(() => {
+            setSuccessMessage('');
+        }, 500);
+    };
+
+    const handleSearchClick = () => {
+        setIsModalOpen(true);
+    };
+
+    const handleModalClose = () => {
+        setIsModalOpen(false);
+    };
+
     return (
-        <div className="container mx-auto p-4">
-            <h1 className="text-xl font-bold">{`Media in "${watchlistName}"`}</h1>
-            <MovieSearch onSelect={(item) => handleSelectItem(item, 'movie')} />
-            <YoutubeSearch onSelect={(item) => handleSelectItem(item, 'youtube')} />
+        <div className="container mx-auto p-4 dark:bg-gray-800 dark:text-white relative">
+            <div className="search-bar-container absolute top-4 right-4">
+                <SearchBar onSearchClick={handleSearchClick} />
+            </div>
+            <h1 className="text-xl text-[#e6e6e6] font-bold mt-12">{`Media in "${watchlistName}"`}</h1>
             <DragDropContext onDragEnd={onSortEnd}>
                 <SortableList items={mediaItems} onDelete={(id, medium) => handleDeleteMediaItem(id, medium)} />
             </DragDropContext>
-            {clerkUser && <ShareWatchlist onShare={onShare} userId={clerkUser.id} />}
+            {isModalOpen && <SearchModal onSelect={handleSelectItem} onClose={handleModalClose} />}
         </div>
     );
 };

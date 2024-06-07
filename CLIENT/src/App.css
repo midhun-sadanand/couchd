@@ -1,8 +1,9 @@
+/* Base Tailwind CSS imports */
 @import "tailwindcss/base";
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
-/* App.css or another CSS file */
+/* Font face definitions */
 @font-face {
   font-family: 'GraphikLight';
   src: url('./fonts/graphik/GraphikLight.otf') format('opentype');
@@ -13,6 +14,28 @@
   src: url('./fonts/eina/eina-03-semibold.ttf') format('truetype');
 }
 
+@font-face {
+  font-family: 'EinaRegular';
+  src: url('./fonts/eina/eina-03-regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'GeistRegular';
+  src: url('./fonts/Geist-1.3.0/statics-otf/Geist-Regular.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'GeneralSansMedium';
+  src: url('./fonts/GeneralSans_Complete/Fonts/OTF/GeneralSans-Medium.otf') format('opentype'); /* Adjust the path and file name if necessary */
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('./fonts/Inter-4.0/extras/otf/Inter-Regular.otf') format('opentype');
+  font-style: normal;
+}
+
+/* Global styles */
 body, html, #root {
   margin: 0;
   padding: 0;
@@ -20,19 +43,151 @@ body, html, #root {
   background-color: #171717; /* Tailwind's gray-900 */
 }
 
+/* Search bar styling */
+.search-bar-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+  font-family: 'GeistRegular', sans-serif;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  background: #1a1a1a;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  padding: 8px 12px;
+  width: 300px; /* Set the width to 300px or adjust as needed */
+}
+
+.search-bar .search-icon {
+  color: #888888;
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+} 
+
+.search-bar .command-icon {
+  color: #888888;
+  width: 12px; /* Adjust width for smaller icon */
+  height: 12px; /* Adjust height for smaller icon */
+  margin-right: 2.5px;
+  font-size: 12px; /* Ensure the icon size matches the letter size */
+  position: relative;
+  top: -.3px; /* Manually adjust the position */
+}
+
+.search-bar .search-placeholder {
+  color: #888888;
+  margin-left: 0px;
+  margin-right: auto; /* Ensure the placeholder text is next to the icon */
+}
+
+.search-bar .kbd {
+  background: #111111;
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin-left: auto; /* Push the kbd element to the far right */
+  font-size: 12px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  border: 1px solid #3a3a3a;
+  margin-right: -4px; 
+}
+
+.search-bar .command-icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+/* Success message styling */
+.success-message-container {
+  position: fixed;
+  bottom: -100px; /* Start below the viewport */
+  left: 50%;
+  transform: translateX(-50%);
+  background-color:#b7d7a8; /* Tailwind's green-500 */
+  color: #38761d; ;
+  padding: 0.5rem;
+  padding-left: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 1000;
+  animation: slideInUp 0.5s forwards, slideOutDown 0.5s forwards;
+  animation-delay: 0s, 5s; /* Slide in immediately, slide out after 5 seconds */
+}
+
+.success-message-container.show {
+  bottom: 1rem; /* Move into the viewport */
+  animation: slideInUp 0.5s forwards;
+}
+
+.success-message-container.hide {
+  animation: slideOutDown 0.5s forwards;
+}
+
+.success-message-container .close-btn {
+  background: none;
+  border: none;
+  color: #38761d;
+  font-size: 1.5rem;
+  cursor: pointer;
+  margin-left: 1rem;
+}
+
+@keyframes slideInUp {
+  from {
+      bottom: -100px;
+  }
+  to {
+      bottom: 1rem;
+  }
+}
+
+@keyframes slideOutDown {
+  from {
+      bottom: 1rem;
+  }
+  to {
+      bottom: -100px;
+  }
+}
+
+/* Plus button styling */
 .plus-button {
-  background-color: #d1d5db; /* Tailwind gray-300 */
+  background-color: #363636; /* Tailwind gray-300 */
   border-radius: 50%;
-  padding: 16px; /* Tailwind p-4 */
+  width: 56px; /* Adjust as needed for the desired size */
+  height: 56px; /* Adjust as needed for the desired size */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #374151; /* Tailwind gray-700 */
   transition: background-color 0.3s;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  bottom: 40px;
+  right: 40px;
+  font-size: 1.5rem;
+  opacity: 0.5;
+  transition: opacity 0.3s;
 }
 
 .plus-button:hover {
-  background-color: #9ca3af; /* Tailwind gray-400 */
+  opacity: 1; /* Tailwind gray-400 */
 }
 
-.modal {
+/* Search modal styling */
+.search-modal .modal {
   background-color: rgba(0, 0, 0, 0.5); /* Tailwind black with opacity-50 */
   position: fixed;
   inset: 0;
@@ -42,12 +197,64 @@ body, html, #root {
   z-index: 50;
 }
 
-.modal-content {
-  background-color: #ffffff; /* Tailwind white */
+.search-modal .modal-content {
+  background-color: #1a1a1a; /* Dark background */
+  color: #fff; /* Light text color */
   padding: 24px; /* Tailwind p-6 */
   border-radius: 8px; /* Tailwind rounded-lg */
   box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); /* Tailwind shadow-lg */
   width: 33.3333%; /* Tailwind w-1/3 */
+}
+
+.search-modal .modal-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.search-modal .modal-header select, .search-modal .modal-header input {
+  background: #2c2c2e;
+  color: #fff;
+  border: none;
+  outline: none;
+  padding: 12px 16px;
+  font-size: 16px;
+}
+
+.search-modal .modal-header select {
+  margin-right: 8px;
+}
+
+.search-modal .modal-results div {
+  padding: 12px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.search-modal .modal-results div:hover {
+  background: #3a3a3c;
+}
+
+/* Ensure new modal tags do not conflict with existing styles */
+.search-modal .modal-tag {
+  font-family: 'EinaRegular', sans-serif !important;
+  background-color: #292929 !important; /* Tailwind gray-700 */
+  color: #d1d1d1 !important; /* Tailwind gray-300 */
+  padding: 0rem 0.8rem !important; /* Smaller padding for the tags */
+  border-radius: 9px !important; /* Smaller border radius */
+  margin-right: 0.3rem !important; /* Tailwind mr-1 */
+  margin-bottom: 0.3rem !important; /* Tailwind mb-1 */
+  transition: background-color 0.3s; /* Smooth transition for the opacity change */
+}
+
+.search-modal .modal-tag:hover {
+  background-color: #363636 !important;
+}
+
+.search-modal .modal-tag .tag-button {
+  margin-left: 0.2rem !important; /* Ensure minimal spacing between text and button */
+  padding: 0 !important; /* Remove padding for the button */
 }
 
 /* Dynamic widget and text styling */
@@ -61,22 +268,27 @@ body, html, #root {
   justify-content: space-between;
   width: 100%;
   max-width: 300px;
+  margin-bottom: 15px;
 }
 
 .title-container {
   margin-top: -5px;
   font-size: 2.5rem;
   font-weight: bold;
-  white-space: nowrap; /* Ensure no wrapping initially */
-  overflow-wrap: break-word; /* Ensure text wraps within the container */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: break-word;
 }
 
 .number-container {
-  margin-top: 5px; /* Adjust this value as needed */
+  margin-top: 5px;
+  position: relative;
+  right: 10px; 
 }
 
 .number-container div {
-  margin-bottom: 5px; /* Ensure a margin between each number */
+  margin-bottom: 5px;  /* Ensure a margin between each number */
 }
 
 .number-container div:last-child {
@@ -102,14 +314,69 @@ body, html, #root {
   }
 }
 
+.custom-error-note {
+  background-color: #e6b8af !important;
+  color: #a61d01 !important; 
+  font-size: 0.875rem;
+  margin-bottom: 1.0rem !important;
+  margin-top: -0.75rem !important;
+}
+
+.tag {
+  font-family: 'EinaRegular', sans-serif !important;
+  background-color: #363636 !important; /* Tailwind gray-700 */
+  color: #d1d1d1 !important; /* Tailwind gray-300 */
+  padding: 0.3rem 0.8rem !important; /* Tailwind px-4 py-2 */
+  border-radius: 9px !important; /* Tailwind rounded-full */
+  margin-right: 0.5rem !important; /* Tailwind mr-2 */
+  margin-bottom: 0.5rem !important; /* Tailwind mb-2 */
+  opacity: 0.5;
+  transition: opacity 0.3s; /* Smooth transition for the opacity change */
+}
+
+.tag:hover {
+  opacity: 1 !important;
+}
+
+
+.modal-tag {
+  font-family: 'EinaRegular', sans-serif !important;
+  background-color: #292929 !important; /* Tailwind gray-700 */
+  color: #d1d1d1 !important; /* Tailwind gray-300 */
+  padding: 0rem 0.8rem !important; /* Smaller padding for the tags */
+  border-radius: 9px !important; /* Smaller border radius */
+  margin-right: 0.3rem !important; /* Tailwind mr-1 */
+  margin-bottom: 0.3rem !important; /* Tailwind mb-1 */
+  transition: background-color 0.3s; /* Smooth transition for the opacity change */
+}
+
+.modal-tag:hover {
+  background-color: #363636 !important;
+}
+
+.modal-tag .tag-button {
+  margin-left: 0.2rem !important; /* Ensure minimal spacing between text and button */
+  padding: 0 !important; /* Remove padding for the button */
+}
+
 .text-2xl {
   font-size: 2rem;
   font-weight: bold;
 }
 
-.text-sm {
+.description {
   font-size: 0.875rem;
   color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3; /* Limit to 3 lines */
+  line-height: 1.5; /* Adjust based on your line height */
+  max-height: calc(1.5em * 3); /* 3 lines */
+  white-space: pre-wrap; /* Allows wrapping of text */
+  word-wrap: break-word; /* Forces breaking of long words */
+  overflow-wrap: break-word; /* Ensure word breaking */
 }
 
 .text-red-500 {
@@ -238,17 +505,7 @@ main {
   box-sizing: border-box;
 }
 
-@font-face {
-  font-family: 'GeneralSansMedium';
-  src: url('./fonts/GeneralSans_Complete/Fonts/OTF/GeneralSans-Medium.otf') format('opentype'); /* Adjust the path and file name if necessary */
-}
-
-@font-face {
-  font-family: 'Inter';
-  src: url('./fonts/Inter-4.0/extras/otf/Inter-Regular.otf') format('opentype');
-  font-style: normal;
-}
-
+/* Video wrapper styles */
 .video-wrapper {
   position: relative;
   width: 100%;
@@ -266,6 +523,7 @@ main {
   border: 0;
 }
 
+/* Half circle styles */
 .half-circle {
   clip-path: inset(0 50% 0 0);
 }
@@ -282,6 +540,7 @@ main {
   fill: #d1d5db; /* Adjust this color to match your theme */
 }
 
+/* Status indicator styles */
 .status-indicator {
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
@@ -307,6 +566,7 @@ main {
   color: #fff;
 }
 
+/* Movie card styles */
 .movie-card {
   background-color: #333; /* Dark background color */
   color: #fff; /* White text color */
