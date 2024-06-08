@@ -77,13 +77,17 @@ body, html, #root {
   margin-right: 2.5px;
   font-size: 12px; /* Ensure the icon size matches the letter size */
   position: relative;
-  top: -.3px; /* Manually adjust the position */
+  margin-top: -.2px; /* Manually adjust the position */
 }
 
 .search-bar .search-placeholder {
   color: #888888;
   margin-left: 0px;
   margin-right: auto; /* Ensure the placeholder text is next to the icon */
+}
+
+.toggle-label {
+  color: #e6a6a6;
 }
 
 .search-bar .kbd {
@@ -362,6 +366,7 @@ body, html, #root {
 .text-2xl {
   font-size: 2rem;
   font-weight: bold;
+  color: #888888
 }
 
 .description {

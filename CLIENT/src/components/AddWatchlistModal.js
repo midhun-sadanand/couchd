@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { Modal, Button, Input, AutoComplete, useToasts, useTheme, Note } from '@geist-ui/core';
+import { Modal, Button, Input, AutoComplete, useToasts, useTheme, Note, Toggle } from '@geist-ui/core';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { SupabaseContext } from '../utils/auth';
@@ -10,6 +10,7 @@ const AddWatchlistModal = ({ user, visible, onClose, options, setOptions, setWat
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [isPublic, setIsPublic] = useState(false);
   const { user: clerkUser } = useUser();
   const { client: supabase } = useContext(SupabaseContext);
   const { setToast } = useToasts();
@@ -37,7 +38,7 @@ const AddWatchlistModal = ({ user, visible, onClose, options, setOptions, setWat
     try {
       const { data, error } = await supabase
         .from('watchlists')
-        .insert([{ name: watchlistName, user_id: clerkUser.id, description, tags }])
+        .insert([{ name: watchlistName, user_id: clerkUser.id, description, tags, public: isPublic }])
         .select();
 
       if (error) throw error;
@@ -89,12 +90,19 @@ const AddWatchlistModal = ({ user, visible, onClose, options, setOptions, setWat
     setTagInput('');
     setOptions([]);
     setErrorMessage('');
+    setIsPublic(false);
     onClose();
   };
 
   return (
     <Modal visible={visible} onClose={resetModal} width="40rem" style={{ backgroundColor: theme.palette.background, color: theme.palette.foreground }}>
-      <Modal.Title>Create A New Watchlist</Modal.Title>
+      <div className="modal-header">
+        <Modal.Title>Create A New Watchlist</Modal.Title>
+        <div className="toggle-wrapper">
+          <Toggle initialChecked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} />
+          <span className="toggle-label">{isPublic ? 'Public' : 'Private'}</span>
+        </div>
+      </div>
       <Modal.Content>
         {errorMessage && (
           <Note className="custom-error-note" label={false}>
@@ -149,6 +157,24 @@ const AddWatchlistModal = ({ user, visible, onClose, options, setOptions, setWat
       </Modal.Content>
       <Modal.Action onClick={resetModal} type="abort">Cancel</Modal.Action>
       <Modal.Action onClick={createWatchlist}>Create</Modal.Action>
+      <style jsx>{`
+        .modal-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+        }
+        .toggle-wrapper {
+          display: flex;
+          align-items: center;
+        }
+        .toggle-label {
+          margin-left: 8px;
+          font-size: 14px;
+          color: ${theme.palette.accents_6};
+          margin-top: 0;
+        }
+      `}</style>
     </Modal>
   );
 };
