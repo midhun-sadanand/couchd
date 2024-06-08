@@ -9,7 +9,7 @@ const SearchBar = ({ onSearchClick }) => {
             <kbd className="kbd" size={12}>
                 <div className="command-icon-container">
                     <Command className="command-icon" />
-                    <span>K</span>
+                    <span className="K">K</span>
                 </div>
             </kbd>
         </div>
