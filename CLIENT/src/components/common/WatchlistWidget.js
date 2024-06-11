@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EditNameModal from '../EditWatchlistModal'; // Import the EditNameModal component
 
-const WatchlistWidget = ({ username, listName, description, unwatchedCount, watchingCount, watchedCount, tags }) => {
+const WatchlistWidget = ({ username, watchlistId, listName, description, unwatchedCount, watchingCount, watchedCount, tags }) => {
   const navigate = useNavigate();
   const titleRef = useRef(null);
   const descriptionRef = useRef(null);
@@ -69,7 +69,7 @@ const WatchlistWidget = ({ username, listName, description, unwatchedCount, watc
         descriptionElement.style.whiteSpace = 'pre-wrap';
         descriptionElement.style.wordWrap = 'break-word';
 
-        // Insert line breaks at every 34 characters
+        // Insert line breaks at every 32 characters
         const formattedDescription = description.replace(/(.{32})/g, '$1\n');
         descriptionElement.textContent = formattedDescription;
 
@@ -93,7 +93,7 @@ const WatchlistWidget = ({ username, listName, description, unwatchedCount, watc
   }, [description]);
 
   const handleClick = () => {
-    navigate(`/list/${username}/${listName}`);
+    navigate(`/list/${username}/${encodeURIComponent(listName)}/${watchlistId}`);
   };
 
   const handleDropdownClick = (e) => {
@@ -134,9 +134,9 @@ const WatchlistWidget = ({ username, listName, description, unwatchedCount, watc
           ))}
         </div>
         <div className="absolute bottom-4 right-4" onClick={handleDropdownClick}>
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
-        </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+          </svg>
 
           {dropdownOpen && (
             <div className="dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20">

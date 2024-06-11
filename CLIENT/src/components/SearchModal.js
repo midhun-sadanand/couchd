@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import defaultProfile from './assets/images/pfp.png';
 
-const SearchModal = ({ onSelect, onClose }) => {
+const SearchModal = ({ onSelect, onClose, inputRef }) => {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState([]);
     const [medium, setMedium] = useState('movie'); // Default search medium
@@ -69,16 +69,18 @@ const SearchModal = ({ onSelect, onClose }) => {
             if (medium === 'movie' || medium === 'tv') {
                 let detailedResults = [];
                 if (selectedDirector) {
-                    detailedResults = (data.crew || []).filter(movie => movie.job === 'Director' && (!query || movie.title.toLowerCase().includes(query.toLowerCase())));
+                    detailedResults = (data.crew || []).filter(movie => movie.job === 'Director' && (!query || movie.title.toLowerCase().includes(query.toLowerCase()))).map(movie => ({
+                        ...movie,
+                        director: directorName
+                    }));
                 } else if (selectedActor) {
-                    detailedResults = (data.cast || []).filter(movie => (!query || movie.title.toLowerCase().includes(query.toLowerCase())));
-                    detailedResults = detailedResults.map(movie => ({
+                    detailedResults = (data.cast || []).filter(movie => (!query || movie.title.toLowerCase().includes(query.toLowerCase()))).map(movie => ({
                         ...movie,
                         actor: actorName
                     }));
                 } else if (movieFilter === 'movie') {
                     detailedResults = await Promise.all((data.results || []).map(async (item) => {
-                        const detailsUrl = `https://api.themoviedb.org/3/${item.media_type}/${item.id}?api_key=89d44f8db4046fedba0c0d1a0ab8fc74&append_to_response=credits`;
+                        const detailsUrl = `https://api.themoviedb.org/3/${medium === 'movie' ? 'movie' : 'tv'}/${item.id}?api_key=89d44f8db4046fedba0c0d1a0ab8fc74&append_to_response=credits`;
                         const detailsResponse = await fetch(detailsUrl);
                         const detailsData = await detailsResponse.json();
                         return {
@@ -105,14 +107,14 @@ const SearchModal = ({ onSelect, onClose }) => {
         }
     };
 
-    const fetchMoviesByDirector = async (directorId) => {
+    const fetchMoviesByDirector = async (directorId, directorName) => {
         const url = `https://api.themoviedb.org/3/person/${directorId}/movie_credits?api_key=89d44f8db4046fedba0c0d1a0ab8fc74`;
         try {
             const response = await fetch(url);
             const data = await response.json();
             const directorMovies = data.crew.filter(movie => movie.job === 'Director').map(movie => ({
                 ...movie,
-                director: data.name
+                director: directorName
             }));
             previousResults.current = directorMovies; // Update previous results
             setResults(previousResults.current); // Update results with fetched data
@@ -121,14 +123,14 @@ const SearchModal = ({ onSelect, onClose }) => {
         }
     };
 
-    const fetchMoviesByActor = async (actorId) => {
+    const fetchMoviesByActor = async (actorId, actorName) => {
         const url = `https://api.themoviedb.org/3/person/${actorId}/movie_credits?api_key=89d44f8db4046fedba0c0d1a0ab8fc74`;
         try {
             const response = await fetch(url);
             const data = await response.json();
             const actorMovies = data.cast.map(movie => ({
                 ...movie,
-                actor: data.name
+                actor: actorName
             }));
             previousResults.current = actorMovies; // Update previous results
             setResults(previousResults.current); // Update results with fetched data
@@ -140,12 +142,12 @@ const SearchModal = ({ onSelect, onClose }) => {
     const debouncedFetchResults = useCallback(debounce(fetchResults, 1000), [query, medium, youtubeType, movieFilter, selectedChannel, selectedDirector, selectedActor, sortOption]);
 
     useEffect(() => {
-        if (selectedChannel || selectedDirector || selectedActor || query.length >= 3) {
-            debouncedFetchResults();
+        if (selectedChannel || selectedDirector || selectedActor) {
+            fetchResults();
         } else {
             setResults([]);
         }
-    }, [query, medium, youtubeType, movieFilter, selectedChannel, selectedDirector, selectedActor, sortOption, debouncedFetchResults]);
+    }, [selectedChannel, selectedDirector, selectedActor, sortOption, debouncedFetchResults]);
 
     const decodeHtml = (html) => {
         var txt = document.createElement("textarea");
@@ -157,6 +159,13 @@ const SearchModal = ({ onSelect, onClose }) => {
         e.preventDefault();
         if (query.length >= 3 || selectedChannel || selectedDirector || selectedActor) {
             fetchResults();
+        }
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleFormSubmit(e);
         }
     };
 
@@ -178,7 +187,7 @@ const SearchModal = ({ onSelect, onClose }) => {
         setSelectedDirector(directorId);
         setDirectorName(directorName);
         setQuery('');
-        await fetchMoviesByDirector(directorId);
+        await fetchMoviesByDirector(directorId, directorName);
         setMovieFilter('movie'); // Switch to movie filter to search within the director's movies
     };
 
@@ -186,8 +195,16 @@ const SearchModal = ({ onSelect, onClose }) => {
         setSelectedActor(actorId);
         setActorName(actorName);
         setQuery('');
-        await fetchMoviesByActor(actorId);
+        await fetchMoviesByActor(actorId, actorName);
         setMovieFilter('movie'); // Switch to movie filter to search within the actor's movies
+    };
+
+    const handleChannelSelect = async (channelId, channelName) => {
+        setSelectedChannel(channelId);
+        setChannelName(channelName);
+        setYoutubeType('video'); // Automatically set filter to video after selecting a channel
+        setQuery('');
+        await fetchResults();
     };
 
     const handleExitDirectorSearch = () => {
@@ -204,13 +221,6 @@ const SearchModal = ({ onSelect, onClose }) => {
         setResults([]);
     };
 
-    const handleChannelSelect = (channelId, channelName) => {
-        setSelectedChannel(channelId);
-        setChannelName(channelName);
-        setQuery('');
-        setResults([]);
-    };
-
     const handleExitChannelSearch = () => {
         setSelectedChannel(null);
         setChannelName('');
@@ -218,13 +228,15 @@ const SearchModal = ({ onSelect, onClose }) => {
         setResults([]);
     };
 
+    useEffect(() => {
+        if (inputRef && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, []);
+
     return (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50" onClick={onClose}>
             <div className="bg-white rounded-lg shadow-lg w-11/12 max-w-2xl p-4" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold">Search Media</h2>
-                    <button onClick={onClose} className="text-gray-600 hover:text-gray-900">&times;</button>
-                </div>
                 <form onSubmit={handleFormSubmit} className="flex mb-4">
                     <select value={medium} onChange={(e) => {
                         setMedium(e.target.value);
@@ -251,7 +263,9 @@ const SearchModal = ({ onSelect, onClose }) => {
                             }
                             value={query}
                             onChange={e => setQuery(e.target.value)}
+                            onKeyPress={handleKeyPress}
                             className="flex-grow focus:outline-none"
+                            ref={inputRef} // Add ref to input
                         />
                         {selectedChannel && (
                             <button type="button" onClick={handleExitChannelSearch} className="text-gray-600 hover:text-gray-900 ml-2">&times;</button>
@@ -332,14 +346,22 @@ const SearchModal = ({ onSelect, onClose }) => {
                                 key={medium === 'youtube' ? item.id.videoId : item.id}
                                 className="cursor-pointer hover:bg-gray-200 p-2 flex items-center"
                                 onClick={() => {
-                                    if (medium === 'youtube' && item.snippet.channelId) {
+                                    if (medium === 'youtube' && youtubeType === 'channel') {
                                         handleChannelSelect(item.snippet.channelId, item.snippet.channelTitle);
-                                    } else if (movieFilter === 'director' && medium !== 'youtube') {
+                                    } else if (medium === 'youtube' && youtubeType === 'video') {
+                                        onSelect(item, 'youtube');
+                                        onClose();
+                                    } else if (movieFilter === 'director' && !selectedDirector) {
                                         handleDirectorSelect(item.id, item.name);
-                                    } else if (movieFilter === 'cast' && medium !== 'youtube') {
+                                    } else if (movieFilter === 'cast' && !selectedActor) {
                                         handleActorSelect(item.id, item.name);
                                     } else {
-                                        onSelect(item, medium);
+                                        const movieData = {
+                                            ...item,
+                                            director: selectedDirector ? directorName : item.director || '',
+                                            actor: selectedActor ? actorName : item.actor || ''
+                                        };
+                                        onSelect(movieData, medium);
                                         onClose();
                                     }
                                 }}
@@ -351,7 +373,7 @@ const SearchModal = ({ onSelect, onClose }) => {
                                         ) : (
                                             <div className="w-24 h-16 mr-4 rounded-md object-contain bg-gray-200">No Image</div>
                                         )}
-                                        <div className="flex flex-col">
+                                        <div className="flex flex-col flex-grow">
                                             <div className="font-bold text-left">{decodeHtml(item.snippet.title)}</div>
                                             <div className="text-sm text-gray-600 text-left">{item.snippet.channelTitle} - {new Date(item.snippet.publishedAt).getFullYear()}</div>
                                         </div>
@@ -363,7 +385,7 @@ const SearchModal = ({ onSelect, onClose }) => {
                                         ) : (
                                             <img src={item.poster_path ? `https://image.tmdb.org/t/p/w200${item.poster_path}` : 'https://via.placeholder.com/200?text=No+Image+Available'} alt={item.title || item.name} className="w-24 h-auto mr-4 rounded-md object-contain" />
                                         )}
-                                        <div className="flex flex-col">
+                                        <div className="flex flex-col flex-grow">
                                             {movieFilter === 'director' ? (
                                                 <div className="font-bold text-left">{item.name}</div>
                                             ) : movieFilter === 'cast' ? (
@@ -372,7 +394,6 @@ const SearchModal = ({ onSelect, onClose }) => {
                                                 <>
                                                     <div className="font-bold text-left">{item.title || item.name} {item.release_date ? `(${item.release_date.substring(0, 4)})` : ''}</div>
                                                     {item.director && <div className="text-sm text-gray-600 text-left pl-5">Director: {item.director}</div>}
-                                                    {selectedDirector && <div className="text-sm text-gray-600 text-left pl-5">Directed by: {directorName}</div>}
                                                     {selectedActor && <div className="text-sm text-gray-600 text-left pl-5">Starring: {actorName}</div>}
                                                 </>
                                             )}
