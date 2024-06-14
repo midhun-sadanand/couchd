@@ -249,45 +249,66 @@ const MediaPage = () => {
     }
   };
 
-  const handleSelectItem = async (item, type) => {
-    let newMedia;
-    if (type === 'youtube') {
-      const videoUrl = `https://www.youtube.com/watch?v=${item.id.videoId}`;
-      const imageUrl = item.snippet.thumbnails.default.url;
-      newMedia = await supabase.from('media_items').insert([{
-        title: item.snippet.title,
-        medium: 'YouTube',
-        watchlist_id: watchlistId,
-        image: imageUrl,
-        url: videoUrl,
-        release_date: item.snippet.publishedAt.substring(0, 10),
-        creator: item.snippet.channelTitle,
-        added_by: clerkUser.username || 'Guest',
-        status: 'to consume',
-        order: mediaItems.length
-      }]).select();
-    } else {
-      const imageUrl = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '';
-      newMedia = await supabase.from('media_items').insert([{
-        title: item.title || item.name,
-        medium: type === 'movie' ? 'Movie' : 'TV',
-        watchlist_id: watchlistId,
-        image: imageUrl,
-        release_date: item.release_date || '',
-        creator: item.director || '',
-        added_by: clerkUser.username || 'Guest',
-        status: 'to consume',
-        order: mediaItems.length
-      }]).select();
-    }
-  
-    const { data, error } = newMedia;
-    if (error) {
-      console.error('Failed to add item:', error.message);
-    } else {
-      setMediaItems([...mediaItems, ...data]);
-    }
-  };
+    const handleSelectItem = async (item, type) => {
+        let newMedia;
+        let releaseDate = item.release_date || '';
+        if (!releaseDate) {
+            releaseDate = null; // Set to null if empty
+        }
+
+        if (type === 'youtube') {
+            const videoUrl = `https://www.youtube.com/watch?v=${item.id.videoId}`;
+            const imageUrl = item.snippet.thumbnails.default.url;
+            newMedia = await supabase.from('media_items').insert([{
+                title: item.snippet.title,
+                medium: 'YouTube',
+                watchlist_id: watchlistId,
+                image: imageUrl,
+                url: videoUrl,
+                release_date: item.snippet.publishedAt.substring(0, 10),
+                creator: item.snippet.channelTitle,
+                added_by: clerkUser.username || 'Guest',
+                status: 'to consume',
+                order: mediaItems.length
+            }]).select();
+        } else if (type === 'movies') {
+            const imageUrl = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '';
+            newMedia = await supabase.from('media_items').insert([{
+                title: item.title || item.name,
+                medium: 'Movie',
+                watchlist_id: watchlistId,
+                image: imageUrl,
+                release_date: releaseDate,
+                creator: item.director || '',
+                added_by: clerkUser.username || 'Guest',
+                status: 'to consume',
+                order: mediaItems.length
+            }]).select();
+        } else if (type === 'TV shows') {
+            const imageUrl = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '';
+            const creator = item.created_by && item.created_by.length > 0 ? item.created_by[0].name : ''; // Get the creator name
+            newMedia = await supabase.from('media_items').insert([{
+                title: item.title || item.name,
+                medium: 'TV Show',
+                watchlist_id: watchlistId,
+                image: imageUrl,
+                release_date: releaseDate,
+                creator: item.creator || item.created_by,
+                added_by: clerkUser.username || 'Guest',
+                status: 'to consume',
+                order: mediaItems.length
+            }]).select();
+        }
+
+        const { data, error } = newMedia;
+        if (error) {
+            console.error('Failed to add item:', error.message);
+        } else {
+            setMediaItems([...mediaItems, ...data]);
+        }
+    };
+
+
   
   const handleDeleteMediaItem = async (deletedId, medium) => {
     if (window.confirm(`Are you sure you want to delete this ${medium}?`)) {
