@@ -4,11 +4,11 @@ import { useNavigate } from 'react-router-dom';
 
 function HomePage({ showLogin, showSignup, toggleLogin, toggleSignup }) {
   const navigate = useNavigate();
-  const { isSignedIn } = useUser();
+  const { isSignedIn, user } = useUser();
 
   useEffect(() => {
     if (isSignedIn) {
-      navigate('/profile');
+      navigate(`/profile/${user.username}`);
     }
   }, [isSignedIn, navigate]);
 

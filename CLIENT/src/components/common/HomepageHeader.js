@@ -35,14 +35,14 @@ function Header({ toggleLogin, toggleSignup, showLogin, showSignup }) {
               Register
             </button>
           </SignedOut>
-          <SignedIn>
+          {/* <SignedIn>
             <button
               onClick={signOut}
               className="btn shadow-[0_9px_0_rgb(0,0,0)] hover:shadow-[0_4px_0px_rgb(0,0,0)] hover:translate-y-1 transition-all inline-block p-2 ml-4 bg-red-500 hover:bg-red-600 rounded"
             >
               Sign Out
             </button>
-          </SignedIn>
+          </SignedIn> */}
         </nav>
       </div>
     </header>

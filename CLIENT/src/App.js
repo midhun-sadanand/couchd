@@ -15,14 +15,9 @@ const WatchlistPage = lazy(() => import('./pages/WatchlistPage'));
 const MediaPage = lazy(() => import('./pages/MediaPage'));
 const PostSignUp = lazy(() => import('./pages/PostSignUp'));
 
-const clerkPubKey = 'pk_test_ZnVubnktdW5pY29ybi03OS5jbGVyay5hY2NvdW50cy5kZXYk';
+const clerkPubKey = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
 
-// TestConsumer Component
-const TestConsumer = () => {
-  const supabase = useContext(SupabaseContext);
-  console.log("Supabase client in consumer:", supabase);
-  return null; // This component does nothing visually
-};
+console.log("PUBLIC KEY", clerkPubKey);
 
 function App() {
   const [showLogin, setShowLogin] = useState(false);
@@ -68,9 +63,10 @@ function App() {
                     }
                   />
                   <Route path="signup" element={<SignupPage />} />
-                  <Route path="profile" element={<SignedIn><SupabaseProvider><TestConsumer /><ProfilePage /></SupabaseProvider></SignedIn>} />
                   <Route path="lists" element={<WatchlistPage />} />
                   <Route path="/list/:username/:watchlistName/:watchlistId" element={<MediaPage />} />
+                  <Route path="/profile/:username" element={<SignedIn><ProfilePage /></SignedIn>} />
+                  <Route path="/:username" element={<SignedIn><ProfilePage /></SignedIn>} />
                 </Route>
                 <Route path="/" element={<SignedOut><LoginPage /></SignedOut>} />
                 <Route path="/signup" element={<SignedOut><SignupPage /></SignedOut>} />
