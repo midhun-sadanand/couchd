@@ -1,20 +1,24 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useUser, useSession } from '@clerk/clerk-react'; // Add useSession
+import { useUser, useSession } from '@clerk/clerk-react';
 import { SupabaseContext } from '../utils/auth';
 import WatchlistPage from '../pages/WatchlistPage';
+import ProfileSearchBar from '../components/ProfileSearchBar';
+import defaultProfile from '../components/assets/images/pfp.png';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
-  const { username } = useParams(); // Get username from URL
+  const { username } = useParams();
   const { client: supabase, isLoading: supabaseLoading } = useContext(SupabaseContext);
 
-  const { isLoaded, user } = useUser(); // Get user
-  const { session } = useSession(); // Get session
+  const { isLoaded, user } = useUser();
+  const { session } = useSession();
 
   const [loading, setLoading] = useState(true);
   const [profileUser, setProfileUser] = useState(null);
   const [friends, setFriends] = useState([]);
+  const [friendRequests, setFriendRequests] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
   const [toggle, setToggle] = useState(1);
 
   useEffect(() => {
@@ -34,21 +38,15 @@ const ProfilePage = () => {
 
     const fetchUserProfile = async () => {
       try {
-        const token = await session.getToken(); // Get token from session
-        console.log("TOKEN", token);
+        const token = await session.getToken();
         const response = await fetch('http://localhost:3001/api/users', {
           headers: {
-            Authorization: `Bearer ${token}`, // Use the token in the request header
+            Authorization: `Bearer ${token}`,
           },
         });
         const users = await response.json();
-        console.log('Users response:', users);
 
-        if (!Array.isArray(users)) {
-          throw new Error("Invalid response format: Expected an array of users");
-        }
-
-        const fetchedUser = users.find(u => u.username === username);
+        const fetchedUser = users.data.find(u => u.username === username);
         if (!fetchedUser) {
           console.error("User not found");
           navigate('/');
@@ -56,35 +54,32 @@ const ProfilePage = () => {
         }
         setProfileUser(fetchedUser);
 
-        const { data: friendsData, error } = await supabase
+        const { data: friendsData, error: friendsError } = await supabase
           .from('friends')
-          .select('friend_id')
+          .select('*')
           .eq('user_id', fetchedUser.id)
           .eq('status', 'accepted');
 
-        if (error) {
-          console.error('Error fetching friends:', error.message);
+        if (friendsError) {
+          console.error('Error fetching friends:', friendsError.message);
           return;
         }
 
-        const friendsDetails = await Promise.all(
-          friendsData.map(async (friend) => {
-            try {
-              const friendResponse = await fetch(`http://localhost:3001/api/user/${friend.friend_id}`, {
-                headers: {
-                  Authorization: `Bearer ${token}`, // Use the token in the request header
-                },
-              });
-              const friendDetails = await friendResponse.json();
-              return { id: friend.friend_id, username: friendDetails.username };
-            } catch (error) {
-              console.error('Error fetching friend details:', error.message);
-              return null;
-            }
-          })
-        );
+        setFriends(friendsData);
 
-        setFriends(friendsDetails.filter(friend => friend !== null));
+        const { data: friendRequestsData, error: friendRequestsError } = await supabase
+          .from('friend_requests')
+          .select('*')
+          .eq('receiver_id', fetchedUser.id)
+          .eq('status', 'pending');
+
+        if (friendRequestsError) {
+          console.error('Error fetching friend requests:', friendRequestsError.message);
+          return;
+        }
+
+        setFriendRequests(friendRequestsData);
+
         setLoading(false);
       } catch (error) {
         console.error("Error fetching user profile:", error.message);
@@ -93,7 +88,99 @@ const ProfilePage = () => {
     };
 
     fetchUserProfile();
-  }, [username, navigate, supabase, supabaseLoading, isLoaded, session]); // Add session to the dependency array
+  }, [username, navigate, supabase, supabaseLoading, isLoaded, session]);
+
+  const sendFriendRequest = async (receiverId, receiverUsername) => {
+    try {
+      const token = await session.getToken();
+      const response = await fetch('http://localhost:3001/api/friend-request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ senderId: user.id, senderUsername: user.username, receiverId, receiverUsername }),
+      });
+
+      if (!response.ok) {
+        const errorResponse = await response.json();
+        throw new Error(`Failed to send friend request: ${errorResponse.error}`);
+      }
+
+      console.log('Friend request sent');
+    } catch (error) {
+      console.error('Error sending friend request:', error.message);
+    }
+  };
+
+  const handleAcceptRequest = async (requestId) => {
+    try {
+      const token = await session.getToken();
+      const response = await fetch('http://localhost:3001/api/friend-request/accept', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ requestId }),
+      });
+
+      if (!response.ok) {
+        const errorResponse = await response.json();
+        throw new Error(`Failed to accept friend request: ${errorResponse.error}`);
+      }
+
+      console.log('Friend request accepted');
+    } catch (error) {
+      console.error('Error accepting friend request:', error.message);
+    }
+  };
+
+  const handleRejectRequest = async (requestId) => {
+    try {
+      const token = await session.getToken();
+      const response = await fetch('http://localhost:3001/api/friend-request/reject', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ requestId }),
+      });
+
+      if (!response.ok) {
+        const errorResponse = await response.json();
+        throw new Error(`Failed to reject friend request: ${errorResponse.error}`);
+      }
+
+      console.log('Friend request rejected');
+    } catch (error) {
+      console.error('Error rejecting friend request:', error.message);
+    }
+  };
+
+  const handleSearch = async (query) => {
+    try {
+      const token = await session.getToken();
+      const response = await fetch(`http://localhost:3001/api/search?query=${query}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorResponse = await response.json();
+        throw new Error(`Failed to fetch search results: ${errorResponse.error}`);
+      }
+
+      const data = await response.json();
+      setSearchResults(data);
+    } catch (error) {
+      console.error('Error searching for users:', error.message);
+      setSearchResults([]); // Clear previous results on error
+    }
+  };
 
   if (loading || supabaseLoading) {
     return <div>Loading...</div>;
@@ -101,7 +188,7 @@ const ProfilePage = () => {
 
   const updateToggle = (id) => {
     setToggle(id);
-  }
+  };
 
   return (
     <div className="w-screen h-screen flex flex-col items-center pt-10 text-[#e6e6e6]">
@@ -118,12 +205,39 @@ const ProfilePage = () => {
           <span className="text-8xl">{profileUser.username}</span>
         </h1>
       </div>
-      <div id="friendspage" className={toggle === 2 ? "flex justify-between pt-8 w-5/6" : "hidden"}>
+      <div id="friendspage" className={toggle === 2 ? "flex flex-col pt-8 w-5/6" : "hidden"}>
+        <ProfileSearchBar onSearch={handleSearch} />
+        <div className="w-full mb-8">
+          <h2 className="text-2xl mb-4">Search Results</h2>
+          {searchResults.length > 0 && (
+            searchResults.map(u => (
+              <div key={u.id} className="border-b flex justify-between w-3/4 grid grid-cols-2">
+                <span className="cursor-pointer" onClick={() => navigate(`/profile/${u.username}`)}>
+                  <img src={u.profile_image_url || defaultProfile} alt="Profile" className="w-8 h-8 rounded-full inline-block mr-2" />
+                  {u.username}
+                </span>
+                <button onClick={() => sendFriendRequest(u.id, u.username)} className="text-blue-500">Add Friend</button>
+              </div>
+            ))
+          )}
+        </div>
         <div className="w-1/2">
-          <span>Existing Friends</span>
+          <h2 className="text-2xl mb-4">Existing Friends</h2>
           {friends.map(friend => (
             <div key={friend.id} className="border-b flex justify-between w-3/4 grid grid-cols-2">
-              {friend.username}
+              <span>{friend.friend_username}</span>
+            </div>
+          ))}
+        </div>
+        <div className="w-1/2 mt-8">
+          <h2 className="text-2xl mb-4">Friend Requests</h2>
+          {friendRequests.map(request => (
+            <div key={request.id} className="border-b flex justify-between w-3/4 grid grid-cols-2">
+              <span>{request.sender_username}</span>
+              <div>
+                <button onClick={() => handleAcceptRequest(request.id)} className="text-green-500 mr-2">Accept</button>
+                <button onClick={() => handleRejectRequest(request.id)} className="text-red-500">Reject</button>
+              </div>
             </div>
           ))}
         </div>

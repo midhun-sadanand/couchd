@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+const { createClient } = require("@supabase/supabase-js");
 
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
@@ -39,4 +39,4 @@ function createClerkSupabaseClient() {
 
 const client = createClerkSupabaseClient();
 
-export default client;
+module.exports = client;

@@ -1,11 +1,11 @@
 import './index.css';
 import './App.css';
-import React, { lazy, Suspense, useState, useContext } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { ClerkProvider, SignedIn, SignedOut } from '@clerk/clerk-react';
 import { dark } from "@clerk/themes";
 import Layout from './components/common/Layout';
-import { SupabaseProvider, SupabaseContext } from './utils/auth';
+import { SupabaseProvider } from './utils/auth';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
 const SignupPage = lazy(() => import('./pages/SignupPage'));
@@ -14,6 +14,7 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const WatchlistPage = lazy(() => import('./pages/WatchlistPage'));
 const MediaPage = lazy(() => import('./pages/MediaPage'));
 const PostSignUp = lazy(() => import('./pages/PostSignUp'));
+const SearchResults = lazy(() => import('./pages/SearchResults')); // Import SearchResults
 
 const clerkPubKey = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
 
@@ -67,6 +68,7 @@ function App() {
                   <Route path="/list/:username/:watchlistName/:watchlistId" element={<MediaPage />} />
                   <Route path="/profile/:username" element={<SignedIn><ProfilePage /></SignedIn>} />
                   <Route path="/:username" element={<SignedIn><ProfilePage /></SignedIn>} />
+                  <Route path="/search" element={<SearchResults />} />  {/* Add this route */}
                 </Route>
                 <Route path="/" element={<SignedOut><LoginPage /></SignedOut>} />
                 <Route path="/signup" element={<SignedOut><SignupPage /></SignedOut>} />

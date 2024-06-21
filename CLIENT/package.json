@@ -9,6 +9,7 @@
     "@clerk/themes": "^2.1.9",
     "@geist-ui/core": "^2.3.8",
     "@geist-ui/icons": "^1.0.2",
+    "@supabase/ssr": "^0.3.0",
     "@supabase/supabase-js": "^2.43.1",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",

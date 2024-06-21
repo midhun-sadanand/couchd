@@ -2,16 +2,13 @@ require('dotenv').config();
 const express = require('express');
 const { ClerkExpressRequireAuth, clerkClient } = require('@clerk/clerk-sdk-node');
 const cors = require('cors');
-
-console.log("Environment Variables:");
-console.log("CLERK_SECRET_KEY:", process.env.CLERK_SECRET_KEY);
+const supabase = require('../src/utils/supabaseClient'); // Assuming you have a Supabase client configured
 
 const app = express();
 app.use(cors({ origin: 'http://localhost:3000' })); // Allow requests from React app
 app.use(express.json());
 
 const clerkSecretKey = process.env.CLERK_SECRET_KEY;
-console.log("SECRET KEY:", clerkSecretKey);
 
 if (!clerkSecretKey) {
   console.error('Missing Clerk secret key');
@@ -21,18 +18,9 @@ if (!clerkSecretKey) {
 // Example endpoint with ClerkExpressRequireAuth middleware
 app.get('/api/users', ClerkExpressRequireAuth({ secretKey: clerkSecretKey }), async (req, res) => {
   try {
-    
     const usersResponse = await clerkClient.users.getUserList();
-    console.log('Raw users response:', usersResponse); // Log the raw response
-
-    if (usersResponse.errors) {
-      throw new Error(usersResponse.errors.map(err => err.message).join(', '));
-    }
-
-    console.log('Formatted users response:', usersResponse);
     res.json(usersResponse);
   } catch (error) {
-    console.error('Error fetching users:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -41,12 +29,103 @@ app.get('/api/user/:userId', ClerkExpressRequireAuth({ secretKey: clerkSecretKey
   try {
     const { userId } = req.params;
     const userResponse = await clerkClient.users.getUser(userId);
-    if (userResponse.errors) {
-      throw new Error(userResponse.errors.map(err => err.message).join(', '));
-    }
     res.json(userResponse);
   } catch (error) {
-    console.error('Error fetching user:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add friend request endpoint
+app.post('/api/friend-request', ClerkExpressRequireAuth({ secretKey: clerkSecretKey }), async (req, res) => {
+  const { senderId, senderUsername, receiverId, receiverUsername } = req.body;
+  try {
+    const { data, error } = await supabase
+      .from('friend_requests')
+      .insert([{ sender_id: senderId, sender_username: senderUsername, receiver_id: receiverId, receiver_username: receiverUsername, status: 'pending' }]);
+
+    if (error) {
+      console.error('Error inserting friend request:', error);
+      throw error;
+    }
+    res.status(201).json(data);
+  } catch (error) {
+    console.error('Error in friend request endpoint:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Accept friend request endpoint
+app.post('/api/friend-request/accept', ClerkExpressRequireAuth({ secretKey: clerkSecretKey }), async (req, res) => {
+  const { requestId } = req.body;
+  try {
+    const { data, error } = await supabase
+      .from('friend_requests')
+      .update({ status: 'accepted' })
+      .eq('id', requestId)
+      .select()
+      .single(); // Ensure we get a single row
+
+    if (error) {
+      console.error('Error updating friend request:', error);
+      throw error;
+    }
+
+    const { sender_id, sender_username, receiver_id, receiver_username } = data;
+
+    const { data: friendData, error: friendError } = await supabase
+      .from('friends')
+      .insert([
+        { user_id: sender_id, user_username: sender_username, friend_id: receiver_id, friend_username: receiver_username, status: 'accepted' },
+        { user_id: receiver_id, user_username: receiver_username, friend_id: sender_id, friend_username: sender_username, status: 'accepted' }
+      ]);
+
+    if (friendError) {
+      console.error('Error inserting friends:', friendError);
+      throw friendError;
+    }
+
+    res.status(200).json(friendData);
+  } catch (error) {
+    console.error('Error in accept friend request endpoint:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reject friend request endpoint
+app.post('/api/friend-request/reject', ClerkExpressRequireAuth({ secretKey: clerkSecretKey }), async (req, res) => {
+  const { requestId } = req.body;
+  try {
+    const { error } = await supabase
+      .from('friend_requests')
+      .delete()
+      .eq('id', requestId);
+
+    if (error) {
+      console.error('Error deleting friend request:', error);
+      throw error;
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error in reject friend request endpoint:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Endpoint to search for users by username
+app.get('/api/search', ClerkExpressRequireAuth({ secretKey: clerkSecretKey }), async (req, res) => {
+  console.log('Search endpoint hit');
+  const { query } = req.query;
+  try {
+    const usersResponse = await clerkClient.users.getUserList();
+    console.log('Users fetched:', usersResponse.data);
+    const filteredUsers = usersResponse.data.filter(user =>
+      user.username && user.username.toLowerCase().includes(query.toLowerCase())
+    );
+    console.log('Filtered users:', filteredUsers);
+    res.json(filteredUsers);
+  } catch (error) {
+    console.error('Error in search endpoint:', error.message);
     res.status(500).json({ error: error.message });
   }
 });

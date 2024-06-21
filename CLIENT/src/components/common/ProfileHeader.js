@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import supabase from '../../utils/supabaseClient';
+import SearchBar from '../SearchBar';
 
 const ProfileHeader = () => {
     const navigate = useNavigate();
@@ -22,6 +23,10 @@ const ProfileHeader = () => {
         navigate(`/profile/${user.username}`);  // Navigation to profile page
     };
 
+    const handleSearchClick = (query) => {
+        navigate(`/search?query=${encodeURIComponent(query)}`);
+    };
+
     return (
         <header className="text-white p-4 shadow-md">
             <div className="mx-auto flex justify-between items-center" style={{ maxWidth: '85%' }}>
@@ -31,12 +36,15 @@ const ProfileHeader = () => {
                 </div>
                 <div className="flex items-center">
                     {user?.imageUrl && (
-                        <img
-                            src={user.imageUrl}
-                            alt="Profile"
-                            className="w-10 h-10 rounded-full mr-4 cursor-pointer"
-                            onClick={goToProfile}
-                        />
+                        <div className="flex items-center">
+                            <img
+                                src={user.imageUrl}
+                                alt="Profile"
+                                className="w-10 h-10 rounded-full mr-4 cursor-pointer"
+                                onClick={goToProfile}
+                            />
+                            <span className="text-white">{user.username}</span>
+                        </div>
                     )}
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.0" stroke="currentColor" className="w-8 h-8 mr-10 cursor-pointer" onClick={goToWatchlists}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5.625 3.75a2.625 2.625 0 1 0 0 5.25h12.75a2.625 2.625 0 0 0 0-5.25H5.625ZM3.75 11.25a.75.75 0 0 0 0 1.5h16.5a.75.75 0 0 0 0-1.5H3.75ZM3 15.75a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75ZM3.75 18.75a.75.75 0 0 0 0 1.5h16.5a.75.75 0 0 0 0-1.5H3.75Z" />
