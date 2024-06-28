@@ -28,12 +28,28 @@ app.get('/api/users', ClerkExpressRequireAuth({ secretKey: clerkSecretKey }), as
 app.get('/api/user/:userId', ClerkExpressRequireAuth({ secretKey: clerkSecretKey }), async (req, res) => {
   try {
     const { userId } = req.params;
+
     const userResponse = await clerkClient.users.getUser(userId);
     res.json(userResponse);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
+
+// New endpoint to fetch user details based on shared user IDs
+app.post('/api/shared-users', async (req, res) => {
+  try {
+    const { userIds } = req.body;
+    console.log('Fetching user details for IDs:', userIds);
+    const userPromises = userIds.map(userId => clerkClient.users.getUser(userId));
+    const users = await Promise.all(userPromises);
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching shared users:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 // Add friend request endpoint
 app.post('/api/friend-request', ClerkExpressRequireAuth({ secretKey: clerkSecretKey }), async (req, res) => {
@@ -138,6 +154,27 @@ app.get('/api/search', ClerkExpressRequireAuth({ secretKey: clerkSecretKey }), a
     res.json(filteredUsers);
   } catch (error) {
     console.error('Error in search endpoint:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/friends/:userId', ClerkExpressRequireAuth({ secretKey: clerkSecretKey }), async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const { data, error } = await supabase
+      .from('friends')
+      .select('friends')
+      .eq('profile_id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching friends:', error);
+      throw error;
+    }
+
+    res.status(200).json(data);
+  } catch (error) {
+    console.error('Error in fetch friends endpoint:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -17,6 +17,7 @@ const MediaPage = () => {
   const [watchlistPublic, setWatchlistPublic] = useState(false);
   const [watchlistImage, setWatchlistImage] = useState('');
   const [watchlistDescription, setWatchlistDescription] = useState('');
+  const [sharedUsers, setSharedUsers] = useState([]);
   const { user: clerkUser, isLoaded } = useUser();
   const { watchlistName, watchlistId: paramWatchlistId } = useParams();
   const { state } = useLocation();
@@ -25,7 +26,10 @@ const MediaPage = () => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImageUploadModalOpen, setIsImageUploadModalOpen] = useState(false);
-
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [friends, setFriends] = useState([]);
+  const [sortOption, setSortOption] = useState('Custom Order');
+  const [customOrder, setCustomOrder] = useState([]);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -42,7 +46,7 @@ const MediaPage = () => {
         try {
           const { data: watchlist, error: watchlistError } = await supabase
             .from('watchlists')
-            .select('id, name, is_public, image, description')
+            .select('id, name, is_public, image, description, shared_with')
             .eq('id', paramWatchlistId)
             .single();
 
@@ -50,11 +54,13 @@ const MediaPage = () => {
             throw watchlistError;
           }
 
+          console.log("WATCHLIST", watchlist);
           if (watchlist) {
             setWatchlistId(watchlist.id);
             setWatchlistPublic(watchlist.is_public);
             setWatchlistImage(watchlist.image);
             setWatchlistDescription(watchlist.description);
+
             const { data: media, error: mediaError } = await supabase
               .from('media_items')
               .select('*')
@@ -66,6 +72,27 @@ const MediaPage = () => {
             }
 
             setMediaItems(media || []);
+            setCustomOrder(media || []);
+
+            // Fetch shared users' details
+            console.log("WATCHLIST SHARED WITH", watchlist.shared_with);
+            if (watchlist.shared_with && watchlist.shared_with.length > 0) {
+              const response = await fetch('http://localhost:3001/api/shared-users', { // Ensure the port matches your backend
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ userIds: watchlist.shared_with }),
+              });
+              
+
+              if (!response.ok) {
+                throw new Error('Failed to fetch shared users');
+              }
+
+              const sharedUsersData = await response.json();
+              setSharedUsers(sharedUsersData);
+            }
           }
         } catch (error) {
           console.error('Error fetching data:', error.message);
@@ -73,18 +100,53 @@ const MediaPage = () => {
       }
     }
 
+    async function fetchFriends() {
+
+      if (isLoaded && clerkUser) {
+
+        console.log("HOPEFULLY LOADED", clerkUser?.id);
+
+        try {
+          const { data: friendsData, error: friendsError } = await supabase
+            .from('friends')
+            .select('friends')
+            .eq('profile_id', clerkUser.id)
+            .single();
+
+          console.log("FRIENDS", friendsData.friends);
+  
+          if (friendsError) {
+            throw friendsError;
+          }
+  
+          setFriends(friendsData.friends || []);
+          console.log("FRIENDDATA", friendsData);
+  
+        } catch (error) {
+          console.error('Error fetching friends:', error.message);
+        }
+      }
+    }
+  
+
     fetchData();
+    fetchFriends();
+
+
   }, [paramWatchlistId, clerkUser, isLoaded, state]);
 
   const fetchMediaItems = async () => {
+    
     try {
       const { data: watchlist, error: watchlistError } = await supabase
         .from('watchlists')
-        .select('id, name, is_public, image, description')
+        .select('id, name, is_public, image, description, shared_with')
         .eq('id', paramWatchlistId)
         .single();
 
+
       if (watchlistError) {
+        console.log ("Watchlist shared with", watchlist.shared_with);
         throw watchlistError;
       }
 
@@ -93,6 +155,7 @@ const MediaPage = () => {
         setWatchlistPublic(watchlist.is_public);
         setWatchlistImage(watchlist.image);
         setWatchlistDescription(watchlist.description);
+
         const { data: media, error: mediaError } = await supabase
           .from('media_items')
           .select('*')
@@ -104,6 +167,25 @@ const MediaPage = () => {
         }
 
         setMediaItems(media || []);
+        setCustomOrder(media || []);
+
+        // Fetch shared users' details
+        if (watchlist.shared_with && watchlist.shared_with.length > 0) {
+          const response = await fetch('/api/shared-users', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userIds: watchlist.shared_with }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch shared users');
+          }
+
+          const sharedUsersData = await response.json();
+          setSharedUsers(sharedUsersData);
+        }
       }
     } catch (error) {
       console.error('Error fetching media items:', error.message);
@@ -224,6 +306,7 @@ const MediaPage = () => {
 
     const reorderedItems = arrayMove(mediaItems, result.source.index, result.destination.index);
     setMediaItems(reorderedItems);
+    setCustomOrder(reorderedItems);
 
     try {
       await Promise.all(reorderedItems.map((item, index) =>
@@ -241,19 +324,38 @@ const MediaPage = () => {
       return;
     }
 
-    const { error } = await supabase
-      .from('watchlist_shares')
-      .insert([{
-        watchlist_id: watchlistId,
-        shared_with_user_id: friendId,
-        permission_type: 'edit'
-      }]);
+    try {
+      const { data, error } = await supabase
+        .from('watchlists')
+        .select('shared_with')
+        .eq('id', watchlistId)
+        .single();
 
-    if (error) {
-      console.error('Failed to share watchlist:', error.message);
-      alert('Failed to share watchlist.');
-    } else {
+      if (error) {
+        throw error;
+      }
+
+      const sharedWith = data.shared_with || [];
+      if (sharedWith.includes(friendId)) {
+        alert('Watchlist already shared with this friend.');
+        return;
+      }
+
+      sharedWith.push(friendId);
+
+      const { error: updateError } = await supabase
+        .from('watchlists')
+        .update({ shared_with: sharedWith })
+        .eq('id', watchlistId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
       alert('Watchlist shared successfully!');
+    } catch (error) {
+      console.error('Error sharing watchlist:', error.message);
+      alert('Failed to share watchlist.');
     }
   };
 
@@ -313,6 +415,7 @@ const MediaPage = () => {
       console.error('Failed to add item:', error.message);
     } else {
       setMediaItems([...mediaItems, ...data]);
+      setCustomOrder([...mediaItems, ...data]);
     }
   };
 
@@ -327,6 +430,7 @@ const MediaPage = () => {
         console.error('Error deleting media item:', error.message);
       } else {
         setMediaItems(currentMediaItems => currentMediaItems.filter(item => item.id !== deletedId));
+        setCustomOrder(currentMediaItems => currentMediaItems.filter(item => item.id !== deletedId));
       }
     }
   };
@@ -344,6 +448,33 @@ const MediaPage = () => {
 
   const handleModalClose = () => {
     setIsModalOpen(false);
+  };
+
+  const handleSortChange = (e) => {
+    const sortOption = e.target.value;
+    setSortOption(sortOption);
+
+    let sortedMediaItems;
+    switch (sortOption) {
+      case 'Date Added':
+        sortedMediaItems = [...mediaItems].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        break;
+      case 'Date Modified':
+        sortedMediaItems = [...mediaItems].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+        break;
+      case 'Title':
+        sortedMediaItems = [...mediaItems].sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'Added By':
+        sortedMediaItems = [...mediaItems].sort((a, b) => a.added_by.localeCompare(b.added_by));
+        break;
+      case 'Custom Order':
+      default:
+        sortedMediaItems = [...customOrder];
+        break;
+    }
+
+    setMediaItems(sortedMediaItems);
   };
 
   // Add useEffect to handle Command + K
@@ -392,7 +523,7 @@ const MediaPage = () => {
     <div className="container mx-auto p-4 dark:bg-gray-800 dark:text-white relative w-full">
       <div className="flex justify-between items-start mb-4 w-full">
         <div className="flex items-start space-x-4">
-          <div className="relative w-40 h-40 mb-4">
+          <div className="relative w-48 h-48 mb-4">
             {watchlistImage ? (
               <img
                 src={watchlistImage}
@@ -412,29 +543,91 @@ const MediaPage = () => {
                 onClick={handleOpenImageUploadModal}
                 className="text-white flex flex-col items-center"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="w-6 h-6 mb-1">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6 mb-1">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                 </svg>
                 <span>Edit watchlist</span>
               </button>
             </div>
           </div>
-          <div className="flex flex-col justify-start ">
+          <div className="flex flex-col justify-start">
             <p className="text-sm text-gray-400 text-left">{watchlistPublic ? 'Public watchlist' : 'Private watchlist'}</p>
             <h1 className="text-5xl font-bold text-white text-left cursor-pointer" onClick={handleOpenImageUploadModal}>{watchlistName}</h1>
             <p className="text-lg text-gray-300 text-left">{watchlistDescription}</p>
-            <div className="flex items-center mt-2">
-              <img
-                src={clerkUser?.imageUrl}
-                alt="Owner"
-                className="w-8 h-8 rounded-full mt-5 mr-2 align-bottom"
-              />
-              <span className="text-sm mt-5 text-gray-400">{clerkUser?.username} • {mediaItems.length} media</span>
+            <div className="flex items-center mt-10">
+            <div className="flex -space-x-2 mr-2">
+                <img
+                  src={clerkUser?.imageUrl}
+                  alt="Owner"
+                  className="w-8 h-8 rounded-full mt-5 mr-2 align-bottom z-20 shadow-2xl"
+                />
+                {sharedUsers.map((user, index) => (
+                  <img
+                    key={user.id}
+                    src={user.imageUrl}
+                    alt={user.username}
+                    className="w-8 h-8 rounded-full mt-5 mr-2 align-bottom shadow-2xl"
+                    style={{ marginLeft: `${-25 * (index + 1)}px`, zIndex: 19 - index }}
+                  />
+                ))}
+              </div>
+              <span className="text-sm mt-5 text-gray-400">
+                {clerkUser?.username}, {sharedUsers.map(user => user.username).join(', ')} • {mediaItems.length} media
+              </span>
             </div>
           </div>
         </div>
-        <div className="search-bar-container self-end">
-          <SearchBar onSearchClick={handleSearchClick} />
+        <div className="flex items-start">
+          <SearchBar onSearchClick={handleSearchClick} style={{ fontFamily: 'GeistRegular' }}/>
+        </div>
+      </div>
+      <div className="flex justify-end items-center mb-4 w-full" style={{ marginTop: '-65px' }}>
+        <div className="flex items-center">
+          <div className="relative ml-4">
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="text-white flex flex-col items-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
+              </svg>
+            </button>
+            {isDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20">
+                <input
+                  type="text"
+                  placeholder="Search friends"
+                  className="w-full px-2 py-1 border-b"
+                  onChange={(e) => {
+                    const searchValue = e.target.value.toLowerCase();
+                    setFriends(friends.filter(friend => friend.username.toLowerCase().includes(searchValue)));
+                  }}
+                />
+                <ul className="py-1">
+                  {friends.map(friend => (
+                    <li
+                      key={friend.id}
+                      className="px-4 py-2 cursor-pointer hover:bg-gray-200"
+                      onClick={() => onShare(friend.id)}
+                    >
+                      {friend.username}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+          <select
+            value={sortOption}
+            onChange={handleSortChange}
+            className="ml-4 bg-gray-700 text-white px-3 py-2 rounded"
+          >
+            <option value="Custom Order">Custom Order</option>
+            <option value="Date Added">Date Added</option>
+            <option value="Date Modified">Date Modified</option>
+            <option value="Title">Title</option>
+            <option value="Added By">Added By</option>
+          </select>
         </div>
       </div>
       {showSuccessMessage && (

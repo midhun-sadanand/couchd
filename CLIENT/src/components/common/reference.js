@@ -1,404 +1,637 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import defaultProfile from './assets/images/pfp.png';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useParams, useLocation } from 'react-router-dom';
+import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
+import { useUser } from '@clerk/clerk-react';
+import supabase from '../utils/supabaseClient';
+import MovieCard from '../components/MovieCard';
+import YouTubeCard from '../components/YoutubeCard';
+import ShareWatchlist from '../components/common/ShareWatchlist';
+import { arrayMoveImmutable as arrayMove } from 'array-move';
+import SearchBar from '../components/SearchBar';
+import SearchModal from '../components/SearchModal';
+import ImageUploadModal from '../components/ImageUploadModal';
 
-const SearchModal = ({ onSelect, onClose }) => {
-    const [query, setQuery] = useState('');
-    const [results, setResults] = useState([]);
-    const [medium, setMedium] = useState('movie'); // Default search medium
-    const [youtubeType, setYoutubeType] = useState('video');
-    const [movieFilter, setMovieFilter] = useState('movie');
-    const [showFilterOptions, setShowFilterOptions] = useState(false);
-    const [selectedDirector, setSelectedDirector] = useState(null);
-    const [directorName, setDirectorName] = useState('');
-    const [selectedActor, setSelectedActor] = useState(null);
-    const [actorName, setActorName] = useState('');
-    const [selectedChannel, setSelectedChannel] = useState(null);
-    const [channelName, setChannelName] = useState('');
-    const [isFetching, setIsFetching] = useState(false);
-    const [sortOption, setSortOption] = useState('relevance'); // New state for sort option
-    const fetchController = useRef(null);
-    const previousResults = useRef([]); // Store previous results to avoid flickering
+const MediaPage = () => {
+  const [mediaItems, setMediaItems] = useState([]);
+  const [watchlistId, setWatchlistId] = useState('');
+  const [watchlistPublic, setWatchlistPublic] = useState(false);
+  const [watchlistImage, setWatchlistImage] = useState('');
+  const [watchlistDescription, setWatchlistDescription] = useState('');
+  const [sharedUsers, setSharedUsers] = useState([]);
+  const { user: clerkUser, isLoaded } = useUser();
+  const { watchlistName, watchlistId: paramWatchlistId } = useParams();
+  const { state } = useLocation();
+  const [openCards, setOpenCards] = useState({});
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImageUploadModalOpen, setIsImageUploadModalOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [friends, setFriends] = useState([]);
+  const [sortOption, setSortOption] = useState('Custom Order');
+  const [customOrder, setCustomOrder] = useState([]);
+  const inputRef = useRef(null);
 
-    const debounce = (func, delay) => {
-        let timeout;
-        return (...args) => {
-            if (timeout) clearTimeout(timeout);
-            timeout = setTimeout(() => {
-                func(...args);
-            }, delay);
-        };
-    };
+  useEffect(() => {
+    if (state && state.successMessage) {
+      setSuccessMessage(state.successMessage);
+      setShowSuccessMessage(true);
+      setTimeout(() => {
+        handleCloseSuccessMessage();
+      }, 5000);
+    }
 
-    const fetchResults = async () => {
-        if (!query && !selectedDirector && !selectedActor && !selectedChannel) return;
-
-        if (fetchController.current) {
-            fetchController.current.abort(); // Abort previous fetch if still ongoing
-        }
-
-        fetchController.current = new AbortController();
-        const { signal } = fetchController.current;
-        setIsFetching(true);
-
-        let url;
-        if (medium === 'movie' || medium === 'tv') {
-            if (selectedDirector) {
-                url = `https://api.themoviedb.org/3/person/${selectedDirector}/movie_credits?api_key=89d44f8db4046fedba0c0d1a0ab8fc74`;
-            } else if (selectedActor) {
-                url = `https://api.themoviedb.org/3/person/${selectedActor}/movie_credits?api_key=89d44f8db4046fedba0c0d1a0ab8fc74`;
-            } else if (movieFilter === 'movie') {
-                url = `https://api.themoviedb.org/3/search/movie?api_key=89d44f8db4046fedba0c0d1a0ab8fc74&language=en-US&query=${encodeURIComponent(query)}&page=1&include_adult=false`;
-            } else if (movieFilter === 'director' || movieFilter === 'cast') {
-                url = `https://api.themoviedb.org/3/search/person?api_key=89d44f8db4046fedba0c0d1a0ab8fc74&language=en-US&query=${encodeURIComponent(query)}&page=1&include_adult=false`;
-            }
-        } else {
-            const API_KEY = process.env.REACT_APP_YOUTUBE_API_KEY;
-            const maxResults = 10;
-            const order = sortOption; // Using the sortOption state for sorting
-            if (selectedChannel) {
-                url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${selectedChannel}&type=video&q=${encodeURIComponent(query)}&maxResults=${maxResults}&order=${order}&key=${API_KEY}`;
-            } else {
-                url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=${youtubeType}&maxResults=${maxResults}&order=${order}&key=${API_KEY}`;
-            }
-        }
-
+    async function fetchData() {
+      if (isLoaded && clerkUser && paramWatchlistId) {
         try {
-            const response = await fetch(url, { signal });
-            const data = await response.json();
+          const { data: watchlist, error: watchlistError } = await supabase
+            .from('watchlists')
+            .select('id, name, is_public, image, description, shared_with')
+            .eq('id', paramWatchlistId)
+            .single();
 
-            if (medium === 'movie' || medium === 'tv') {
-                let detailedResults = [];
-                if (selectedDirector) {
-                    detailedResults = (data.crew || []).filter(movie => movie.job === 'Director' && (!query || movie.title.toLowerCase().includes(query.toLowerCase())));
-                } else if (selectedActor) {
-                    detailedResults = (data.cast || []).filter(movie => (!query || movie.title.toLowerCase().includes(query.toLowerCase())));
-                    detailedResults = detailedResults.map(movie => ({
-                        ...movie,
-                        actor: actorName
-                    }));
-                } else if (movieFilter === 'movie') {
-                    detailedResults = await Promise.all((data.results || []).map(async (item) => {
-                        const detailsUrl = `https://api.themoviedb.org/3/${item.media_type}/${item.id}?api_key=89d44f8db4046fedba0c0d1a0ab8fc74&append_to_response=credits`;
-                        const detailsResponse = await fetch(detailsUrl);
-                        const detailsData = await detailsResponse.json();
-                        return {
-                            ...item,
-                            director: detailsData.credits?.crew.find(c => c.job === "Director")?.name || ''
-                        };
-                    }));
-                } else if (movieFilter === 'director') {
-                    detailedResults = (data.results || []).filter(person => person.known_for_department === 'Directing');
-                } else if (movieFilter === 'cast') {
-                    detailedResults = (data.results || []).filter(person => person.known_for_department === 'Acting');
-                }
-                previousResults.current = detailedResults; // Update previous results
-            } else {
-                previousResults.current = data.items || [];
+          if (watchlistError) {
+            throw watchlistError;
+          }
+
+          if (watchlist) {
+            setWatchlistId(watchlist.id);
+            setWatchlistPublic(watchlist.is_public);
+            setWatchlistImage(watchlist.image);
+            setWatchlistDescription(watchlist.description);
+
+            const { data: media, error: mediaError } = await supabase
+              .from('media_items')
+              .select('*')
+              .eq('watchlist_id', watchlist.id)
+              .order('order', { ascending: true });
+
+            if (mediaError) {
+              throw mediaError;
             }
-            setResults(previousResults.current); // Update results with fetched data
-        } catch (error) {
-            if (error.name !== 'AbortError') {
-                console.error('Failed to fetch results:', error);
+
+            setMediaItems(media || []);
+            setCustomOrder(media || []);
+
+            if (watchlist.shared_with && watchlist.shared_with.length > 0) {
+              const response = await fetch('http://localhost:3001/api/shared-users', { // Ensure the port matches your backend
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ userIds: watchlist.shared_with }),
+              });
+
+              if (!response.ok) {
+                throw new Error('Failed to fetch shared users');
+              }
+
+              const sharedUsersData = await response.json();
+              setSharedUsers(sharedUsersData);
             }
-        } finally {
-            setIsFetching(false);
-        }
-    };
-
-    const fetchMoviesByDirector = async (directorId) => {
-        const url = `https://api.themoviedb.org/3/person/${directorId}/movie_credits?api_key=89d44f8db4046fedba0c0d1a0ab8fc74`;
-        try {
-            const response = await fetch(url);
-            const data = await response.json();
-            const directorMovies = data.crew.filter(movie => movie.job === 'Director').map(movie => ({
-                ...movie,
-                director: data.name
-            }));
-            previousResults.current = directorMovies; // Update previous results
-            setResults(previousResults.current); // Update results with fetched data
+          }
         } catch (error) {
-            console.error('Failed to fetch movies by director:', error);
+          console.error('Error fetching data:', error.message);
         }
-    };
+      }
+    }
 
-    const fetchMoviesByActor = async (actorId) => {
-        const url = `https://api.themoviedb.org/3/person/${actorId}/movie_credits?api_key=89d44f8db4046fedba0c0d1a0ab8fc74`;
+    async function fetchFriends() {
+      if (isLoaded && clerkUser) {
         try {
-            const response = await fetch(url);
-            const data = await response.json();
-            const actorMovies = data.cast.map(movie => ({
-                ...movie,
-                actor: data.name
-            }));
-            previousResults.current = actorMovies; // Update previous results
-            setResults(previousResults.current); // Update results with fetched data
+          const { data: friendsData, error: friendsError } = await supabase
+            .from('friends')
+            .select('friends')
+            .eq('profile_id', clerkUser.id)
+            .single();
+
+          if (friendsError) {
+            throw friendsError;
+          }
+
+          setFriends(friendsData.friends || []);
         } catch (error) {
-            console.error('Failed to fetch movies by actor:', error);
+          console.error('Error fetching friends:', error.message);
         }
-    };
+      }
+    }
 
-    const debouncedFetchResults = useCallback(debounce(fetchResults, 1000), [query, medium, youtubeType, movieFilter, selectedChannel, selectedDirector, selectedActor, sortOption]);
+    fetchData();
+    fetchFriends();
+  }, [paramWatchlistId, clerkUser, isLoaded, state]);
 
-    useEffect(() => {
-        if (selectedChannel || selectedDirector || selectedActor || query.length >= 3) {
-            debouncedFetchResults();
-        } else {
-            setResults([]);
+  const fetchMediaItems = async () => {
+    try {
+      const { data: watchlist, error: watchlistError } = await supabase
+        .from('watchlists')
+        .select('id, name, is_public, image, description, shared_with')
+        .eq('id', paramWatchlistId)
+        .single();
+
+      if (watchlistError) {
+        throw watchlistError;
+      }
+
+      if (watchlist) {
+        setWatchlistId(watchlist.id);
+        setWatchlistPublic(watchlist.is_public);
+        setWatchlistImage(watchlist.image);
+        setWatchlistDescription(watchlist.description);
+
+        const { data: media, error: mediaError } = await supabase
+          .from('media_items')
+          .select('*')
+          .eq('watchlist_id', watchlist.id)
+          .order('order', { ascending: true });
+
+        if (mediaError) {
+          throw mediaError;
         }
-    }, [query, medium, youtubeType, movieFilter, selectedChannel, selectedDirector, selectedActor, sortOption, debouncedFetchResults]);
 
-    const decodeHtml = (html) => {
-        var txt = document.createElement("textarea");
-        txt.innerHTML = html;
-        return txt.value;
-    };
+        setMediaItems(media || []);
+        setCustomOrder(media || []);
 
-    const handleFormSubmit = (e) => {
-        e.preventDefault();
-        if (query.length >= 3 || selectedChannel || selectedDirector || selectedActor) {
-            fetchResults();
+        if (watchlist.shared_with && watchlist.shared_with.length > 0) {
+          const response = await fetch('/api/shared-users', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userIds: watchlist.shared_with }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch shared users');
+          }
+
+          const sharedUsersData = await response.json();
+          setSharedUsers(sharedUsersData);
         }
-    };
+      }
+    } catch (error) {
+      console.error('Error fetching media items:', error.message);
+    }
+  };
 
-    const handleFilterSelect = (filter) => {
-        if (medium === 'youtube') {
-            setYoutubeType(filter);
-        } else {
-            setMovieFilter(filter);
-        }
-        setShowFilterOptions(false);
-    };
+  const handleNotesChange = async (id, notes) => {
+    const { error } = await supabase.from('media_items').update({ notes }).eq('id', id);
+    if (error) {
+      console.error('Error updating notes:', error.message);
+    } else {
+      setMediaItems(currentItems => currentItems.map(item => item.id === id ? { ...item, notes } : item));
+    }
+  };
 
-    const handleSortSelect = (sortOption) => {
-        setSortOption(sortOption);
-        fetchResults();
-    };
+  const handleStatusChange = async (id, status) => {
+    const { error } = await supabase.from('media_items').update({ status }).eq('id', id);
+    if (error) {
+      console.error('Error updating status:', error.message);
+    } else {
+      setMediaItems(currentItems => currentItems.map(item => item.id === id ? { ...item, status } : item));
+    }
+  };
 
-    const handleDirectorSelect = async (directorId, directorName) => {
-        setSelectedDirector(directorId);
-        setDirectorName(directorName);
-        setQuery('');
-        await fetchMoviesByDirector(directorId);
-        setMovieFilter('movie'); // Switch to movie filter to search within the director's movies
-    };
+  const handleRatingChange = async (id, rating) => {
+    const { error } = await supabase.from('media_items').update({ rating }).eq('id', id);
+    if (error) {
+      console.error('Error updating rating:', error.message);
+    } else {
+      setMediaItems(currentItems => currentItems.map(item => item.id === id ? { ...item, rating } : item));
+    }
+  };
 
-    const handleActorSelect = async (actorId, actorName) => {
-        setSelectedActor(actorId);
-        setActorName(actorName);
-        setQuery('');
-        await fetchMoviesByActor(actorId);
-        setMovieFilter('movie'); // Switch to movie filter to search within the actor's movies
-    };
+  const setIsOpen = useCallback((id, isOpen) => {
+    setOpenCards(prevOpenCards => ({ ...prevOpenCards, [id]: isOpen }));
+  }, []);
 
-    const handleExitDirectorSearch = () => {
-        setSelectedDirector(null);
-        setDirectorName('');
-        setQuery('');
-        setResults([]);
-    };
-
-    const handleExitActorSearch = () => {
-        setSelectedActor(null);
-        setActorName('');
-        setQuery('');
-        setResults([]);
-    };
-
-    const handleChannelSelect = (channelId, channelName) => {
-        setSelectedChannel(channelId);
-        setChannelName(channelName);
-        setQuery('');
-        setResults([]);
-    };
-
-    const handleExitChannelSearch = () => {
-        setSelectedChannel(null);
-        setChannelName('');
-        setQuery('');
-        setResults([]);
-    };
-
-    return (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50" onClick={onClose}>
-            <div className="bg-white rounded-lg shadow-lg w-11/12 max-w-2xl p-4" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold">Search Media</h2>
-                    <button onClick={onClose} className="text-gray-600 hover:text-gray-900">&times;</button>
-                </div>
-                <form onSubmit={handleFormSubmit} className="flex mb-4">
-                    <select value={medium} onChange={(e) => {
-                        setMedium(e.target.value);
-                        setSelectedChannel(null); // Reset channel selection when changing medium
-                        setSelectedDirector(null); // Reset director selection when changing medium
-                        setSelectedActor(null); // Reset actor selection when changing medium
-                        setQuery(''); // Reset query when changing medium
-                    }} className="border p-2 mr-2">
-                        <option value="movie">Movies</option>
-                        <option value="tv">TV Shows</option>
-                        <option value="youtube">YouTube</option>
-                    </select>
-                    <div className="flex flex-grow items-center border p-2">
-                        <input
-                            type="text"
-                            placeholder={
-                                selectedChannel
-                                    ? `Search ${channelName}'s videos...`
-                                    : selectedDirector
-                                    ? `Searching movies by ${directorName}...`
-                                    : selectedActor
-                                    ? `Searching movies with ${actorName}...`
-                                    : "Search..."
-                            }
-                            value={query}
-                            onChange={e => setQuery(e.target.value)}
-                            className="flex-grow focus:outline-none"
-                        />
-                        {selectedChannel && (
-                            <button type="button" onClick={handleExitChannelSearch} className="text-gray-600 hover:text-gray-900 ml-2">&times;</button>
-                        )}
-                        {selectedDirector && (
-                            <button type="button" onClick={handleExitDirectorSearch} className="text-gray-600 hover:text-gray-900 ml-2">&times;</button>
-                        )}
-                        {selectedActor && (
-                            <button type="button" onClick={handleExitActorSearch} className="text-gray-600 hover:text-gray-900 ml-2">&times;</button>
-                        )}
-                    </div>
-                    <div className="relative">
-                        <button
-                            type="button"
-                            className="bg-blue-500 text-white p-2 ml-2 flex items-center"
-                            onClick={() => setShowFilterOptions(!showFilterOptions)}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6 mr-2">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
-                            </svg>
-                            Filter
-                        </button>
-                        {showFilterOptions && (
-                            <div className="absolute top-full mt-2 right-0 bg-white border rounded shadow-lg p-2 z-10">
-                                {medium === 'youtube' ? (
-                                    <div className="mb-2">
-                                        <div
-                                            onClick={() => handleFilterSelect('video')}
-                                            className={`p-2 cursor-pointer hover:bg-gray-200 ${youtubeType === 'video' ? 'underline' : ''}`}
-                                        >
-                                            Video
-                                        </div>
-                                        <div
-                                            onClick={() => handleFilterSelect('channel')}
-                                            className={`p-2 cursor-pointer hover:bg-gray-200 ${youtubeType === 'channel' ? 'underline' : ''}`}
-                                        >
-                                            Channel
-                                        </div>
-                                        <div
-                                            onClick={() => handleFilterSelect('playlist')}
-                                            className={`p-2 cursor-pointer hover:bg-gray-200 ${youtubeType === 'playlist' ? 'underline' : ''}`}
-                                        >
-                                            Playlist
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="mb-2">
-                                        <div
-                                            onClick={() => handleFilterSelect('movie')}
-                                            className={`p-2 cursor-pointer hover:bg-gray-200 ${movieFilter === 'movie' ? 'underline' : ''}`}
-                                        >
-                                            Title
-                                        </div>
-                                        <div
-                                            onClick={() => handleFilterSelect('director')}
-                                            className={`p-2 cursor-pointer hover:bg-gray-200 ${movieFilter === 'director' ? 'underline' : ''}`}
-                                        >
-                                            Director
-                                        </div>
-                                        <div
-                                            onClick={() => handleFilterSelect('cast')}
-                                            className={`p-2 cursor-pointer hover:bg-gray-200 ${movieFilter === 'cast' ? 'underline' : ''}`}
-                                        >
-                                            Cast
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </form>
-                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                    {isFetching && results.length === 0 ? (
-                        <div className="text-center text-gray-600">Loading...</div>
-                    ) : (
-                        results.map((item) => (
-                            <div
-                                key={medium === 'youtube' ? item.id.videoId : item.id}
-                                className="cursor-pointer hover:bg-gray-200 p-2 flex items-center"
-                                onClick={() => {
-                                    if (medium === 'youtube' && item.snippet.channelId) {
-                                        handleChannelSelect(item.snippet.channelId, item.snippet.channelTitle);
-                                    } else if (movieFilter === 'director' && medium !== 'youtube') {
-                                        handleDirectorSelect(item.id, item.name);
-                                    } else if (movieFilter === 'cast' && medium !== 'youtube') {
-                                        handleActorSelect(item.id, item.name);
-                                    } else {
-                                        onSelect(item, medium);
-                                        onClose();
-                                    }
-                                }}
-                            >
-                                {medium === 'youtube' ? (
-                                    <>
-                                        {item.snippet.thumbnails ? (
-                                            <img src={item.snippet.thumbnails.default.url} alt="Thumbnail" className="w-24 h-16 mr-4 rounded-md object-contain" />
-                                        ) : (
-                                            <div className="w-24 h-16 mr-4 rounded-md object-contain bg-gray-200">No Image</div>
-                                        )}
-                                        <div className="flex flex-col">
-                                            <div className="font-bold text-left">{decodeHtml(item.snippet.title)}</div>
-                                            <div className="text-sm text-gray-600 text-left">{item.snippet.channelTitle} - {new Date(item.snippet.publishedAt).getFullYear()}</div>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        {movieFilter === 'director' || movieFilter === 'cast' ? (
-                                            <img src={item.profile_path ? `https://image.tmdb.org/t/p/w200${item.profile_path}` : defaultProfile} alt={item.name} className="w-16 h-16 mr-4 rounded-full object-cover" />
-                                        ) : (
-                                            <img src={item.poster_path ? `https://image.tmdb.org/t/p/w200${item.poster_path}` : 'https://via.placeholder.com/200?text=No+Image+Available'} alt={item.title || item.name} className="w-24 h-auto mr-4 rounded-md object-contain" />
-                                        )}
-                                        <div className="flex flex-col">
-                                            {movieFilter === 'director' ? (
-                                                <div className="font-bold text-left">{item.name}</div>
-                                            ) : movieFilter === 'cast' ? (
-                                                <div className="font-bold text-left">{item.name}</div>
-                                            ) : (
-                                                <>
-                                                    <div className="font-bold text-left">{item.title || item.name} {item.release_date ? `(${item.release_date.substring(0, 4)})` : ''}</div>
-                                                    {item.director && <div className="text-sm text-gray-600 text-left pl-5">Director: {item.director}</div>}
-                                                    {selectedDirector && <div className="text-sm text-gray-600 text-left pl-5">Directed by: {directorName}</div>}
-                                                    {selectedActor && <div className="text-sm text-gray-600 text-left pl-5">Starring: {actorName}</div>}
-                                                </>
-                                            )}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        ))
-                    )}
-                    {isFetching && results.length > 0 && (
-                        <div className="text-center text-gray-600">Loading more results...</div>
-                    )}
-                </div>
-                {medium === 'youtube' && (
-                    <div className="flex justify-end mt-4">
-                        <select value={sortOption} onChange={(e) => handleSortSelect(e.target.value)} className="border p-2">
-                            <option value="relevance">Relevance</option>
-                            <option value="date">Newest</option>
-                            <option value="viewCount">Most Popular</option>
-                            <option value="rating">Top Rated</option>
-                        </select>
-                    </div>
-                )}
-            </div>
+  const SortableList = ({ items, onDelete }) => (
+    <Droppable droppableId={`droppable-${watchlistId}`}>
+      {(provided) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.droppableProps}>
+          {items.map((item, index) => (
+            <SortableItem key={item.id} item={item} index={index} onDelete={onDelete} />
+          ))}
+          {provided.placeholder}
         </div>
-    );
+      )}
+    </Droppable>
+  );
+
+  const SortableItem = ({ item, index, onDelete }) => (
+    <Draggable draggableId={item.id.toString()} index={index}>
+      {(provided) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.draggableProps}
+          {...provided.dragHandleProps}>
+          {item.medium === 'YouTube' ? (
+            <YouTubeCard
+              key={item.id}
+              id={item.id}
+              title={item.title}
+              medium={item.medium}
+              length={item.length}
+              date={item.release_date}
+              created_at={item.created_at}
+              synopsis={item.synopsis}
+              image={item.image}
+              url={item.url}
+              creator={item.creator}
+              status={item.status}
+              notes={item.notes}
+              rating={item.rating}
+              onDelete={() => onDelete(item.id, item.medium)}
+              onNotesChange={handleNotesChange}
+              onStatusChange={handleStatusChange}
+              onRatingChange={handleRatingChange}
+              index={index}
+              isOpen={openCards[item.id] || false}
+              setIsOpen={setIsOpen}
+              addedBy={clerkUser.username || 'Guest'}
+            />
+          ) : (
+            <MovieCard
+              key={item.id}
+              id={item.id}
+              title={item.title}
+              medium={item.medium}
+              length={item.length}
+              date={item.release_date}
+              created_at={item.created_at}
+              synopsis={item.synopsis}
+              image={item.image}
+              url={item.url}
+              creator={item.creator}
+              status={item.status}
+              notes={item.notes}
+              rating={item.rating}
+              onDelete={() => onDelete(item.id, item.medium)}
+              onNotesChange={handleNotesChange}
+              onStatusChange={handleStatusChange}
+              onRatingChange={handleRatingChange}
+              index={index}
+              isOpen={openCards[item.id] || false}
+              setIsOpen={setIsOpen}
+              addedBy={clerkUser.username || 'Guest'}
+            />
+          )}
+        </div>
+      )}
+    </Draggable>
+  );
+
+  const onSortEnd = async (result) => {
+    if (!result.destination) return;
+
+    const reorderedItems = arrayMove(mediaItems, result.source.index, result.destination.index);
+    setMediaItems(reorderedItems);
+    setCustomOrder(reorderedItems);
+
+    try {
+      await Promise.all(reorderedItems.map((item, index) =>
+        supabase.from('media_items').update({ order: index }).match({ id: item.id })
+      ));
+    } catch (error) {
+      console.error('Error updating order on backend:', error);
+      fetchMediaItems();
+    }
+  };
+
+  const onShare = async (friendId) => {
+    if (!watchlistId) {
+      alert('Watchlist ID not available');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('watchlists')
+        .select('shared_with')
+        .eq('id', watchlistId)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      const sharedWith = data.shared_with || [];
+      if (sharedWith.includes(friendId)) {
+        alert('Watchlist already shared with this friend.');
+        return;
+      }
+
+      sharedWith.push(friendId);
+
+      const { error: updateError } = await supabase
+        .from('watchlists')
+        .update({ shared_with: sharedWith })
+        .eq('id', watchlistId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      alert('Watchlist shared successfully!');
+    } catch (error) {
+      console.error('Error sharing watchlist:', error.message);
+      alert('Failed to share watchlist.');
+    }
+  };
+
+  const handleSelectItem = async (item, type) => {
+    let newMedia;
+    let releaseDate = item.release_date || '';
+    if (!releaseDate) {
+      releaseDate = null; // Set to null if empty
+    }
+
+    if (type === 'youtube') {
+      const videoUrl = `https://www.youtube.com/watch?v=${item.id.videoId}`;
+      const imageUrl = item.snippet.thumbnails.default.url;
+      newMedia = await supabase.from('media_items').insert([{
+        title: item.snippet.title,
+        medium: 'YouTube',
+        watchlist_id: watchlistId,
+        image: imageUrl,
+        url: videoUrl,
+        release_date: item.snippet.publishedAt.substring(0, 10),
+        creator: item.snippet.channelTitle,
+        added_by: clerkUser.username || 'Guest',
+        status: 'to consume',
+        order: mediaItems.length
+      }]).select();
+    } else if (type === 'movies') {
+      const imageUrl = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '';
+      newMedia = await supabase.from('media_items').insert([{
+        title: item.title || item.name,
+        medium: 'Movie',
+        watchlist_id: watchlistId,
+        image: imageUrl,
+        release_date: releaseDate,
+        creator: item.director || '',
+        added_by: clerkUser.username || 'Guest',
+        status: 'to consume',
+        order: mediaItems.length
+      }]).select();
+    } else if (type === 'TV shows') {
+      const imageUrl = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '';
+      const creator = item.created_by && item.created_by.length > 0 ? item.created_by[0].name : ''; // Get the creator name
+      newMedia = await supabase.from('media_items').insert([{
+        title: item.title || item.name,
+        medium: 'TV Show',
+        watchlist_id: watchlistId,
+        image: imageUrl,
+        release_date: releaseDate,
+        creator: item.creator || item.created_by,
+        added_by: clerkUser.username || 'Guest',
+        status: 'to consume',
+        order: mediaItems.length
+      }]).select();
+    }
+
+    const { data, error } = newMedia;
+    if (error) {
+      console.error('Failed to add item:', error.message);
+    } else {
+      setMediaItems([...mediaItems, ...data]);
+      setCustomOrder([...mediaItems, ...data]);
+    }
+  };
+
+  const handleDeleteMediaItem = async (deletedId, medium) => {
+    if (window.confirm(`Are you sure you want to delete this ${medium}?`)) {
+      const { error } = await supabase
+        .from('media_items')
+        .delete()
+        .match({ id: deletedId });
+
+      if (error) {
+        console.error('Error deleting media item:', error.message);
+      } else {
+        setMediaItems(currentMediaItems => currentMediaItems.filter(item => item.id !== deletedId));
+        setCustomOrder(currentMediaItems => currentMediaItems.filter(item => item.id !== deletedId));
+      }
+    }
+  };
+
+  const handleCloseSuccessMessage = () => {
+    setShowSuccessMessage(false);
+    setTimeout(() => {
+      setSuccessMessage('');
+    }, 500);
+  };
+
+  const handleSearchClick = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleSortChange = (e) => {
+    const sortOption = e.target.value;
+    setSortOption(sortOption);
+
+    let sortedMediaItems;
+    switch (sortOption) {
+      case 'Date Added':
+        sortedMediaItems = [...mediaItems].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        break;
+      case 'Date Modified':
+        sortedMediaItems = [...mediaItems].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+        break;
+      case 'Title':
+        sortedMediaItems = [...mediaItems].sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'Added By':
+        sortedMediaItems = [...mediaItems].sort((a, b) => a.added_by.localeCompare(b.added_by));
+        break;
+      case 'Custom Order':
+      default:
+        sortedMediaItems = [...customOrder];
+        break;
+    }
+
+    setMediaItems(sortedMediaItems);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.metaKey && e.key === 'k') {
+        e.preventDefault();
+        setIsModalOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isModalOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isModalOpen]);
+
+  const handleImageUpload = (url) => {
+    setWatchlistImage(url);
+  };
+
+  const handleOpenImageUploadModal = () => {
+    setIsImageUploadModalOpen(true);
+  };
+
+  const handleCloseImageUploadModal = (newDescription, newIsPublic) => {
+    setIsImageUploadModalOpen(false);
+    if (newDescription) {
+      setWatchlistDescription(newDescription);
+    }
+    setWatchlistPublic(newIsPublic);
+  };
+
+  const handleImageError = (e) => {
+    console.error('Error loading image:', e.target.src);
+    e.target.src = 'https://via.placeholder.com/150';
+  };
+
+  return (
+    <div className="container mx-auto p-4 dark:bg-gray-800 dark:text-white relative w-full">
+      <div className="flex justify-between items-start mb-4 w-full">
+        <div className="flex items-start space-x-4">
+          <div className="relative w-40 h-40 mb-4">
+            {watchlistImage ? (
+              <img
+                src={watchlistImage}
+                alt="Watchlist"
+                className="w-full h-full object-cover rounded-lg transition-opacity duration-300"
+                onError={handleImageError}
+                onMouseEnter={(e) => e.target.classList.add('opacity-50')}
+                onMouseLeave={(e) => e.target.classList.remove('opacity-50')}
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-300 rounded-lg flex items-center justify-center">
+                <span className="text-gray-500">No Image</span>
+              </div>
+            )}
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100">
+              <button
+                onClick={handleOpenImageUploadModal}
+                className="text-white flex flex-col items-center"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6 mb-1">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                </svg>
+                <span>Edit watchlist</span>
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-col justify-start">
+            <p className="text-sm text-gray-400 text-left">{watchlistPublic ? 'Public watchlist' : 'Private watchlist'}</p>
+            <h1 className="text-5xl font-bold text-white text-left cursor-pointer" onClick={handleOpenImageUploadModal}>{watchlistName}</h1>
+            <p className="text-lg text-gray-300 text-left">{watchlistDescription}</p>
+            <div className="flex items-center mt-2">
+              <div className="flex -space-x-2">
+                <img
+                  src={clerkUser?.imageUrl}
+                  alt="Owner"
+                  className="w-8 h-8 rounded-full mt-5 mr-2 align-bottom z-10"
+                />
+                {sharedUsers.map((user, index) => (
+                  <img
+                    key={user.id}
+                    src={user.imageUrl}
+                    alt={user.username}
+                    className="w-8 h-8 rounded-full mt-5 mr-2 align-bottom border-2 border-gray-800"
+                    style={{ marginLeft: `${-10 * (index + 1)}px`, zIndex: 10 - index }}
+                  />
+                ))}
+              </div>
+              <span className="text-sm mt-5 text-gray-400">
+                {clerkUser?.username}, {sharedUsers.map(user => user.username).join(', ')} • {mediaItems.length} media
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-start">
+          <SearchBar onSearchClick={handleSearchClick} />
+        </div>
+      </div>
+      <div className="flex justify-end items-center mb-4 w-full" style={{ marginTop: '-65px' }}>
+        <div className="flex items-center">
+          <div className="relative ml-4">
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="text-white flex flex-col items-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
+              </svg>
+            </button>
+            {isDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20">
+                <input
+                  type="text"
+                  placeholder="Search friends"
+                  className="w-full px-2 py-1 border-b"
+                  onChange={(e) => {
+                    const searchValue = e.target.value.toLowerCase();
+                    setFriends(friends.filter(friend => friend.username.toLowerCase().includes(searchValue)));
+                  }}
+                />
+                <ul className="py-1">
+                  {friends.map(friend => (
+                    <li
+                      key={friend.id}
+                      className="px-4 py-2 cursor-pointer hover:bg-gray-200"
+                      onClick={() => onShare(friend.id)}
+                    >
+                      {friend.username}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+          <select
+            value={sortOption}
+            onChange={handleSortChange}
+            className="ml-4 bg-gray-700 text-white px-3 py-2 rounded"
+          >
+            <option value="Custom Order">Custom Order</option>
+            <option value="Date Added">Date Added</option>
+            <option value="Date Modified">Date Modified</option>
+            <option value="Title">Title</option>
+            <option value="Added By">Added By</option>
+          </select>
+        </div>
+      </div>
+      {showSuccessMessage && (
+        <div className="alert alert-success w-full">
+          {successMessage}
+        </div>
+      )}
+      <DragDropContext onDragEnd={onSortEnd}>
+        <SortableList items={mediaItems} onDelete={(id, medium) => handleDeleteMediaItem(id, medium)} />
+      </DragDropContext>
+      {isModalOpen && <SearchModal onSelect={handleSelectItem} onClose={handleModalClose} inputRef={inputRef} />}
+      {isImageUploadModalOpen && (
+        <ImageUploadModal
+          watchlistId={watchlistId}
+          onClose={handleCloseImageUploadModal}
+          onImageUpload={handleImageUpload}
+          watchlistName={watchlistName}
+          watchlistDescription={watchlistDescription}
+          watchlistImage={watchlistImage}
+          username={clerkUser.username}
+        />
+      )}
+    </div>
+  );
 };
 
-export default SearchModal;
+export default MediaPage;
