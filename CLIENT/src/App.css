@@ -10,6 +10,12 @@
 }
 
 @font-face {
+
+  font-family: 'EinaBold';
+  src: url('./fonts/eina/eina-03-bold.ttf') format('truetype');
+
+}
+@font-face {
   font-family: 'EinaSemibold';
   src: url('./fonts/eina/eina-03-semibold.ttf') format('truetype');
 }
@@ -64,6 +70,18 @@ body, html, #root {
     opacity: 0;
   }
 }
+
+.save-button {
+  background-color: #444444 !important; /* Tailwind gray-700 */
+  font-family: 'GeistRegular', sans-serif;
+  transition: background-color 0.3s;
+}
+
+.save-button:hover {
+  background-color: #363636 !important;
+  font-family: 'GeistRegular', sans-serif;
+}
+
 
 .sort-expanded {
   padding-bottom: 0.9rem; /* Adjust padding to make the connection seamless */

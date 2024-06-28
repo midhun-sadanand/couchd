@@ -72,19 +72,31 @@ app.post('/api/friend-request/accept', ClerkExpressRequireAuth({ secretKey: cler
 
     const { sender_id, sender_username, receiver_id, receiver_username } = data;
 
-    const { data: friendData, error: friendError } = await supabase
-      .from('friends')
-      .insert([
-        { user_id: sender_id, user_username: sender_username, friend_id: receiver_id, friend_username: receiver_username, status: 'accepted' },
-        { user_id: receiver_id, user_username: receiver_username, friend_id: sender_id, friend_username: sender_username, status: 'accepted' }
-      ]);
+    const senderFriendUpdate = await supabase
+      .rpc('append_friend', {
+        p_profile_id: sender_id,
+        p_friend_id: receiver_id,
+        p_friend_username: receiver_username
+      });
 
-    if (friendError) {
-      console.error('Error inserting friends:', friendError);
-      throw friendError;
+    if (senderFriendUpdate.error) {
+      console.error('Error updating sender friends:', senderFriendUpdate.error);
+      throw senderFriendUpdate.error;
     }
 
-    res.status(200).json(friendData);
+    const receiverFriendUpdate = await supabase
+      .rpc('append_friend', {
+        p_profile_id: receiver_id,
+        p_friend_id: sender_id,
+        p_friend_username: sender_username
+      });
+
+    if (receiverFriendUpdate.error) {
+      console.error('Error updating receiver friends:', receiverFriendUpdate.error);
+      throw receiverFriendUpdate.error;
+    }
+
+    res.status(200).json({ sender: senderFriendUpdate.data, receiver: receiverFriendUpdate.data });
   } catch (error) {
     console.error('Error in accept friend request endpoint:', error);
     res.status(500).json({ error: error.message });

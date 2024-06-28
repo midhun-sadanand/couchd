@@ -4,13 +4,13 @@ import { useUser, useSession } from '@clerk/clerk-react';
 import { SupabaseContext } from '../utils/auth';
 import WatchlistPage from '../pages/WatchlistPage';
 import ProfileSearchBar from '../components/ProfileSearchBar';
+import RecentActivity from '../components/RecentActivity';
 import defaultProfile from '../components/assets/images/pfp.png';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
   const { username } = useParams();
   const { client: supabase, isLoading: supabaseLoading } = useContext(SupabaseContext);
-
   const { isLoaded, user } = useUser();
   const { session } = useSession();
 
@@ -19,22 +19,10 @@ const ProfilePage = () => {
   const [friends, setFriends] = useState([]);
   const [friendRequests, setFriendRequests] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
-  const [toggle, setToggle] = useState(1);
+  const [watchlists, setWatchlists] = useState([]);
 
   useEffect(() => {
-    if (supabaseLoading) {
-      console.log("Supabase client is still loading");
-      return;
-    }
-    if (!supabase) {
-      console.error("Supabase client is not available");
-      navigate('/');
-      return;
-    }
-    if (!isLoaded || !session) {
-      console.log("Clerk client or session is still loading");
-      return;
-    }
+    if (supabaseLoading || !isLoaded || !session) return;
 
     const fetchUserProfile = async () => {
       try {
@@ -45,44 +33,34 @@ const ProfilePage = () => {
           },
         });
         const users = await response.json();
-
         const fetchedUser = users.data.find(u => u.username === username);
         if (!fetchedUser) {
-          console.error("User not found");
           navigate('/');
           return;
         }
         setProfileUser(fetchedUser);
 
-        const { data: friendsData, error: friendsError } = await supabase
+        const { data: friendsData } = await supabase
           .from('friends')
-          .select('*')
-          .eq('user_id', fetchedUser.id)
-          .eq('status', 'accepted');
+          .select('friends')
+          .eq('profile_id', fetchedUser.id);
+        setFriends(friendsData[0]?.friends || []);
 
-        if (friendsError) {
-          console.error('Error fetching friends:', friendsError.message);
-          return;
-        }
-
-        setFriends(friendsData);
-
-        const { data: friendRequestsData, error: friendRequestsError } = await supabase
+        const { data: friendRequestsData } = await supabase
           .from('friend_requests')
           .select('*')
           .eq('receiver_id', fetchedUser.id)
           .eq('status', 'pending');
-
-        if (friendRequestsError) {
-          console.error('Error fetching friend requests:', friendRequestsError.message);
-          return;
-        }
-
         setFriendRequests(friendRequestsData);
+
+        const { data: watchlistsData } = await supabase
+          .from('watchlists')
+          .select('*')
+          .eq('user_id', fetchedUser.id);
+        setWatchlists(watchlistsData);
 
         setLoading(false);
       } catch (error) {
-        console.error("Error fetching user profile:", error.message);
         navigate('/');
       }
     };
@@ -93,7 +71,7 @@ const ProfilePage = () => {
   const sendFriendRequest = async (receiverId, receiverUsername) => {
     try {
       const token = await session.getToken();
-      const response = await fetch('http://localhost:3001/api/friend-request', {
+      await fetch('http://localhost:3001/api/friend-request', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -101,13 +79,6 @@ const ProfilePage = () => {
         },
         body: JSON.stringify({ senderId: user.id, senderUsername: user.username, receiverId, receiverUsername }),
       });
-
-      if (!response.ok) {
-        const errorResponse = await response.json();
-        throw new Error(`Failed to send friend request: ${errorResponse.error}`);
-      }
-
-      console.log('Friend request sent');
     } catch (error) {
       console.error('Error sending friend request:', error.message);
     }
@@ -116,7 +87,7 @@ const ProfilePage = () => {
   const handleAcceptRequest = async (requestId) => {
     try {
       const token = await session.getToken();
-      const response = await fetch('http://localhost:3001/api/friend-request/accept', {
+      await fetch('http://localhost:3001/api/friend-request/accept', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -124,13 +95,6 @@ const ProfilePage = () => {
         },
         body: JSON.stringify({ requestId }),
       });
-
-      if (!response.ok) {
-        const errorResponse = await response.json();
-        throw new Error(`Failed to accept friend request: ${errorResponse.error}`);
-      }
-
-      console.log('Friend request accepted');
     } catch (error) {
       console.error('Error accepting friend request:', error.message);
     }
@@ -139,7 +103,7 @@ const ProfilePage = () => {
   const handleRejectRequest = async (requestId) => {
     try {
       const token = await session.getToken();
-      const response = await fetch('http://localhost:3001/api/friend-request/reject', {
+      await fetch('http://localhost:3001/api/friend-request/reject', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -147,13 +111,6 @@ const ProfilePage = () => {
         },
         body: JSON.stringify({ requestId }),
       });
-
-      if (!response.ok) {
-        const errorResponse = await response.json();
-        throw new Error(`Failed to reject friend request: ${errorResponse.error}`);
-      }
-
-      console.log('Friend request rejected');
     } catch (error) {
       console.error('Error rejecting friend request:', error.message);
     }
@@ -169,16 +126,10 @@ const ProfilePage = () => {
         },
       });
 
-      if (!response.ok) {
-        const errorResponse = await response.json();
-        throw new Error(`Failed to fetch search results: ${errorResponse.error}`);
-      }
-
       const data = await response.json();
       setSearchResults(data);
     } catch (error) {
-      console.error('Error searching for users:', error.message);
-      setSearchResults([]); // Clear previous results on error
+      setSearchResults([]);
     }
   };
 
@@ -186,53 +137,53 @@ const ProfilePage = () => {
     return <div>Loading...</div>;
   }
 
-  const updateToggle = (id) => {
-    setToggle(id);
-  };
-
   return (
-    <div className="w-screen h-screen flex flex-col items-center pt-10 text-[#e6e6e6]">
-      <div className="flex justify-end w-5/6">
-        <div className="tab-bar grid grid-cols-1">
-          <span className="py-1 pl-4 cursor-pointer text-right border-b border-[#e6e6e6]" onClick={() => updateToggle(1)}>Profile</span>
-          <span className="py-1 pl-4 cursor-pointer text-right border-b border-[#e6e6e6]" onClick={() => updateToggle(2)}>Friends</span>
-          <span className="py-1 pl-4 cursor-pointer text-right border-b border-[#e6e6e6]" onClick={() => updateToggle(3)}>Lists</span>
-        </div>
+    <div className="w-screen h-screen flex bg-[#0a0a0d]">
+      {/* Left Sidebar */}
+      <div className="w-1/5 bg-[#0a0a0d] text-white p-4">
+        <h2 className="text-2xl mb-4">Your Watchlists</h2>
+        <ul>
+          {watchlists.map(list => (
+            <li key={list.id} className="cursor-pointer mb-2" onClick={() => navigate(`/list/${username}/${encodeURIComponent(list.name)}/${list.id}`)}>
+              {list.name}
+            </li>
+          ))}
+        </ul>
       </div>
-      <div id="profile" className={toggle === 1 ? "w-3/5" : "hidden"}>
-        <h1 className="mb-16 text-center grid grid-cols-1">
-          <span className="text-4xl">Welcome back, </span>
-          <span className="text-8xl">{profileUser.username}</span>
-        </h1>
+
+      {/* Main Content */}
+      <div className="w-3/4 bg-[#0a0a0d] text-white p-4">
+        <WatchlistPage />
+        <RecentActivity />
       </div>
-      <div id="friendspage" className={toggle === 2 ? "flex flex-col pt-8 w-5/6" : "hidden"}>
+
+      {/* Right Sidebar */}
+      <div className="w-1/5 bg-[#0a0a0d] text-white p-4">
         <ProfileSearchBar onSearch={handleSearch} />
-        <div className="w-full mb-8">
+        <div className="mb-8">
           <h2 className="text-2xl mb-4">Search Results</h2>
-          {searchResults.length > 0 && (
-            searchResults.map(u => (
-              <div key={u.id} className="border-b flex justify-between w-3/4 grid grid-cols-2">
-                <span className="cursor-pointer" onClick={() => navigate(`/profile/${u.username}`)}>
-                  <img src={u.profile_image_url || defaultProfile} alt="Profile" className="w-8 h-8 rounded-full inline-block mr-2" />
-                  {u.username}
-                </span>
-                <button onClick={() => sendFriendRequest(u.id, u.username)} className="text-blue-500">Add Friend</button>
-              </div>
-            ))
-          )}
-        </div>
-        <div className="w-1/2">
-          <h2 className="text-2xl mb-4">Existing Friends</h2>
-          {friends.map(friend => (
-            <div key={friend.id} className="border-b flex justify-between w-3/4 grid grid-cols-2">
-              <span>{friend.friend_username}</span>
+          {searchResults.map(u => (
+            <div key={u.id} className="border-b flex justify-between py-2">
+              <span className="cursor-pointer" onClick={() => navigate(`/profile/${u.username}`)}>
+                <img src={u.profile_image_url || defaultProfile} alt="Profile" className="w-8 h-8 rounded-full mr-2" />
+                {u.username}
+              </span>
+              <button onClick={() => sendFriendRequest(u.id, u.username)} className="text-blue-500">Add Friend</button>
             </div>
           ))}
         </div>
-        <div className="w-1/2 mt-8">
+        <div>
+          <h2 className="text-2xl mb-4">Existing Friends</h2>
+          {friends.map(friend => (
+            <div key={friend.id} className="border-b py-2">
+              <span>{friend.username}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-8">
           <h2 className="text-2xl mb-4">Friend Requests</h2>
           {friendRequests.map(request => (
-            <div key={request.id} className="border-b flex justify-between w-3/4 grid grid-cols-2">
+            <div key={request.id} className="border-b flex justify-between py-2">
               <span>{request.sender_username}</span>
               <div>
                 <button onClick={() => handleAcceptRequest(request.id)} className="text-green-500 mr-2">Accept</button>
@@ -241,9 +192,6 @@ const ProfilePage = () => {
             </div>
           ))}
         </div>
-      </div>
-      <div id="watchlists" className={toggle === 3 ? "show" : "hidden"}>
-        <WatchlistPage />
       </div>
     </div>
   );
