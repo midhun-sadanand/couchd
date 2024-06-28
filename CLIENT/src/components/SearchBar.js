@@ -5,7 +5,7 @@ const SearchBar = ({ onSearchClick }) => {
     return (
         <div className="search-bar" onClick={onSearchClick}>
             <Search className="search-icon" color="#888888"/>
-            <span className="search-placeholder">Search...</span>
+            <span className="search-placeholder" style={{fontFamily: 'GeistRegular'}}>Search...</span>
             <kbd className="kbd" size={12}>
                 <div className="command-icon-container">
                     <Command className="command-icon" />

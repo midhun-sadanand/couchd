@@ -1,9 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
+import { motion } from 'framer-motion';
+
+const transition = {
+  type: 'tween',
+  ease: 'easeOut',
+  duration: 0.3,
+};
 
 function Header({ toggleLogin, toggleSignup, showLogin, showSignup }) {
   const { signOut } = useAuth();
+  const [hovered, setHovered] = useState(null);
 
   return (
     <header className="bg-[#171717] text-white p-4 shadow-md relative">
@@ -16,33 +24,33 @@ function Header({ toggleLogin, toggleSignup, showLogin, showSignup }) {
         </div>
         <nav className="flex items-center">
           <SignedOut>
-            <button
+            <motion.button
               onClick={(e) => {
                 toggleLogin();
                 e.stopPropagation();
               }}
-              className={`text-white btn shadow-[0_9px_0_rgb(0,0,0)] hover:shadow-[0_4px_0px_rgb(0,0,0)] hover:translate-y-1 transition-all inline-block p-2 ml-4 bg-stone-400 hover:bg-stone-500 rounded ${showLogin ? 'bg-stone-500' : ''}`}
+              className={`btn ${showLogin ? 'bg-stone-500 text-white' : ''}`}
+              onHoverStart={() => setHovered('login')}
+              onHoverEnd={() => setHovered(null)}
+              animate={{ x: hovered === 'login' ? 5 : 0 }}
+              transition={transition}
             >
               Login
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               onClick={(e) => {
                 toggleSignup();
                 e.stopPropagation();
               }}
-              className={`btn shadow-[0_9px_0_rgb(0,0,0)] hover:shadow-[0_4px_0px_rgb(0,0,0)] hover:translate-y-1 transition-all inline-block p-2 ml-4 bg-stone-500 hover:bg-stone-600 rounded ${showSignup ? 'bg-stone-600' : ''}`}
+              className={`ml-2 btn ${showSignup ? 'bg-stone-600 text-white' : ''}`}
+              onHoverStart={() => setHovered('register')}
+              onHoverEnd={() => setHovered(null)}
+              animate={{ x: hovered === 'register' ? -5 : 0 }}
+              transition={transition}
             >
               Register
-            </button>
+            </motion.button>
           </SignedOut>
-          {/* <SignedIn>
-            <button
-              onClick={signOut}
-              className="btn shadow-[0_9px_0_rgb(0,0,0)] hover:shadow-[0_4px_0px_rgb(0,0,0)] hover:translate-y-1 transition-all inline-block p-2 ml-4 bg-red-500 hover:bg-red-600 rounded"
-            >
-              Sign Out
-            </button>
-          </SignedIn> */}
         </nav>
       </div>
     </header>

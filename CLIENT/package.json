@@ -19,7 +19,9 @@
     "ajv-keywords": "^5.1.0",
     "array-move": "^4.0.0",
     "axios": "^1.7.2",
+    "classnames": "^2.5.1",
     "express": "^4.19.2",
+    "framer-motion": "^11.2.12",
     "postcss-cli": "^11.0.0",
     "react": "^18.2.0",
     "react-beautiful-dnd": "^13.1.1",
@@ -27,6 +29,7 @@
     "react-router-dom": "^6.23.1",
     "react-scripts": "5.0.1",
     "schema-utils": "^4.2.0",
+    "styled-components": "^6.1.11",
     "web-vitals": "^2.1.4",
     "webpack-dev-server": "^5.0.4"
   },
