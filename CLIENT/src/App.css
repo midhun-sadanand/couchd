@@ -71,6 +71,36 @@ body, html, #root {
   }
 }
 
+.watchlist-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.profile-container {
+  display: flex;
+  align-items: flex-end;
+}
+
+
+.watchlist-title {
+  font-size: clamp(1.5rem, 2.5vw, 2.5rem); /* Responsive font size */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.watchlist-description {
+  font-size: clamp(1rem, 1.5vw, 1.25rem); /* Responsive font size */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* Limit to 3 lines */
+  -webkit-box-orient: vertical;
+}
+
+
 /* Apply styles to the login and register buttons */
 .btn {
   font-family: 'GeistRegular', sans-serif;

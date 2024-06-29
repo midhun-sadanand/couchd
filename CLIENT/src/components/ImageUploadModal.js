@@ -151,7 +151,7 @@ const ImageUploadModal = ({ watchlistId, onClose, onImageUpload, watchlistName, 
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-5 z-50">
       <div className="bg-[#262626] rounded-lg p-4 w-1/2">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl text-[#f6f6f6]" style={{ fontFamily: 'EinaRegular' }}>

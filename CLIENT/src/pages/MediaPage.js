@@ -550,28 +550,32 @@ const MediaPage = () => {
               </button>
             </div>
           </div>
-          <div className="flex flex-col justify-start">
+          <div className="flex flex-col justify-start h-48">
             <p className="text-sm text-gray-400 text-left">{watchlistPublic ? 'Public watchlist' : 'Private watchlist'}</p>
-            <h1 className="text-5xl font-bold text-white text-left cursor-pointer" onClick={handleOpenImageUploadModal}>{watchlistName}</h1>
-            <p className="text-lg text-gray-300 text-left">{watchlistDescription}</p>
-            <div className="flex items-center mt-10">
-            <div className="flex -space-x-2 mr-2">
+            <h1 className="watchlist-title text-5xl font-bold text-white text-left cursor-pointer" onClick={handleOpenImageUploadModal}>
+              {watchlistName}
+            </h1>
+            <p className="watchlist-description text-lg text-gray-300 text-left mb-7 flex-grow">
+              {watchlistDescription}
+            </p>
+            <div className="flex bottom:0 items-center">
+              <div className="flex -space-x-2 mr-2">
                 <img
                   src={clerkUser?.imageUrl}
                   alt="Owner"
-                  className="w-8 h-8 rounded-full mt-5 mr-2 align-bottom z-20 shadow-2xl"
+                  className="w-8 h-8 rounded-full shadow-2xl align-bottom z-20"
                 />
                 {sharedUsers.map((user, index) => (
                   <img
                     key={user.id}
                     src={user.imageUrl}
                     alt={user.username}
-                    className="w-8 h-8 rounded-full mt-5 mr-2 align-bottom shadow-2xl"
-                    style={{ marginLeft: `${-25 * (index + 1)}px`, zIndex: 19 - index }}
+                    className="w-8 h-8 rounded-full shadow-2xl"
+                    style={{ marginLeft: `${-20 * (index + 1)}px`, zIndex: 19 - index }}
                   />
                 ))}
               </div>
-              <span className="text-sm mt-5 text-gray-400">
+              <span className="text-sm text-gray-400">
                 {clerkUser?.username}, {sharedUsers.map(user => user.username).join(', ')} • {mediaItems.length} media
               </span>
             </div>
