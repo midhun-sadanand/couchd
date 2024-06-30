@@ -5,7 +5,6 @@ import { useUser } from '@clerk/clerk-react';
 import supabase from '../utils/supabaseClient';
 import MovieCard from '../components/MovieCard';
 import YouTubeCard from '../components/YoutubeCard';
-import ShareWatchlist from '../components/common/ShareWatchlist';
 import { arrayMoveImmutable as arrayMove } from 'array-move';
 import SearchBar from '../components/SearchBar';
 import SearchModal from '../components/SearchModal';
@@ -54,7 +53,6 @@ const MediaPage = () => {
             throw watchlistError;
           }
 
-          console.log("WATCHLIST", watchlist);
           if (watchlist) {
             setWatchlistId(watchlist.id);
             setWatchlistPublic(watchlist.is_public);
@@ -74,17 +72,14 @@ const MediaPage = () => {
             setMediaItems(media || []);
             setCustomOrder(media || []);
 
-            // Fetch shared users' details
-            console.log("WATCHLIST SHARED WITH", watchlist.shared_with);
             if (watchlist.shared_with && watchlist.shared_with.length > 0) {
-              const response = await fetch('http://localhost:3001/api/shared-users', { // Ensure the port matches your backend
+              const response = await fetch('http://localhost:3001/api/get-users', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ userIds: watchlist.shared_with }),
               });
-              
 
               if (!response.ok) {
                 throw new Error('Failed to fetch shared users');
@@ -101,11 +96,7 @@ const MediaPage = () => {
     }
 
     async function fetchFriends() {
-
       if (isLoaded && clerkUser) {
-
-        console.log("HOPEFULLY LOADED", clerkUser?.id);
-
         try {
           const { data: friendsData, error: friendsError } = await supabase
             .from('friends')
@@ -113,25 +104,39 @@ const MediaPage = () => {
             .eq('profile_id', clerkUser.id)
             .single();
 
-          console.log("FRIENDS", friendsData.friends);
-  
           if (friendsError) {
             throw friendsError;
           }
-  
-          setFriends(friendsData.friends || []);
-          console.log("FRIENDDATA", friendsData);
-  
+
+          const friendIds = friendsData.friends || [];
+
+          console.log("FRIEND IDS", friendIds);
+          if (friendIds.length > 0) {
+            const response = await fetch('http://localhost:3001/api/get-users', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ userIds: friendIds }),
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to fetch friends');
+            }
+
+            const friendDetails = await response.json();
+            setFriends(friendDetails);
+          } else {
+            setFriends([]);
+          }
         } catch (error) {
           console.error('Error fetching friends:', error.message);
         }
       }
     }
-  
 
     fetchData();
     fetchFriends();
-
 
   }, [paramWatchlistId, clerkUser, isLoaded, state]);
 
@@ -359,6 +364,57 @@ const MediaPage = () => {
     }
   };
 
+
+  const onUnshare = async (friendId) => {
+    if (!watchlistId) {
+      alert('Watchlist ID not available');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('watchlists')
+        .select('shared_with')
+        .eq('id', watchlistId)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      let sharedWith = data.shared_with || [];
+      if (!sharedWith.includes(friendId)) {
+        alert('Watchlist is not shared with this friend.');
+        return;
+      }
+
+      sharedWith = sharedWith.filter(id => id !== friendId);
+
+      const { error: updateError } = await supabase
+        .from('watchlists')
+        .update({ shared_with: sharedWith })
+        .eq('id', watchlistId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      alert('Watchlist unshared successfully!');
+    } catch (error) {
+      console.error('Error unsharing watchlist:', error.message);
+      alert('Failed to unshare watchlist.');
+    }
+  };
+
+  const addSharedUser = (user) => {
+    setSharedUsers((prev) => [...prev, user]);
+  };
+  
+  const removeSharedUser = (userId) => {
+    setSharedUsers((prev) => prev.filter(user => user.id !== userId));
+  };
+
+  
   const handleSelectItem = async (item, type) => {
     let newMedia;
     let releaseDate = item.release_date || '';
@@ -559,7 +615,7 @@ const MediaPage = () => {
               {watchlistDescription}
             </p>
             <div className="flex bottom:0 items-center">
-              <div className="flex -space-x-2 mr-2">
+              <div className="flex items-center" style={{ minWidth: `${sharedUsers.length * 20 + 40}px` }}>
                 <img
                   src={clerkUser?.imageUrl}
                   alt="Owner"
@@ -571,7 +627,7 @@ const MediaPage = () => {
                     src={user.imageUrl}
                     alt={user.username}
                     className="w-8 h-8 rounded-full shadow-2xl"
-                    style={{ marginLeft: `${-20 * (index + 1)}px`, zIndex: 19 - index }}
+                    style={{ marginLeft: -15, zIndex: 19 - index }}
                   />
                 ))}
               </div>
@@ -587,40 +643,6 @@ const MediaPage = () => {
       </div>
       <div className="flex justify-end items-center mb-4 w-full" style={{ marginTop: '-65px' }}>
         <div className="flex items-center">
-          <div className="relative ml-4">
-            <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="text-white flex flex-col items-center"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
-              </svg>
-            </button>
-            {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20">
-                <input
-                  type="text"
-                  placeholder="Search friends"
-                  className="w-full px-2 py-1 border-b"
-                  onChange={(e) => {
-                    const searchValue = e.target.value.toLowerCase();
-                    setFriends(friends.filter(friend => friend.username.toLowerCase().includes(searchValue)));
-                  }}
-                />
-                <ul className="py-1">
-                  {friends.map(friend => (
-                    <li
-                      key={friend.id}
-                      className="px-4 py-2 cursor-pointer hover:bg-gray-200"
-                      onClick={() => onShare(friend.id)}
-                    >
-                      {friend.username}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
           <select
             value={sortOption}
             onChange={handleSortChange}
@@ -647,11 +669,17 @@ const MediaPage = () => {
         <ImageUploadModal
           watchlistId={watchlistId}
           onClose={handleCloseImageUploadModal}
+          onShare={onShare}
+          onUnshare={onUnshare}
+          friends={friends}
+          sharedUsers={sharedUsers}
           onImageUpload={handleImageUpload}
           watchlistName={watchlistName}
           watchlistDescription={watchlistDescription}
           watchlistImage={watchlistImage}
           username={clerkUser.username}
+          addSharedUser={addSharedUser}
+          removeSharedUser={removeSharedUser}
         />
       )}
     </div>

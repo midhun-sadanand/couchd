@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { Toggle } from '@geist-ui/core';
 import supabase from '../utils/supabaseClient';
 import debounce from 'lodash.debounce';
+import ShareWatchlist from './common/ShareWatchlist';
 
-const ImageUploadModal = ({ watchlistId, onClose, onImageUpload, watchlistName, watchlistDescription, watchlistImage, username }) => {
+const ImageUploadModal = ({ watchlistId, onClose, onShare, onUnshare, sharedUsers, friends, onImageUpload, watchlistName, watchlistDescription, watchlistImage, username, addSharedUser, removeSharedUser }) => {
   const { user: clerkUser } = useUser();
   const navigate = useNavigate();
   const [image, setImage] = useState(null);
@@ -15,13 +16,14 @@ const ImageUploadModal = ({ watchlistId, onClose, onImageUpload, watchlistName, 
   const [currentImage, setCurrentImage] = useState(watchlistImage);
   const [isPublic, setIsPublic] = useState(false);
   const [toggleLoading, setToggleLoading] = useState(true);
+  const [pendingShares, setPendingShares] = useState(sharedUsers.map(user => user.id));
 
   useEffect(() => {
     setName(watchlistName);
     setDescription(watchlistDescription);
     setCurrentImage(watchlistImage);
+    setPendingShares(sharedUsers.map(user => user.id));
 
-    // Fetch the current is_public state
     const fetchPublicState = async () => {
       try {
         const { data: watchlist, error } = await supabase
@@ -43,12 +45,16 @@ const ImageUploadModal = ({ watchlistId, onClose, onImageUpload, watchlistName, 
     };
 
     fetchPublicState();
-  }, [watchlistName, watchlistDescription, watchlistImage, watchlistId]);
+  }, [watchlistName, watchlistDescription, watchlistImage, watchlistId, sharedUsers]);
 
-  const handleImageChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setImage(e.target.files[0]);
-    }
+  const handleShareToggle = (friendId) => {
+    setPendingShares(prev => {
+      if (prev.includes(friendId)) {
+        return prev.filter(id => id !== friendId);
+      } else {
+        return [...prev, friendId];
+      }
+    });
   };
 
   const handleUpload = async () => {
@@ -114,17 +120,42 @@ const ImageUploadModal = ({ watchlistId, onClose, onImageUpload, watchlistName, 
         return;
       }
 
-      setLoading(false);
-      onImageUpload(publicUrl);
-      onClose(description, isPublic);  // Pass the new description and public/private state when closing the modal
+       // Batch update shared users
+        const sharedWith = [...pendingShares];
+        const { error: sharedError } = await supabase
+        .from('watchlists')
+        .update({ shared_with: sharedWith })
+        .eq('id', watchlistId);
 
-      // Update the URL to reflect the new name
-      navigate(`/list/${username}/${encodeURIComponent(name)}/${watchlistId}`);
+        if (sharedError) {
+        console.error('Error updating shared users:', sharedError.message);
+        setLoading(false);
+        return;
+        }
+
+        // Optimistically update shared users in the parent component
+        const originalSharedUserIds = sharedUsers.map(user => user.id);
+        const toShare = pendingShares.filter(id => !originalSharedUserIds.includes(id));
+        const toUnshare = originalSharedUserIds.filter(id => !pendingShares.includes(id));
+
+        toShare.forEach(id => {
+        const user = friends.find(friend => friend.id === id);
+        if (user) addSharedUser(user);
+        });
+
+        toUnshare.forEach(id => {
+        removeSharedUser(id);
+        });
+
+        setLoading(false);
+        onImageUpload(publicUrl);
+        onClose(description, isPublic);
+        navigate(`/list/${username}/${encodeURIComponent(name)}/${watchlistId}`);
     } catch (error) {
-      console.error('Unexpected error:', error.message);
-      setLoading(false);
+        console.error('Unexpected error:', error.message);
+        setLoading(false);
     }
-  };
+    };
 
   const updateDescription = useCallback(
     debounce(async (newDescription) => {
@@ -144,6 +175,12 @@ const ImageUploadModal = ({ watchlistId, onClose, onImageUpload, watchlistName, 
     [watchlistId]
   );
 
+  const handleImageChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setImage(e.target.files[0]);
+    }
+  };
+  
   const handleDescriptionChange = (e) => {
     const newDescription = e.target.value;
     setDescription(newDescription);
@@ -155,7 +192,7 @@ const ImageUploadModal = ({ watchlistId, onClose, onImageUpload, watchlistName, 
       <div className="bg-[#262626] rounded-lg p-4 w-1/2">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl text-[#f6f6f6]" style={{ fontFamily: 'EinaRegular' }}>
-            Edit  <span style={{ fontFamily: 'EinaSemibold' }}> {watchlistName}</span>
+            Edit <span style={{ fontFamily: 'EinaSemibold' }}>{watchlistName}</span>
           </h2>
           <button onClick={() => onClose(description, isPublic)} className="text-[#f6f6f6]">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6">
@@ -169,7 +206,7 @@ const ImageUploadModal = ({ watchlistId, onClose, onImageUpload, watchlistName, 
               src={currentImage}
               alt="Watchlist"
               className="w-full h-full object-cover rounded-lg transition-opacity duration-300"
-              onError={(e) => e.target.src = 'https://via.placeholder.com/150'}
+              onError={(e) => (e.target.src = 'https://via.placeholder.com/150')}
               onMouseEnter={(e) => e.target.classList.add('opacity-50')}
               onMouseLeave={(e) => e.target.classList.remove('opacity-50')}
             />
@@ -191,18 +228,18 @@ const ImageUploadModal = ({ watchlistId, onClose, onImageUpload, watchlistName, 
               className="w-full p-2 mb-2 border border-[#535353] rounded bg-[#3e3d3d] text-[#f6f6f6] focus:outline-none"
               placeholder="Name"
               style={{
-                fontFamily: 'EinaRegular'
-            }}
+                fontFamily: 'EinaRegular',
+              }}
             />
             <textarea
-            value={description}
-            onChange={handleDescriptionChange}
-            className="w-full p-2 mb-2 border border-[#535353] rounded bg-[#3e3d3d] text-[#f6f6f6] focus:outline-none"
-            placeholder="Description"
-            style={{
+              value={description}
+              onChange={handleDescriptionChange}
+              className="w-full p-2 mb-2 border border-[#535353] rounded bg-[#3e3d3d] text-[#f6f6f6] focus:outline-none"
+              placeholder="Description"
+              style={{
                 height: '6.40rem',
-                fontFamily: 'EinaRegular'
-            }}
+                fontFamily: 'EinaRegular',
+              }}
             />
           </div>
         </div>
@@ -212,19 +249,33 @@ const ImageUploadModal = ({ watchlistId, onClose, onImageUpload, watchlistName, 
               <div className="w-12 h-6" />
             ) : (
               <>
-                <Toggle type="secondary" initialChecked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} />
-                <span className="mt-2 ml-2 text-[#f6f6f6]" style={{ fontFamily: 'EinaRegular' }}>{isPublic ? 'Public' : 'Private'}</span>
+                <Toggle
+                  type="secondary"
+                  initialChecked={isPublic}
+                  onChange={(e) => setIsPublic(e.target.checked)}
+                />
+                <span className="mt-2 ml-2 text-[#f6f6f6]" style={{ fontFamily: 'EinaRegular' }}>
+                  {isPublic ? 'Public' : 'Private'}
+                </span>
               </>
             )}
           </div>
-          <button
-            onClick={handleUpload}
-            className="save-button text-white py-2 px-4 rounded-lg"
-            disabled={loading}
-            style={{ fontFamily: 'EinaRegular' }}
-          >
-            {loading ? 'Uploading...' : 'Save'}
-          </button>
+          <div className="flex items-center space-x-4">
+            <ShareWatchlist
+              friends={friends}
+              sharedWith={sharedUsers}
+              onShareToggle={handleShareToggle}
+              pendingShares={pendingShares}
+            />
+            <button
+              onClick={handleUpload}
+              className="save-button text-white py-2 px-4 rounded-lg"
+              disabled={loading}
+              style={{ fontFamily: 'EinaRegular' }}
+            >
+              {loading ? 'Uploading...' : 'Save'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
