@@ -71,6 +71,176 @@ body, html, #root {
   }
 }
 
+
+@keyframes slideDownFast {
+  from {
+    transform: translateY(-5%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideUpFast {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-5%);
+    opacity: 0;
+  }
+}
+
+
+@keyframes slideInDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutUp {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+}
+
+
+/* Fade-in animations for HomePage */
+
+/* Add these styles to your CSS file */
+
+.fixed-text-container {
+  position: fixed;
+  top: 80px; /* Adjust this value as needed */
+  transform: translateX(0%);
+  width: 100%;
+  max-width: 800px;
+  text-align: left;
+  z-index: 10;
+  margin-top: 2rem; 
+}
+
+.fixed-text {
+  font-size: 1.5rem;
+  opacity: 0;
+  margin: 1rem 0;
+  color: white;
+  transition: opacity 0.3s; /* Ensure the transition is defined here */
+}
+
+.fixed-text.vis {
+  opacity: 1.0;
+}
+
+.fixed-time {
+  flex: 0 0 auto;
+  text-align: right;
+  margin-left: 20px;
+}
+
+
+.fixed-text.invis {
+  opacity: 0;
+}
+
+.stack-up-text {
+  font-size: 1.5rem;
+  opacity: 0;
+  /* transition: opacity 0.5s ease-in-out; */
+  margin: 1rem 0;
+  color: white;
+}
+
+.stack-up-text.visible {
+  opacity: 1;
+}
+
+/* .fade-in {
+  opacity: 0;
+  transition: opacity 1.5s ease-in;
+} */
+
+.fade-out {
+  animation: fadeOut 0.5s forwards;
+}
+
+.fade-in.visible {
+  opacity: 1;
+}
+
+.fade-in-heading {
+  opacity: 0;
+  animation: fadeIn 3.6s cubic-bezier(0.25, 0.4, 0.4, 1) 0.1s forwards;
+}
+
+.fade-in-subheading {
+  opacity: 0;
+  animation: fadeIn 3.6s cubic-bezier(0.25, 0.4, 0.4, 1) 0.5s forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px); /* Optional: add a slight upward motion */
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0); /* Optional: reset the upward motion */
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0); /* Optional: reset the upward motion */
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px); /* Optional: add a slight upward motion */
+  }
+}
+
+.fade-out {
+  animation: fadeOut 0.5s forwards;
+}
+
+
+.fade-in-delay {
+  opacity: 0;
+  animation: fadeIn 3.6s cubic-bezier(0.25, 0.4, 0.4, 1) 0.5s forwards;
+}
+
+.modal-enter {
+  animation: slideInDown 0.3s ease-out forwards;
+}
+
+.modal-exit {
+  animation: slideOutUp 0.3s ease-out forwards;
+}
+
+
+.slide-down-fast {
+  animation: slideDownFast 0.3s ease-out forwards;
+}
+
+.slide-up-fast {
+  animation: slideUpFast 0.3s ease-out forwards;
+}
+
+
 .watchlist-container {
   display: flex;
   flex-direction: column;

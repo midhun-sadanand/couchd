@@ -619,14 +619,14 @@ const MediaPage = () => {
                 <img
                   src={clerkUser?.imageUrl}
                   alt="Owner"
-                  className="w-8 h-8 rounded-full shadow-2xl align-bottom z-20"
+                  className="w-8 h-8 rounded-full shadow-2xl align-bottom border border-[#535353] z-20"
                 />
                 {sharedUsers.map((user, index) => (
                   <img
                     key={user.id}
                     src={user.imageUrl}
                     alt={user.username}
-                    className="w-8 h-8 rounded-full shadow-2xl"
+                    className="w-8 h-8 rounded-full shadow-2xl border border-[#535353]"
                     style={{ marginLeft: -15, zIndex: 19 - index }}
                   />
                 ))}

@@ -23,7 +23,7 @@ function Header({ toggleLogin, toggleSignup }) {
   const { tabProps } = useHeaderTabs(tabs);
 
   return (
-    <header className="bg-[#171717] text-white p-4 shadow-md relative">
+    <header className="bg-[#171717] text-white p-4 shadow-md fixed top-0 left-0 w-full z-50">
       <div className="container mx-auto flex justify-between items-center">
         <div className="flex items-center">
           <div className="my-1 mr-6">
