@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { Modal, Button, Input, AutoComplete, useToasts, useTheme, Note, Toggle } from '@geist-ui/core';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useSession } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { SupabaseContext } from '../utils/auth';
 
@@ -12,6 +12,7 @@ const AddWatchlistModal = ({ user, visible, onClose, options, setOptions, setWat
   const [errorMessage, setErrorMessage] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const { user: clerkUser } = useUser();
+  const { session } = useSession();
   const { client: supabase } = useContext(SupabaseContext);
   const { setToast } = useToasts();
   const theme = useTheme();
@@ -36,20 +37,41 @@ const AddWatchlistModal = ({ user, visible, onClose, options, setOptions, setWat
     }
 
     try {
-      const { data, error } = await supabase
-        .from('watchlists')
-        .insert([{ name: watchlistName, user_id: clerkUser.id, description, tags, public: isPublic }])
-        .select();
+      // Call server-side API to create the watchlist and update profiles
+      const token = await session.getToken();
+      const response = await fetch('http://localhost:3001/api/watchlists', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
 
-      if (error) throw error;
+        },
+        body: JSON.stringify({
+          watchlistName,
+          description,
+          tags,
+          isPublic,
+          userId: clerkUser.id,
+          username: user.username,
+        }),
+      });
 
-      setWatchlists([...watchlists, ...data]);
-      navigate(`/list/${user.username}/${watchlistName}`, { state: { successMessage: `Watchlist '${watchlistName}' created successfully!` } });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error);
+      }
+
+      const newWatchlist = await response.json();
+      setWatchlists([...watchlists, newWatchlist]);
+      navigate(`/list/${user.username}/${encodeURIComponent(watchlistName)}/${newWatchlist.id}`, {
+        state: { successMessage: `Watchlist '${watchlistName}' created successfully!` }
+      });
     } catch (error) {
       setErrorMessage(`Error creating watchlist: ${error.message}`);
     }
   };
 
+  
   const handleTagInput = (currentValue) => {
     setTagInput(currentValue);
     if (!currentValue.trim()) {

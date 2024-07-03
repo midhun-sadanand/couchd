@@ -9,17 +9,23 @@ import { arrayMoveImmutable as arrayMove } from 'array-move';
 import SearchBar from '../components/SearchBar';
 import SearchModal from '../components/SearchModal';
 import ImageUploadModal from '../components/ImageUploadModal';
+import { useMediaItems } from '../hooks/useMediaItems';
+import { useWatchlistData } from '../hooks/useWatchlistData';
+import { useCachedProfileData } from '../hooks/useCachedProfileData';
 
 const MediaPage = () => {
+  const { watchlistName, watchlistId: paramWatchlistId } = useParams();
+  const { state } = useLocation();
+  const { user: clerkUser, isLoaded } = useUser();
+  const { friendsProfiles } = useCachedProfileData();
+
   const [mediaItems, setMediaItems] = useState([]);
-  const [watchlistId, setWatchlistId] = useState('');
+  const [watchlists, setWatchlists] = useState([]);
+  const [watchlistId, setWatchlistId] = useState(paramWatchlistId);
   const [watchlistPublic, setWatchlistPublic] = useState(false);
   const [watchlistImage, setWatchlistImage] = useState('');
   const [watchlistDescription, setWatchlistDescription] = useState('');
   const [sharedUsers, setSharedUsers] = useState([]);
-  const { user: clerkUser, isLoaded } = useUser();
-  const { watchlistName, watchlistId: paramWatchlistId } = useParams();
-  const { state } = useLocation();
   const [openCards, setOpenCards] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
@@ -31,6 +37,9 @@ const MediaPage = () => {
   const [customOrder, setCustomOrder] = useState([]);
   const inputRef = useRef(null);
 
+  const { data: mediaItemsData, error: mediaItemsError } = useMediaItems(watchlistId);
+  const { data: watchlistData, error: watchlistDataError } = useWatchlistData(watchlistId);
+
   useEffect(() => {
     if (state && state.successMessage) {
       setSuccessMessage(state.successMessage);
@@ -39,163 +48,29 @@ const MediaPage = () => {
         handleCloseSuccessMessage();
       }, 5000);
     }
+  }, [state]);
 
-    async function fetchData() {
-      if (isLoaded && clerkUser && paramWatchlistId) {
-        try {
-          const { data: watchlist, error: watchlistError } = await supabase
-            .from('watchlists')
-            .select('id, name, is_public, image, description, shared_with')
-            .eq('id', paramWatchlistId)
-            .single();
-
-          if (watchlistError) {
-            throw watchlistError;
-          }
-
-          if (watchlist) {
-            setWatchlistId(watchlist.id);
-            setWatchlistPublic(watchlist.is_public);
-            setWatchlistImage(watchlist.image);
-            setWatchlistDescription(watchlist.description);
-
-            const { data: media, error: mediaError } = await supabase
-              .from('media_items')
-              .select('*')
-              .eq('watchlist_id', watchlist.id)
-              .order('order', { ascending: true });
-
-            if (mediaError) {
-              throw mediaError;
-            }
-
-            setMediaItems(media || []);
-            setCustomOrder(media || []);
-
-            if (watchlist.shared_with && watchlist.shared_with.length > 0) {
-              const response = await fetch('http://localhost:3001/api/get-users', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ userIds: watchlist.shared_with }),
-              });
-
-              if (!response.ok) {
-                throw new Error('Failed to fetch shared users');
-              }
-
-              const sharedUsersData = await response.json();
-              setSharedUsers(sharedUsersData);
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching data:', error.message);
-        }
-      }
+  useEffect(() => {
+    if (mediaItemsData) {
+      setMediaItems(mediaItemsData);
+      setCustomOrder(mediaItemsData);
     }
+  }, [mediaItemsData]);
 
-    async function fetchFriends() {
-      if (isLoaded && clerkUser) {
-        try {
-          const { data: friendsData, error: friendsError } = await supabase
-            .from('friends')
-            .select('friends')
-            .eq('profile_id', clerkUser.id)
-            .single();
-
-          if (friendsError) {
-            throw friendsError;
-          }
-
-          const friendIds = friendsData.friends || [];
-
-          console.log("FRIEND IDS", friendIds);
-          if (friendIds.length > 0) {
-            const response = await fetch('http://localhost:3001/api/get-users', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ userIds: friendIds }),
-            });
-
-            if (!response.ok) {
-              throw new Error('Failed to fetch friends');
-            }
-
-            const friendDetails = await response.json();
-            setFriends(friendDetails);
-          } else {
-            setFriends([]);
-          }
-        } catch (error) {
-          console.error('Error fetching friends:', error.message);
-        }
-      }
+  useEffect(() => {
+    if (watchlistData) {
+      setWatchlistId(watchlistData.id);
+      setWatchlistPublic(watchlistData.is_public);
+      setWatchlistImage(watchlistData.image);
+      setWatchlistDescription(watchlistData.description);
     }
+  }, [watchlistData]);
 
-    fetchData();
-    fetchFriends();
-
-  }, [paramWatchlistId, clerkUser, isLoaded, state]);
-
-  const fetchMediaItems = async () => {
-    
-    try {
-      const { data: watchlist, error: watchlistError } = await supabase
-        .from('watchlists')
-        .select('id, name, is_public, image, description, shared_with')
-        .eq('id', paramWatchlistId)
-        .single();
-
-
-      if (watchlistError) {
-        console.log ("Watchlist shared with", watchlist.shared_with);
-        throw watchlistError;
-      }
-
-      if (watchlist) {
-        setWatchlistId(watchlist.id);
-        setWatchlistPublic(watchlist.is_public);
-        setWatchlistImage(watchlist.image);
-        setWatchlistDescription(watchlist.description);
-
-        const { data: media, error: mediaError } = await supabase
-          .from('media_items')
-          .select('*')
-          .eq('watchlist_id', watchlist.id)
-          .order('order', { ascending: true });
-
-        if (mediaError) {
-          throw mediaError;
-        }
-
-        setMediaItems(media || []);
-        setCustomOrder(media || []);
-
-        // Fetch shared users' details
-        if (watchlist.shared_with && watchlist.shared_with.length > 0) {
-          const response = await fetch('/api/shared-users', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ userIds: watchlist.shared_with }),
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to fetch shared users');
-          }
-
-          const sharedUsersData = await response.json();
-          setSharedUsers(sharedUsersData);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching media items:', error.message);
+  useEffect(() => {
+    if (friendsProfiles) {
+      setSharedUsers(friendsProfiles);
     }
-  };
+  }, [friendsProfiles]);
 
   const handleNotesChange = async (id, notes) => {
     const { error } = await supabase.from('media_items').update({ notes }).eq('id', id);
@@ -206,12 +81,46 @@ const MediaPage = () => {
     }
   };
 
-  const handleStatusChange = async (id, status) => {
-    const { error } = await supabase.from('media_items').update({ status }).eq('id', id);
-    if (error) {
+  const handleStatusChange = async (id, newStatus, oldStatus) => {
+    const updateCounts = (counts, increment) => {
+      return {
+        toConsumeCount: counts.toConsumeCount + (oldStatus === 'to consume' ? -1 : 0) + (newStatus === 'to consume' ? increment : 0),
+        consumingCount: counts.consumingCount + (oldStatus === 'consuming' ? -1 : 0) + (newStatus === 'consuming' ? increment : 0),
+        consumedCount: counts.consumedCount + (oldStatus === 'consumed' ? -1 : 0) + (newStatus === 'consumed' ? increment : 0),
+      };
+    };
+
+    setWatchlists(currentWatchlists => currentWatchlists.map(list => {
+      if (list.id === watchlistId) {
+        return { ...list, ...updateCounts(list, 1) };
+      }
+      return list;
+    }));
+
+    try {
+      const { error } = await supabase
+        .from('media_items')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
+      setWatchlists(currentWatchlists => currentWatchlists.map(list => {
+        if (list.id === watchlistId) {
+          return { ...list, ...updateCounts(list, 0) };
+        }
+        return list;
+      }));
+    } catch (error) {
       console.error('Error updating status:', error.message);
-    } else {
-      setMediaItems(currentItems => currentItems.map(item => item.id === id ? { ...item, status } : item));
+      setWatchlists(currentWatchlists => currentWatchlists.map(list => {
+        if (list.id === watchlistId) {
+          return { ...list, ...updateCounts(list, -1) };
+        }
+        return list;
+      }));
     }
   };
 
@@ -273,7 +182,7 @@ const MediaPage = () => {
               index={index}
               isOpen={openCards[item.id] || false}
               setIsOpen={setIsOpen}
-              addedBy={clerkUser.username || 'Guest'}
+              addedBy={clerkUser?.username || 'Guest'}
             />
           ) : (
             <MovieCard
@@ -298,7 +207,7 @@ const MediaPage = () => {
               index={index}
               isOpen={openCards[item.id] || false}
               setIsOpen={setIsOpen}
-              addedBy={clerkUser.username || 'Guest'}
+              addedBy={clerkUser?.username || 'Guest'}
             />
           )}
         </div>
@@ -319,7 +228,6 @@ const MediaPage = () => {
       ));
     } catch (error) {
       console.error('Error updating order on backend:', error);
-      fetchMediaItems();
     }
   };
 
@@ -363,7 +271,6 @@ const MediaPage = () => {
       alert('Failed to share watchlist.');
     }
   };
-
 
   const onUnshare = async (friendId) => {
     if (!watchlistId) {
@@ -414,7 +321,6 @@ const MediaPage = () => {
     setSharedUsers((prev) => prev.filter(user => user.id !== userId));
   };
 
-  
   const handleSelectItem = async (item, type) => {
     let newMedia;
     let releaseDate = item.release_date || '';
@@ -433,7 +339,7 @@ const MediaPage = () => {
         url: videoUrl,
         release_date: item.snippet.publishedAt.substring(0, 10),
         creator: item.snippet.channelTitle,
-        added_by: clerkUser.username || 'Guest',
+        added_by: clerkUser?.username || 'Guest',
         status: 'to consume',
         order: mediaItems.length
       }]).select();
@@ -446,7 +352,7 @@ const MediaPage = () => {
         image: imageUrl,
         release_date: releaseDate,
         creator: item.director || '',
-        added_by: clerkUser.username || 'Guest',
+        added_by: clerkUser?.username || 'Guest',
         status: 'to consume',
         order: mediaItems.length
       }]).select();
@@ -460,7 +366,7 @@ const MediaPage = () => {
         image: imageUrl,
         release_date: releaseDate,
         creator: item.creator || item.created_by,
-        added_by: clerkUser.username || 'Guest',
+        added_by: clerkUser?.username || 'Guest',
         status: 'to consume',
         order: mediaItems.length
       }]).select();
@@ -586,6 +492,7 @@ const MediaPage = () => {
                 alt="Watchlist"
                 className="w-full h-full object-cover rounded-lg transition-opacity duration-300"
                 onError={handleImageError}
+                loading="lazy"
                 onMouseEnter={(e) => e.target.classList.add('opacity-50')}
                 onMouseLeave={(e) => e.target.classList.remove('opacity-50')}
               />
@@ -628,6 +535,7 @@ const MediaPage = () => {
                     alt={user.username}
                     className="w-8 h-8 rounded-full shadow-2xl border border-[#535353]"
                     style={{ marginLeft: -15, zIndex: 19 - index }}
+                    loading="lazy"
                   />
                 ))}
               </div>
