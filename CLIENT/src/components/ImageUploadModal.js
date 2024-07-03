@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useSession } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { Toggle } from '@geist-ui/core';
 import supabase from '../utils/supabaseClient';
@@ -22,6 +22,7 @@ const ImageUploadModal = ({
   removeSharedUser,
 }) => {
   const { user: clerkUser } = useUser();
+  const { session } = useSession();
   const navigate = useNavigate();
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -146,6 +147,22 @@ const ImageUploadModal = ({
         console.error('Error updating shared users:', sharedError.message);
         setLoading(false);
         return;
+      }
+      const token = await session.getToken();
+
+      const response = await fetch('http://localhost:3001/api/watchlists/share', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+
+        },
+        body: JSON.stringify({ watchlistId, sharedWith, userId: clerkUser.id }),
+      });
+
+      if (!response.ok) {
+        const serverError = await response.json();
+        throw new Error(serverError.error);
       }
 
       const originalSharedUserIds = sharedUsers.map(user => user.id);

@@ -44,10 +44,19 @@ const MovieCard = ({
     hasChanges.current = true;
   };
 
-  const handleStatusChange = (newStatus) => {
+  const handleStatusChange = async (newStatus) => {
+    const oldStatus = localStatus;
     setLocalStatus(newStatus);
     hasChanges.current = true;
+  
+    try {
+      await onStatusChange(id, newStatus, oldStatus); // Pass the old status for counters update
+    } catch (error) {
+      setLocalStatus(oldStatus); // Revert status in case of error
+      console.error('Error updating status:', error.message);
+    }
   };
+  
 
   const handleToggle = async () => {
     if (isOpen) {
