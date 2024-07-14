@@ -79,11 +79,11 @@ const SearchModal = ({ onSelect, onClose, inputRef }) => {
             const maxResults = 10;
             const order = sortOption === 'relevance' ? 'relevance' : 'date';
             if (selectedChannel) {
-                url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${selectedChannel}&type=video&maxResults=${maxResults}&order=${order}&key=${API_KEY}`;
+                url = `https://yt.lemnoslife.com/noKey/search?part=snippet&channelId=${selectedChannel}&type=video&maxResults=${maxResults}&order=${order}`;
             } else if (selectedPlaylist) {
-                url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${selectedPlaylist}&maxResults=${maxResults}&key=${API_KEY}`;
+                url = `https://yt.lemnoslife.com/noKey/playlistItems?part=snippet&playlistId=${selectedPlaylist}&maxResults=${maxResults}`;
             } else {
-                url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=${youtubeType}&maxResults=${maxResults}&order=${order}&key=${API_KEY}`;
+                url = `https://yt.lemnoslife.com/noKey/search?part=snippet&q=${encodeURIComponent(query)}&type=${youtubeType}&maxResults=${maxResults}&order=${order}`;
             }
         }
     
