@@ -1,13 +1,14 @@
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState, lazy, Suspense, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useUser, useSession } from '@clerk/clerk-react';
 import { useCachedProfileData } from '../hooks/useCachedProfileData';
 import { useWatchlists } from '../hooks/useWatchlists';
+import { useSharedUsers } from '../hooks/useSharedUsers';
 import RecentActivity from '../components/ActivityTab';
 import LibrarySidebar from '../components/LibrarySidebar';
 import FriendSidebar from '../components/FriendSidebar';
 import ProfileTab from '../components/ProfileTab';
-import WatchlistButton from '../components/WatchlistButton';
+import { Grid, Users, User, Sidebar } from '@geist-ui/icons';
 
 const WatchlistPage = lazy(() => import('./WatchlistPage'));
 
@@ -20,11 +21,14 @@ const ProfilePage = () => {
   const { userProfile, friendsProfiles, friendRequests } = useCachedProfileData();
   const [searchResults, setSearchResults] = useState([]);
   const [friendRequestsState, setFriendRequests] = useState([]);
-  const [hovered, setHovered] = useState({ grid: false });
+  const [hovered, setHovered] = useState({ sidebar: false, profile: false, watchlists: false, friends: false });
   const [activeTab, setActiveTab] = useState('profile');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [friendsSidebarOpen, setFriendsSidebarOpen] = useState(false);
 
-  const { data: watchlists, isLoading: isWatchlistsLoading, error } = useWatchlists(clerkUser?.id);
+  const { data: watchlistData, isLoading: isWatchlistsLoading, error: watchlistsError } = useWatchlists(clerkUser?.id);
+  const { watchlists, ownerships, ownerIds } = watchlistData || {};
+  const { data: sharedUsersData, error: sharedUsersError } = useSharedUsers(ownerIds);
 
   const sendFriendRequest = async (receiverId, receiverUsername) => {
     try {
@@ -99,9 +103,14 @@ const ProfilePage = () => {
     return <div>Loading...</div>;
   }
 
-  if (error) {
-    console.error('Error fetching watchlists:', error.message);
+  if (watchlistsError) {
+    console.error('Error fetching watchlists:', watchlistsError.message);
     return <div>Error loading watchlists</div>;
+  }
+
+  if (sharedUsersError) {
+    console.error('Error fetching shared users:', sharedUsersError.message);
+    return <div>Error loading user data</div>;
   }
 
   const watchlistCount = watchlists?.length || 0;
@@ -113,46 +122,106 @@ const ProfilePage = () => {
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
+    setHovered({ ...hovered, sidebar: false });
   };
+
+  const toggleFriendsSidebar = () => {
+    setFriendsSidebarOpen(!friendsSidebarOpen);
+  };
+
+  // Merge watchlists with sharedUsersData to get the owner names
+  const watchlistsWithOwners = watchlists?.map(watchlist => {
+    const ownership = ownerships.find(own => own.watchlist_id === watchlist.id);
+    const owner = sharedUsersData?.find(user => user.id === ownership.user_id);
+    return {
+      ...watchlist,
+      ownerName: owner ? owner.username : 'Unknown',
+    };
+  });
 
   return (
     <div className="w-screen h-screen flex flex-col bg-[#232323]">
-      <nav className={`bg-[#121212] p-2 flex justify-around transition-all duration-300 ${sidebarOpen ? 'ml-60' : 'ml-0'} fixed top-24 left-0 w-full z-40`}>
-        <span className={`cursor-pointer ${activeTab === 'profile' ? 'font-bold underline text-white' : 'text-gray-500'}`} onClick={() => setActiveTab('profile')}>
-          Profile
-        </span>
-        <span className={`cursor-pointer ${activeTab === 'watchlists' ? 'font-bold underline text-white' : 'text-gray-500'}`} onClick={() => setActiveTab('watchlists')}>
-          Lists
-        </span>
-        <span className={`cursor-pointer ${activeTab === 'activity' ? 'font-bold underline text-white' : 'text-gray-500'}`} onClick={() => setActiveTab('activity')}>
-          Activity
-        </span>
-        <span className={`cursor-pointer ${activeTab === 'friends' ? 'font-bold underline text-white' : 'text-gray-500'}`} onClick={() => setActiveTab('friends')}>
-          Friends
-        </span>
+      <nav className={`bg-[#121212] p-2 flex justify-between transition-all duration-300 fixed top-24 left-0 w-full z-40 rounded-lg`} style={{ marginLeft: sidebarOpen ? '240px' : '0', marginRight: friendsSidebarOpen ? '320px' : '0' }}>
+        <div className="flex space-x-4">
+          {!sidebarOpen && (
+            <div className="relative group">
+              <Sidebar
+                size={28}
+                className="cursor-pointer transition-colors duration-300"
+                color={hovered.sidebar ? '#f6f6f6' : '#777777'}
+                onMouseEnter={() => setHovered({ ...hovered, sidebar: true })}
+                onMouseLeave={() => setHovered({ ...hovered, sidebar: false })}
+                onClick={toggleSidebar}
+              />
+              {activeTab === 'sidebar' && (
+                <div className="absolute bottom-[-4px] left-0 right-0 h-0.5 w-2/3 mx-auto bg-[#777777] group-hover:bg-[#f6f6f6]" />
+              )}
+            </div>
+          )}
+          <div className="relative group">
+            <User
+              size={28}
+              className="cursor-pointer transition-colors duration-300"
+              color={hovered.profile ? '#f6f6f6' : '#777777'}
+              onMouseEnter={() => setHovered({ ...hovered, profile: true })}
+              onMouseLeave={() => setHovered({ ...hovered, profile: false })}
+              onClick={() => setActiveTab('profile')}
+            />
+            {activeTab === 'profile' && (
+              <div className="absolute bottom-[-4px] left-0 right-0 h-0.5 w-2/3 mx-auto bg-[#777777] group-hover:bg-[#f6f6f6]" />
+            )}
+          </div>
+          <div className="relative group">
+            <Grid
+              size={28}
+              className="cursor-pointer transition-colors duration-300"
+              color={hovered.watchlists ? '#f6f6f6' : '#777777'}
+              onMouseEnter={() => setHovered({ ...hovered, watchlists: true })}
+              onMouseLeave={() => setHovered({ ...hovered, watchlists: false })}
+              onClick={() => setActiveTab('watchlists')}
+            />
+            {activeTab === 'watchlists' && (
+              <div className="absolute bottom-[-4px] left-0 right-0 h-0.5 w-2/3 mx-auto bg-[#777777] group-hover:bg-[#f6f6f6]" />
+            )}
+          </div>
+        </div>
+        <div className="flex items-center space-x-4 fixed right-8">
+          <div className="relative group">
+            <Users
+              size={28}
+              color={hovered.friends ? '#f6f6f6' : '#777777'}
+              className="cursor-pointer transition-colors duration-300"
+              onMouseEnter={() => setHovered({ ...hovered, friends: true })}
+              onMouseLeave={() => setHovered({ ...hovered, friends: false })}
+              onClick={toggleFriendsSidebar}
+            />
+            {friendsSidebarOpen && (
+              <div className="absolute bottom-[-4px] left-0 right-0 h-0.5 w-2/3 mx-auto bg-[#777777] group-hover:bg-[#f6f6f6]" />
+            )}
+          </div>
+        </div>
       </nav>
       <div className="flex-grow flex mt-32">
-        <LibrarySidebar watchlists={watchlists} username={username} sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <div className={`flex-grow transition-all duration-300 ${sidebarOpen ? 'ml-60' : 'ml-0'}`}>
+        <LibrarySidebar watchlists={watchlistsWithOwners} username={username} sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+        <div className={`flex-grow transition-all duration-300`} style={{ marginLeft: sidebarOpen ? '240px' : '0', marginRight: friendsSidebarOpen ? '320px' : '0' }}>
           <div className="flex-grow w-full mx-auto p-4">
             <Suspense fallback={<div>Loading...</div>}>
               {activeTab === 'profile' && <ProfileTab userProfile={userProfile} watchlistCount={watchlistCount} mediaCount={mediaCount} />}
-              {activeTab === 'activity' && <RecentActivity />}
               {activeTab === 'watchlists' && <WatchlistPage />}
-              {activeTab === 'friends' && (
-                <FriendSidebar
-                  friendsProfiles={friendsProfiles}
-                  friendRequests={friendRequests}
-                  handleAcceptRequest={handleAcceptRequest}
-                  handleRejectRequest={handleRejectRequest}
-                  handleSearch={handleSearch}
-                  sendFriendRequest={sendFriendRequest}
-                  searchResults={searchResults}
-                />
-              )}
             </Suspense>
           </div>
         </div>
+        <FriendSidebar
+          friendsProfiles={friendsProfiles}
+          friendRequests={friendRequests}
+          handleAcceptRequest={handleAcceptRequest}
+          handleRejectRequest={handleRejectRequest}
+          handleSearch={handleSearch}
+          sendFriendRequest={sendFriendRequest}
+          searchResults={searchResults}
+          closeSidebar={toggleFriendsSidebar}
+          sidebarOpen={friendsSidebarOpen}
+        />
       </div>
     </div>
   );

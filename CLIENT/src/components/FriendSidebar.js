@@ -1,57 +1,36 @@
-import React, { useState } from 'react';
-import ProfileSearchBar from '../components/ProfileSearchBar';
-import defaultProfile from '../components/assets/images/pfp.png';
+import React from 'react';
+import { X } from '@geist-ui/icons';
 
-const FriendSidebar = ({ friendsProfiles, friendRequests, handleAcceptRequest, handleRejectRequest, handleSearch, sendFriendRequest, searchResults }) => {
-  const [showFriendOptions, setShowFriendOptions] = useState(false);
-
-  const toggleFriendOptions = () => {
-    setShowFriendOptions(!showFriendOptions);
-  };
-
+const FriendSidebar = ({
+  friendsProfiles,
+  friendRequests,
+  handleAcceptRequest,
+  handleRejectRequest,
+  handleSearch,
+  sendFriendRequest,
+  searchResults,
+  closeSidebar,
+  sidebarOpen
+}) => {
   return (
-    <div className="bg-[#232323] text-white p-4 max-w-4xl w-full mx-auto">
+    <div className={`fixed top-24 right-0 h-full w-80 bg-[#232323] text-white p-4 z-40 transition-transform duration-300 transform ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl">Friends</h2>
-        <button onClick={toggleFriendOptions} className="text-blue-500">Add Friend</button>
+        <h2 className="text-xl">Friend Activity</h2>
+        <button onClick={closeSidebar} className="text-white">
+          <X />
+        </button>
       </div>
-      {showFriendOptions && (
-        <div className="mb-8">
-          <ProfileSearchBar onSearch={handleSearch} />
-          <div>
-            <h2 className="text-2xl mb-4">Search Results</h2>
-            {searchResults.map(u => (
-              <div key={u.id} className="border-b flex justify-between py-2">
-                <span className="cursor-pointer">
-                  <img src={u.profile_image_url || defaultProfile} alt="Profile" className="w-8 h-8 rounded-full mr-2" />
-                  {u.username}
-                </span>
-                <button onClick={() => sendFriendRequest(u.id, u.username)} className="text-blue-500">Add Friend</button>
-              </div>
-            ))}
-          </div>
-          <div>
-            <h2 className="text-2xl mb-4">Friend Requests</h2>
-            {friendRequests?.map(request => (
-              <div key={request.id} className="border-b flex justify-between py-2">
-                <span>{request.sender_username}</span>
-                <div>
-                  <button onClick={() => handleAcceptRequest(request.id)} className="text-green-500 mr-2">Accept</button>
-                  <button onClick={() => handleRejectRequest(request.id)} className="text-red-500">Reject</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      <div>
-        {friendsProfiles?.map(friend => (
-          <div key={friend.id} className="border-b flex items-center py-2">
-            <img src={friend.profile_image_url || defaultProfile} alt="Profile" className="w-10 h-10 rounded-full mr-2" />
-            <span>{friend.username}</span>
-          </div>
+      <ul>
+        {friendsProfiles.map(friend => (
+          <li key={friend.id} className="mb-4 flex items-center">
+            <img src={friend.imageUrl} alt={friend.username} className="w-10 h-10 object-cover rounded-full mr-2" />
+            <div>
+              <div className="font-bold">{friend.username}</div>
+              <div className="text-sm text-gray-400">Last active: {friend.lastActive}</div>
+            </div>
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 };

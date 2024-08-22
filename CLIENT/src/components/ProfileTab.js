@@ -3,7 +3,7 @@ import ActivityTab from '../components/ActivityTab'; // Import the ActivityPage 
 
 const ProfileTab = ({ userProfile, watchlistCount, mediaCount }) => {
   return (
-    <div className="p-4 w-3/4 mx-auto">
+    <div className="p-4 w-9/10 mx-auto">
       <div className="flex items-center mb-4">
         <img
           src={userProfile.imageUrl || 'https://via.placeholder.com/150'}

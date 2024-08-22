@@ -12,6 +12,7 @@ import ImageUploadModal from '../components/ImageUploadModal';
 import { useMediaItems } from '../hooks/useMediaItems';
 import { useWatchlistData } from '../hooks/useWatchlistData';
 import { useCachedProfileData } from '../hooks/useCachedProfileData';
+import { useSharedUsers } from '../hooks/useSharedUsers';
 
 const MediaPage = () => {
   const { watchlistName, watchlistId: paramWatchlistId } = useParams();
@@ -40,6 +41,10 @@ const MediaPage = () => {
   const { data: mediaItemsData, error: mediaItemsError } = useMediaItems(watchlistId);
   const { data: watchlistData, error: watchlistDataError } = useWatchlistData(watchlistId);
 
+  // Fetch shared users data
+  const sharedUserIds = watchlistData?.shared_with || [];
+  const { data: sharedUsersData, error: sharedUsersError } = useSharedUsers(sharedUserIds);
+
   useEffect(() => {
     if (state && state.successMessage) {
       setSuccessMessage(state.successMessage);
@@ -67,8 +72,14 @@ const MediaPage = () => {
   }, [watchlistData]);
 
   useEffect(() => {
+    if (sharedUsersData) {
+      setSharedUsers(sharedUsersData);
+    }
+  }, [sharedUsersData]);
+
+  useEffect(() => {
     if (friendsProfiles) {
-      setSharedUsers(friendsProfiles);
+      setFriends(friendsProfiles);
     }
   }, [friendsProfiles]);
 
@@ -231,96 +242,6 @@ const MediaPage = () => {
     }
   };
 
-  const onShare = async (friendId) => {
-    if (!watchlistId) {
-      alert('Watchlist ID not available');
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('watchlists')
-        .select('shared_with')
-        .eq('id', watchlistId)
-        .single();
-
-      if (error) {
-        throw error;
-      }
-
-      const sharedWith = data.shared_with || [];
-      if (sharedWith.includes(friendId)) {
-        alert('Watchlist already shared with this friend.');
-        return;
-      }
-
-      sharedWith.push(friendId);
-
-      const { error: updateError } = await supabase
-        .from('watchlists')
-        .update({ shared_with: sharedWith })
-        .eq('id', watchlistId);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      alert('Watchlist shared successfully!');
-    } catch (error) {
-      console.error('Error sharing watchlist:', error.message);
-      alert('Failed to share watchlist.');
-    }
-  };
-
-  const onUnshare = async (friendId) => {
-    if (!watchlistId) {
-      alert('Watchlist ID not available');
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('watchlists')
-        .select('shared_with')
-        .eq('id', watchlistId)
-        .single();
-
-      if (error) {
-        throw error;
-      }
-
-      let sharedWith = data.shared_with || [];
-      if (!sharedWith.includes(friendId)) {
-        alert('Watchlist is not shared with this friend.');
-        return;
-      }
-
-      sharedWith = sharedWith.filter(id => id !== friendId);
-
-      const { error: updateError } = await supabase
-        .from('watchlists')
-        .update({ shared_with: sharedWith })
-        .eq('id', watchlistId);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      alert('Watchlist unshared successfully!');
-    } catch (error) {
-      console.error('Error unsharing watchlist:', error.message);
-      alert('Failed to unshare watchlist.');
-    }
-  };
-
-  const addSharedUser = (user) => {
-    setSharedUsers((prev) => [...prev, user]);
-  };
-  
-  const removeSharedUser = (userId) => {
-    setSharedUsers((prev) => prev.filter(user => user.id !== userId));
-  };
-
   const handleSelectItem = async (item, type) => {
     let newMedia;
     let releaseDate = item.release_date || '';
@@ -468,21 +389,151 @@ const MediaPage = () => {
     setIsImageUploadModalOpen(true);
   };
 
-  const handleCloseImageUploadModal = (newDescription, newIsPublic) => {
+  const addSharedUser = (user) => {
+    setSharedUsers((prev) => [...prev, user]);
+  };
+  
+  const removeSharedUser = (userId) => {
+    setSharedUsers((prev) => prev.filter(user => user.id !== userId));
+  };
+
+  const updateSharedUsers = (newSharedUsers) => {
+    setSharedUsers(newSharedUsers);
+  };
+
+  const handleCloseImageUploadModal = async (newDescription, newIsPublic, newSharedUsers) => {
     setIsImageUploadModalOpen(false);
     if (newDescription) {
       setWatchlistDescription(newDescription);
     }
     setWatchlistPublic(newIsPublic);
+    updateSharedUsers(newSharedUsers);  // Update sharedUsers state
+
+    // Re-fetch shared users to update the state
+    const { data: sharedWithIds, error: sharedWithIdsError } = await supabase
+      .from('watchlists')
+      .select('shared_with')
+      .eq('id', watchlistId)
+      .single();
+
+    if (!sharedWithIdsError && sharedWithIds) {
+      const updatedSharedUsers = await fetchSharedUsers(sharedWithIds.shared_with);
+      setSharedUsers(updatedSharedUsers);
+    }
   };
 
+  const fetchSharedUsers = async (userIds) => {
+    const response = await fetch('http://localhost:3001/api/get-users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userIds }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch shared users');
+    }
+
+    const sharedUsersData = await response.json();
+    return sharedUsersData;
+  };
+
+  const onShare = async (friendId) => {
+    if (!watchlistId) {
+      alert('Watchlist ID not available');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('watchlists')
+        .select('shared_with')
+        .eq('id', watchlistId)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      const sharedWith = data.shared_with || [];
+      if (sharedWith.includes(friendId)) {
+        alert('Watchlist already shared with this friend.');
+        return;
+      }
+
+      sharedWith.push(friendId);
+
+      const { error: updateError } = await supabase
+        .from('watchlists')
+        .update({ shared_with: sharedWith })
+        .eq('id', watchlistId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      const updatedSharedUsers = await fetchSharedUsers(sharedWith);
+      setSharedUsers(updatedSharedUsers);
+
+      alert('Watchlist shared successfully!');
+    } catch (error) {
+      console.error('Error sharing watchlist:', error.message);
+      alert('Failed to share watchlist.');
+    }
+  };
+
+  const onUnshare = async (friendId) => {
+    if (!watchlistId) {
+      alert('Watchlist ID not available');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('watchlists')
+        .select('shared_with')
+        .eq('id', watchlistId)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      let sharedWith = data.shared_with || [];
+      if (!sharedWith.includes(friendId)) {
+        alert('Watchlist is not shared with this friend.');
+        return;
+      }
+
+      sharedWith = sharedWith.filter(id => id !== friendId);
+
+      const { error: updateError } = await supabase
+        .from('watchlists')
+        .update({ shared_with: sharedWith })
+        .eq('id', watchlistId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      const updatedSharedUsers = await fetchSharedUsers(sharedWith);
+      setSharedUsers(updatedSharedUsers);
+
+      alert('Watchlist unshared successfully!');
+    } catch (error) {
+      console.error('Error unsharing watchlist:', error.message);
+      alert('Failed to unshare watchlist.');
+    }
+  };
+  
   const handleImageError = (e) => {
     console.error('Error loading image:', e.target.src);
     e.target.src = 'https://via.placeholder.com/150';
   };
 
   return (
-    <div className="container mx-auto p-4 dark:bg-gray-800 dark:text-white relative w-full">
+    <div className="container mx-auto top-24 p-4 dark:bg-gray-800 dark:text-white relative w-full">
       <div className="flex justify-between items-start mb-4 w-full">
         <div className="flex items-start space-x-4">
           <div className="relative w-48 h-48 mb-4">
@@ -545,7 +596,7 @@ const MediaPage = () => {
             </div>
           </div>
         </div>
-        <div className="flex items-start">
+        <div className="flex justify-end w-full sm:w-48 md:w-60 lg:w-96 xl:w-1/4">
           <SearchBar onSearchClick={handleSearchClick} style={{ fontFamily: 'GeistRegular' }}/>
         </div>
       </div>
@@ -588,6 +639,7 @@ const MediaPage = () => {
           username={clerkUser.username}
           addSharedUser={addSharedUser}
           removeSharedUser={removeSharedUser}
+          updateSharedUsers={updateSharedUsers}
         />
       )}
     </div>

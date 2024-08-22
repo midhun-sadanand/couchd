@@ -41,6 +41,40 @@
   font-style: normal;
 }
 
+
+/* MediaPage.css */
+.search-bar {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  background-color: #333;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: width 0.3s ease;
+}
+
+/* For larger screens */
+@media (min-width: 769px) {
+  .search-bar {
+    width: 300px; /* Default width */
+  }
+}
+
+/* For smaller screens */
+@media (max-width: 768px) {
+  .search-bar {
+    width: 200px; /* Smaller width on smaller screens */
+  }
+}
+
+/* For very small screens */
+@media (max-width: 480px) {
+  .search-bar {
+    width: 150px; /* Even smaller width on very small screens */
+  }
+}
+
+
 /* Global styles */
 body, html, #root {
   margin: 0;

@@ -15,8 +15,10 @@ const WatchlistPage = () => {
   const navigate = useNavigate();
   const { user: clerkUser, isLoaded } = useUser(); // Get Clerk user and isLoaded property
   const { client: supabase } = useContext(SupabaseContext); // Use context to get Supabase client
-  const { data: watchlists, error } = useWatchlists(clerkUser?.id);
+  const { data: watchlistData, error } = useWatchlists(clerkUser?.id);
   const queryClient = useQueryClient(); // Initialize useQueryClient
+
+  const watchlists = watchlistData?.watchlists || []; // Ensure watchlists is always an array
 
   useEffect(() => {
     if (!isLoaded) return; // Wait until Clerk user is fully loaded
@@ -27,7 +29,7 @@ const WatchlistPage = () => {
   }, [clerkUser, isLoaded, navigate]);
 
   useEffect(() => {
-    if (watchlists) {
+    if (watchlists.length > 0) {
       const allTags = new Set();
       watchlists.forEach(watchlist => {
         watchlist.tags.forEach(tag => allTags.add(tag));
@@ -85,7 +87,7 @@ const WatchlistPage = () => {
   return (
     <div className="container mx-auto p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 relative">
       <h1 className="text-6xl my-10 text-[#e6e6e6] font-bold col-span-full text-center">Your Watchlists</h1>
-      {watchlists && watchlists.map((list) => (
+      {watchlists.map((list) => (
         <WatchlistWidget
           key={list.id}
           watchlistId={list.id} // Pass the watchlist ID for deletion
