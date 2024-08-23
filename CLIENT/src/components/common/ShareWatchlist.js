@@ -5,7 +5,7 @@ const ShareWatchlist = ({ pendingShares, onShareToggle }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [filteredFriends, setFilteredFriends] = useState([]);
   const [searchValue, setSearchValue] = useState('');
-  const { friendsProfiles } = useCachedProfileData();
+  const { friendsProfiles = [] } = useCachedProfileData();
 
   useEffect(() => {
     setFilteredFriends(friendsProfiles);
@@ -14,7 +14,9 @@ const ShareWatchlist = ({ pendingShares, onShareToggle }) => {
   const handleSearch = (e) => {
     const value = e.target.value.toLowerCase();
     setSearchValue(value);
-    setFilteredFriends(friendsProfiles.filter(friend => friend.username.toLowerCase().includes(value)));
+    if (friendsProfiles) {
+      setFilteredFriends(friendsProfiles.filter(friend => friend.username.toLowerCase().includes(value)));
+    }
   };
 
   const sharedFriends = filteredFriends.filter(friend => pendingShares.includes(friend.id));

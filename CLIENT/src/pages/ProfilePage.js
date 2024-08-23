@@ -207,7 +207,12 @@ const ProfilePage = () => {
           <div className="flex-grow w-full mx-auto p-4">
             <Suspense fallback={<div>Loading...</div>}>
               {activeTab === 'profile' && <ProfileTab userProfile={userProfile} watchlistCount={watchlistCount} mediaCount={mediaCount} />}
-              {activeTab === 'watchlists' && <WatchlistPage />}
+              {activeTab === 'watchlists' && (
+                <WatchlistPage 
+                  isFriendSidebarOpen={friendsSidebarOpen} 
+                  isLibrarySidebarOpen={sidebarOpen}  // Pass both sidebar states as props
+                />
+              )}
             </Suspense>
           </div>
         </div>

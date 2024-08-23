@@ -35,11 +35,11 @@ const ProfileHeader = () => {
   const [hovered, setHovered] = useState({ home: false, grid: false, bell: false });
 
   return (
-    <header className="rounded-lg text-white p-4 shadow-md bg-[#171717] fixed top-0 left-0 w-full z-50">
-      <div className="rounded-lg mx-auto flex justify-between items-center" style={{ maxWidth: '85%' }}>
+    <header className="text-white p-4 shadow-md bg-[#171717] fixed top-0 left-0 w-full z-50 mb-16"> {/* Added mb-16 */}
+      <div className="mx-auto flex justify-between items-center" style={{ maxWidth: '85%' }}>
         <div className="my-1 mr-6">
-          <h1 className="font-bold text-2xl text-[#888888] text-left">couchd</h1>
-          <h2 className="italic text-left text-gray-400">conscious consumption</h2>
+          <h1 className="font-bold text-2xl text-left">couchd</h1>
+          <h2 className="italic text-left">conscious consumption</h2>
         </div>
         <div className="flex items-center space-x-4">
           <svg

@@ -41,6 +41,66 @@
   font-style: normal;
 }
 
+.container {
+  display: grid;
+  gap: 16px; /* Ensures consistent gap between widgets */
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Dynamically adjusts columns based on available space */
+}
+
+.watchlist-widget {
+  min-width: 200px; /* Minimum width to ensure content stays readable */
+  max-width: 100%; /* Allow it to flex within the grid */
+  flex: 1 1 200px; /* Flex-grow, flex-shrink, and flex-basis for responsive behavior */
+  word-wrap: break-word;
+  overflow: hidden;
+}
+
+.title-container {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Ensure long text is truncated */
+}
+
+.description {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-wrap: break-word; /* Handle text wrapping in a flexible way */
+}
+
+.number-container {
+  display: flex;
+  justify-content: space-between; /* Ensures numbers stay aligned */
+  white-space: nowrap;
+}
+
+
+
+@media (max-width: 640px) {
+  .watchlist-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 768px) {
+  .watchlist-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .watchlist-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1025px) {
+  .watchlist-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+
 
 /* MediaPage.css */
 .search-bar {

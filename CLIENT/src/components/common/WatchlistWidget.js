@@ -114,7 +114,7 @@ const WatchlistWidget = ({ username, watchlistId, listName, description, unwatch
 
   return (
     <>
-      <div ref={widgetRef} onClick={handleClick} className="watchlist-widget text-[#e6e6e6] rounded-lg p-4 shadow-lg flex flex-col justify-between w-full cursor-pointer relative">
+      <div ref={widgetRef} onClick={handleClick} className="watchlist-widget min-w-[200px] text-[#e6e6e6] rounded-lg p-4 shadow-lg flex flex-col justify-between w-full cursor-pointer relative">
         <div className="flex justify-between items-start mb-2">
           <div className="flex flex-col" style={{ marginTop: '5px', marginRight: '40px' }}>
             <div ref={titleRef} className="title-container font-bold" style={{ textAlign: 'left', overflowWrap: 'break-word' }}>{currentName}</div>
