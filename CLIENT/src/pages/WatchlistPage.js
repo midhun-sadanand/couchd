@@ -50,6 +50,7 @@ const WatchlistPage = ({ isFriendSidebarOpen, isLibrarySidebarOpen }) => {
     updateAvailableWidth();
     window.addEventListener('resize', updateAvailableWidth);
     return () => window.removeEventListener('resize', updateAvailableWidth);
+    console.log('Available width:', availableWidth); 
   }, [isFriendSidebarOpen, isLibrarySidebarOpen]);
 
   const deleteWatchlist = async (deletedId) => {
@@ -95,31 +96,50 @@ const WatchlistPage = ({ isFriendSidebarOpen, isLibrarySidebarOpen }) => {
   }
 
   const calculateGridCols = (width) => {
+    console.log('Width:', width); 
+    const librarySidebarWidth = isLibrarySidebarOpen ? 240 : 0;
+    const friendSidebarWidth = isFriendSidebarOpen ? 320 : 0;
+    const adjustedWidth = width - librarySidebarWidth - friendSidebarWidth;
+
     if (width >= 1200) return 4;  // 4 columns for larger screens
     if (width >= 960) return 3;   // 3 columns for medium screens
     if (width >= 720) return 2;   // 2 columns for smaller screens
-    return 1;                     // 1 column for very small screens
+    return 1;                             // 1 column for very small screens
   };
 
   const gridCols = calculateGridCols(availableWidth);
+  console.log("GRID COLS", gridCols);
 
   return (
-    <div className={`container mx-auto p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-${gridCols} gap-4 relative`}>
-      <h1 className="text-6xl my-10 text-[#e6e6e6] font-bold col-span-full text-center">Your Watchlists</h1>
-      {watchlists.map((list) => (
-        <WatchlistWidget
-          key={list.id}
-          watchlistId={list.id}
-          username={clerkUser.username}
-          listName={list.name}
-          description={list.description}
-          unwatchedCount={list.to_consume_count}
-          watchingCount={list.consuming_count}
-          watchedCount={list.consumed_count}
-          tags={list.tags || []}
-          deleteWatchlist={deleteWatchlist}
-        />
-      ))}
+    <div className="min-h-screen flex flex-col items-center" style={{ padding: '0 16px' }}>
+      <h1 className="text-6xl my-10 text-[#e6e6e6] font-bold text-center">
+        Your Watchlists
+      </h1>
+      <div
+        className="grid gap-4"
+        style={{
+          gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
+          width: '100%',
+          maxWidth: '1200px',
+          justifyContent: 'center',
+          justifyItems: 'center',
+        }}
+      >
+        {watchlists.map((list) => (
+          <WatchlistWidget
+            key={list.id}
+            watchlistId={list.id}
+            username={clerkUser.username}
+            listName={list.name}
+            description={list.description}
+            unwatchedCount={list.to_consume_count}
+            watchingCount={list.consuming_count}
+            watchedCount={list.consumed_count}
+            tags={list.tags || []}
+            deleteWatchlist={deleteWatchlist}
+          />
+        ))}
+      </div>
       <button
         className="plus-button"
         onClick={() => setShowModal(true)}

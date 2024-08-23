@@ -139,9 +139,12 @@ const ProfilePage = () => {
     };
   });
 
+  const sidebarWidth = sidebarOpen ? '240px' : '0';
+  const friendSidebarWidth = friendsSidebarOpen ? '320px' : '0';
+
   return (
     <div className="w-screen h-screen flex flex-col bg-[#232323]">
-      <nav className={`bg-[#121212] p-2 flex justify-between transition-all duration-300 fixed top-24 left-0 w-full z-40 rounded-lg`} style={{ marginLeft: sidebarOpen ? '240px' : '0', marginRight: friendsSidebarOpen ? '320px' : '0' }}>
+      <nav className={`bg-[#121212] p-2 flex justify-between transition-all duration-300 fixed top-24 left-0 w-full z-40 rounded-lg`} style={{ marginLeft: sidebarWidth, marginRight: friendSidebarWidth }}>
         <div className="flex space-x-4">
           {!sidebarOpen && (
             <div className="relative group">
@@ -203,7 +206,7 @@ const ProfilePage = () => {
       </nav>
       <div className="flex-grow flex mt-32">
         <LibrarySidebar watchlists={watchlistsWithOwners} username={username} sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <div className={`flex-grow transition-all duration-300`} style={{ marginLeft: sidebarOpen ? '240px' : '0', marginRight: friendsSidebarOpen ? '320px' : '0' }}>
+        <div className={`flex-grow transition-all duration-300`} style={{ marginLeft: sidebarWidth, marginRight: friendSidebarWidth }}>
           <div className="flex-grow w-full mx-auto p-4">
             <Suspense fallback={<div>Loading...</div>}>
               {activeTab === 'profile' && <ProfileTab userProfile={userProfile} watchlistCount={watchlistCount} mediaCount={mediaCount} />}
