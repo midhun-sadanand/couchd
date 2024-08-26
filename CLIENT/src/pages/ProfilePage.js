@@ -139,8 +139,8 @@ const ProfilePage = () => {
     };
   });
 
-  const sidebarWidth = sidebarOpen ? '240px' : '0';
-  const friendSidebarWidth = friendsSidebarOpen ? '320px' : '0';
+  const sidebarWidth = sidebarOpen ? '240px' : '0'; // Adjusting the width of the library sidebar
+  const friendSidebarWidth = friendsSidebarOpen ? '240px' : '0'; // Adjusting the width of the friend sidebar
 
   return (
     <div className="w-screen h-screen flex flex-col bg-[#232323]">

@@ -22,41 +22,45 @@ const WatchlistWidget = ({ username, watchlistId, listName, description, unwatch
         const padding = 40; // Adjust based on your padding/margins
         const numberContainerWidth = 40; // Adjust based on the width of your number container
         const availableWidth = widgetElement.clientWidth - padding - numberContainerWidth;
-
+  
         let fontSize = 2.5; // Start with the largest font size
         titleElement.style.fontSize = `${fontSize}rem`;
         titleElement.style.whiteSpace = 'nowrap';
         titleElement.style.overflow = 'hidden';
         titleElement.style.textOverflow = 'ellipsis';
-
-        // Reduce font size until it fits or reaches the minimum font size
-        while (titleElement.scrollWidth > availableWidth && fontSize > 1.25) {
-          fontSize -= 0.1;
-          titleElement.style.fontSize = `${fontSize}rem`;
-        }
-
-        // If it still doesn't fit, allow wrapping
+  
+        // Only reduce font size if the title overflows the available width
         if (titleElement.scrollWidth > availableWidth) {
-          titleElement.style.whiteSpace = 'normal';
-          titleElement.style.wordWrap = 'break-word';
-        }
-
-        // If it still overflows, apply ellipses
-        if (titleElement.scrollWidth > availableWidth) {
-          titleElement.style.whiteSpace = 'nowrap';
-          titleElement.classList.add('truncate');
+          while (titleElement.scrollWidth > availableWidth && fontSize > 1.25) {
+            fontSize -= 0.1;
+            titleElement.style.fontSize = `${fontSize}rem`;
+          }
+  
+          // If it still doesn't fit, allow wrapping with ellipses
+          if (titleElement.scrollWidth > availableWidth) {
+            titleElement.style.whiteSpace = 'nowrap';
+            titleElement.style.overflow = 'hidden';
+            titleElement.style.textOverflow = 'ellipsis';
+          } else {
+            titleElement.style.whiteSpace = 'normal';
+            titleElement.style.wordWrap = 'break-word';
+          }
         } else {
-          titleElement.classList.remove('truncate');
+          // If it fits, remove ellipsis and maintain original settings
+          titleElement.style.whiteSpace = 'normal';
+          titleElement.style.overflow = 'visible';
+          titleElement.style.textOverflow = 'clip';
         }
-
+  
         titleElement.style.width = `${availableWidth}px`;
       }
     };
-
+  
     adjustFontSize();
     window.addEventListener('resize', adjustFontSize);
     return () => window.removeEventListener('resize', adjustFontSize);
   }, [listName]);
+  
 
   useEffect(() => {
     const handleDescriptionOverflow = () => {

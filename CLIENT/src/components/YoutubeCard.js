@@ -68,7 +68,7 @@ const YouTubeCard = ({
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
-          className="movie-card p-2 overflow-hidden flex flex-col relative"
+          className="movie-card p-1 overflow-hidden flex flex-col relative"
           style={{ marginBottom: '10px', transform: `translateY(${index * -5}px)` }}
         >
           <div className="movie-card-header w-auto justify-between flex items-center">

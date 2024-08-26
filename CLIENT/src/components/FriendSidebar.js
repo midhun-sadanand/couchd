@@ -15,7 +15,7 @@ const FriendSidebar = ({
   return (
     <div 
       className={`fixed top-24 right-0 h-full w-60 bg-[#232323] text-white p-4 z-40 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
-      style={{ right: sidebarOpen ? '0' : '-320px' }} // Adjust width here
+      style={{ right: sidebarOpen ? '0' : '-240px' }} // Adjust width here
     >
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl">Friend Activity</h2>

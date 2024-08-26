@@ -13,6 +13,7 @@ import { useMediaItems } from '../hooks/useMediaItems';
 import { useWatchlistData } from '../hooks/useWatchlistData';
 import { useCachedProfileData } from '../hooks/useCachedProfileData';
 import { useSharedUsers } from '../hooks/useSharedUsers';
+import { CSSTransition } from 'react-transition-group';
 
 const MediaPage = () => {
   const { watchlistName, watchlistId: paramWatchlistId } = useParams();
@@ -33,10 +34,12 @@ const MediaPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImageUploadModalOpen, setIsImageUploadModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState({});
   const [friends, setFriends] = useState([]);
   const [sortOption, setSortOption] = useState('Custom Order');
   const [customOrder, setCustomOrder] = useState([]);
   const inputRef = useRef(null);
+  const sortDropdownRef = useRef(null);
 
   const { data: mediaItemsData, error: mediaItemsError } = useMediaItems(watchlistId);
   const { data: watchlistData, error: watchlistDataError } = useWatchlistData(watchlistId);
@@ -92,48 +95,23 @@ const MediaPage = () => {
     }
   };
 
-  const handleStatusChange = async (id, newStatus, oldStatus) => {
-    const updateCounts = (counts, increment) => {
-      return {
-        toConsumeCount: counts.toConsumeCount + (oldStatus === 'to consume' ? -1 : 0) + (newStatus === 'to consume' ? increment : 0),
-        consumingCount: counts.consumingCount + (oldStatus === 'consuming' ? -1 : 0) + (newStatus === 'consuming' ? increment : 0),
-        consumedCount: counts.consumedCount + (oldStatus === 'consumed' ? -1 : 0) + (newStatus === 'consumed' ? increment : 0),
-      };
-    };
-
-    setWatchlists(currentWatchlists => currentWatchlists.map(list => {
-      if (list.id === watchlistId) {
-        return { ...list, ...updateCounts(list, 1) };
-      }
-      return list;
-    }));
-
-    try {
-      const { error } = await supabase
-        .from('media_items')
-        .update({ status: newStatus })
-        .eq('id', id);
-
-      if (error) {
-        throw error;
-      }
-
-      setWatchlists(currentWatchlists => currentWatchlists.map(list => {
-        if (list.id === watchlistId) {
-          return { ...list, ...updateCounts(list, 0) };
-        }
-        return list;
-      }));
-    } catch (error) {
+  const handleStatusChange = async (id, newStatus) => {
+    const { error } = await supabase.from('media_items').update({ status: newStatus }).eq('id', id);
+    if (error) {
       console.error('Error updating status:', error.message);
-      setWatchlists(currentWatchlists => currentWatchlists.map(list => {
-        if (list.id === watchlistId) {
-          return { ...list, ...updateCounts(list, -1) };
-        }
-        return list;
-      }));
+    } else {
+      setMediaItems(currentItems => currentItems.map(item => item.id === id ? { ...item, status: newStatus } : item));
+      setIsStatusDropdownOpen(prevState => ({ ...prevState, [id]: false }));
     }
   };
+
+  const toggleStatusDropdown = (id) => {
+    setIsStatusDropdownOpen(prevState => ({ ...prevState, [id]: !prevState[id] }));
+  };
+
+  const setIsOpen = useCallback((id, isOpen) => {
+    setOpenCards(prevOpenCards => ({ ...prevOpenCards, [id]: isOpen }));
+  }, []);
 
   const handleRatingChange = async (id, rating) => {
     const { error } = await supabase.from('media_items').update({ rating }).eq('id', id);
@@ -143,11 +121,7 @@ const MediaPage = () => {
       setMediaItems(currentItems => currentItems.map(item => item.id === id ? { ...item, rating } : item));
     }
   };
-
-  const setIsOpen = useCallback((id, isOpen) => {
-    setOpenCards(prevOpenCards => ({ ...prevOpenCards, [id]: isOpen }));
-  }, []);
-
+  
   const SortableList = ({ items, onDelete }) => (
     <Droppable droppableId={`droppable-${watchlistId}`}>
       {(provided) => (
@@ -193,7 +167,8 @@ const MediaPage = () => {
               index={index}
               isOpen={openCards[item.id] || false}
               setIsOpen={setIsOpen}
-              addedBy={clerkUser?.username || 'Guest'}
+              isDropdownOpen={isStatusDropdownOpen[item.id] || false}
+              toggleDropdown={() => toggleStatusDropdown(item.id)}
             />
           ) : (
             <MovieCard
@@ -218,7 +193,8 @@ const MediaPage = () => {
               index={index}
               isOpen={openCards[item.id] || false}
               setIsOpen={setIsOpen}
-              addedBy={clerkUser?.username || 'Guest'}
+              isDropdownOpen={isStatusDropdownOpen[item.id] || false}
+              toggleDropdown={() => toggleStatusDropdown(item.id)}
             />
           )}
         </div>
@@ -249,6 +225,8 @@ const MediaPage = () => {
       releaseDate = null; // Set to null if empty
     }
 
+    let synopsis = '';
+
     if (type === 'youtube') {
       const videoUrl = `https://www.youtube.com/watch?v=${item.id.videoId}`;
       const imageUrl = item.snippet.thumbnails.default.url;
@@ -260,37 +238,34 @@ const MediaPage = () => {
         url: videoUrl,
         release_date: item.snippet.publishedAt.substring(0, 10),
         creator: item.snippet.channelTitle,
+        synopsis: '', // No synopsis available for YouTube videos
         added_by: clerkUser?.username || 'Guest',
         status: 'to consume',
         order: mediaItems.length
       }]).select();
-    } else if (type === 'movies') {
-      const imageUrl = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '';
-      newMedia = await supabase.from('media_items').insert([{
-        title: item.title || item.name,
-        medium: 'Movie',
-        watchlist_id: watchlistId,
-        image: imageUrl,
-        release_date: releaseDate,
-        creator: item.director || '',
-        added_by: clerkUser?.username || 'Guest',
-        status: 'to consume',
-        order: mediaItems.length
-      }]).select();
-    } else if (type === 'TV shows') {
-      const imageUrl = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '';
-      const creator = item.created_by && item.created_by.length > 0 ? item.created_by[0].name : ''; // Get the creator name
-      newMedia = await supabase.from('media_items').insert([{
-        title: item.title || item.name,
-        medium: 'TV Show',
-        watchlist_id: watchlistId,
-        image: imageUrl,
-        release_date: releaseDate,
-        creator: item.creator || item.created_by,
-        added_by: clerkUser?.username || 'Guest',
-        status: 'to consume',
-        order: mediaItems.length
-      }]).select();
+    } else {
+      // Fetch details from TMDB API for movies or TV shows
+      try {
+        const response = await fetch(`https://api.themoviedb.org/3/${type === 'movies' ? 'movie' : 'tv'}/${item.id}?api_key=89d44f8db4046fedba0c0d1a0ab8fc74`);
+        const data = await response.json();
+        synopsis = data.overview || '';
+
+        const imageUrl = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '';
+        newMedia = await supabase.from('media_items').insert([{
+          title: item.title || item.name,
+          medium: type === 'movies' ? 'Movie' : 'TV Show',
+          watchlist_id: watchlistId,
+          image: imageUrl,
+          release_date: releaseDate,
+          creator: data.created_by ? data.created_by[0].name : (item.director || ''),
+          synopsis, // Store the synopsis
+          added_by: clerkUser?.username || 'Guest',
+          status: 'to consume',
+          order: mediaItems.length
+        }]).select();
+      } catch (error) {
+        console.error('Failed to fetch movie/TV show details:', error.message);
+      }
     }
 
     const { data, error } = newMedia;
@@ -333,12 +308,11 @@ const MediaPage = () => {
     setIsModalOpen(false);
   };
 
-  const handleSortChange = (e) => {
-    const sortOption = e.target.value;
-    setSortOption(sortOption);
+  const handleSortChange = (option) => {
+    setSortOption(option);
 
     let sortedMediaItems;
-    switch (sortOption) {
+    switch (option) {
       case 'Date Added':
         sortedMediaItems = [...mediaItems].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         break;
@@ -358,6 +332,24 @@ const MediaPage = () => {
     }
 
     setMediaItems(sortedMediaItems);
+    setIsDropdownOpen(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const toggleDropdown = () => {
+    setIsDropdownOpen(!isDropdownOpen);
   };
 
   // Add useEffect to handle Command + K
@@ -601,18 +593,43 @@ const MediaPage = () => {
         </div>
       </div>
       <div className="flex justify-end items-center mb-4 w-full" style={{ marginTop: '-65px' }}>
-        <div className="flex items-center">
-          <select
-            value={sortOption}
-            onChange={handleSortChange}
-            className="ml-4 bg-gray-700 text-white px-3 py-2 rounded"
+        <div className="relative inline-block text-left" ref={sortDropdownRef}>
+          <button
+            onClick={toggleDropdown}
+            className="ml-4 bg-gray-700 text-white px-3 py-2 rounded focus:outline-none"
+            style={{ width: '160px' }}
           >
-            <option value="Custom Order">Custom Order</option>
-            <option value="Date Added">Date Added</option>
-            <option value="Date Modified">Date Modified</option>
-            <option value="Title">Title</option>
-            <option value="Added By">Added By</option>
-          </select>
+            {sortOption}
+            <svg
+              className={`w-5 h-5 inline ml-2 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : 'rotate-0'}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+          <CSSTransition
+            in={isDropdownOpen}
+            timeout={200}
+            classNames="dropdown"
+            unmountOnExit
+          >
+            <div className="dropdown-menu-sort slide-out-down absolute z-10 mt-2 w-full bg-gray-700 text-white rounded-md shadow-lg">
+              <ul className="py-1 text-sm">
+                {['Custom Order', 'Date Added', 'Date Modified', 'Title', 'Added By'].map((option) => (
+                  <li
+                    key={option}
+                    className="cursor-pointer px-4 py-2 hover:bg-gray-600"
+                    onClick={() => handleSortChange(option)}
+                  >
+                    {option}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </CSSTransition>
         </div>
       </div>
       {showSuccessMessage && (
