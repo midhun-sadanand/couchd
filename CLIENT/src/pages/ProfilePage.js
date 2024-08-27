@@ -188,7 +188,7 @@ const ProfilePage = () => {
             )}
           </div>
         </div>
-        <div className="flex items-center space-x-4 fixed right-8">
+        <div className="flex items-center space-x-4 fixed right-3">
           <div className="relative group">
             <Users
               size={28}
