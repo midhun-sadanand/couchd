@@ -3,14 +3,12 @@ import { useUser, useSession } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { Toggle } from '@geist-ui/core';
 import supabase from '../utils/supabaseClient';
-import debounce from 'lodash.debounce';
+import debounce from 'lodash/debounce';
 import ShareWatchlist from './common/ShareWatchlist';
 
 const ImageUploadModal = ({
   watchlistId,
   onClose,
-  onShare,
-  onUnshare,
   sharedUsers,
   friends,
   onImageUpload,
@@ -20,6 +18,7 @@ const ImageUploadModal = ({
   username,
   addSharedUser,
   removeSharedUser,
+  updateSharedUsers,
 }) => {
   const { user: clerkUser } = useUser();
   const { session } = useSession();
@@ -137,33 +136,17 @@ const ImageUploadModal = ({
         return;
       }
 
-      const sharedWith = [...pendingShares];
-      const { error: sharedError } = await supabase
-        .from('watchlists')
-        .update({ shared_with: sharedWith })
-        .eq('id', watchlistId);
-
-      if (sharedError) {
-        console.error('Error updating shared users:', sharedError.message);
-        setLoading(false);
-        return;
-      }
       const token = await session.getToken();
+      const payload = { watchlistId, sharedWith: pendingShares };
 
-      const response = await fetch('http://localhost:3001/api/watchlists/share', {
+      await fetch('http://localhost:3001/api/watchlists/share', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
-
         },
-        body: JSON.stringify({ watchlistId, sharedWith, userId: clerkUser.id }),
+        body: JSON.stringify(payload),
       });
-
-      if (!response.ok) {
-        const serverError = await response.json();
-        throw new Error(serverError.error);
-      }
 
       const originalSharedUserIds = sharedUsers.map(user => user.id);
       const toShare = pendingShares.filter(id => !originalSharedUserIds.includes(id));
@@ -180,7 +163,7 @@ const ImageUploadModal = ({
 
       setLoading(false);
       onImageUpload(publicUrl);
-      onClose(description, isPublic);
+      onClose(description, isPublic, sharedUsers);
       navigate(`/list/${username}/${encodeURIComponent(name)}/${watchlistId}`);
     } catch (error) {
       console.error('Unexpected error:', error.message);
@@ -208,7 +191,15 @@ const ImageUploadModal = ({
 
   const handleImageChange = (e) => {
     if (e.target.files && e.target.files[0]) {
-      setImage(e.target.files[0]);
+      const selectedImage = e.target.files[0];
+      setImage(selectedImage);
+
+      // Optimistically update the current image to the selected image
+      const reader = new FileReader();
+      reader.onload = () => {
+        setCurrentImage(reader.result);
+      };
+      reader.readAsDataURL(selectedImage);
     }
   };
 
@@ -234,7 +225,7 @@ const ImageUploadModal = ({
   const triggerClose = () => {
     setAnimationClass('modal-exit');
     setTimeout(() => {
-      onClose(description, isPublic);
+      onClose(description, isPublic, sharedUsers);
     }, 300); // Match the duration of the animation
   };
 
@@ -326,7 +317,6 @@ const ImageUploadModal = ({
           <div className="flex items-center" style={{ marginRight: '295px' }}>
             <ShareWatchlist
               friends={friends}
-              sharedWith={sharedUsers}
               onShareToggle={handleShareToggle}
               pendingShares={pendingShares}
             />

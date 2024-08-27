@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import { useCachedProfileData } from '../../hooks/useCachedProfileData';
 
-const ShareWatchlist = ({ friends, onShareToggle, pendingShares }) => {
+const ShareWatchlist = ({ pendingShares, onShareToggle }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [filteredFriends, setFilteredFriends] = useState([]);
   const [searchValue, setSearchValue] = useState('');
+  const { friendsProfiles = [] } = useCachedProfileData();
 
   useEffect(() => {
-    setFilteredFriends(friends);
-  }, [friends]);
+    setFilteredFriends(friendsProfiles);
+  }, [friendsProfiles]);
 
   const handleSearch = (e) => {
     const value = e.target.value.toLowerCase();
     setSearchValue(value);
-    setFilteredFriends(friends.filter(friend => friend.username.toLowerCase().includes(value)));
+    if (friendsProfiles) {
+      setFilteredFriends(friendsProfiles.filter(friend => friend.username.toLowerCase().includes(value)));
+    }
   };
 
   const sharedFriends = filteredFriends.filter(friend => pendingShares.includes(friend.id));

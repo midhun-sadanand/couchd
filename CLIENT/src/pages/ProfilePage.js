@@ -1,72 +1,34 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useState, lazy, Suspense, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useUser, useSession } from '@clerk/clerk-react';
-import { SupabaseContext } from '../utils/auth';
-import WatchlistPage from '../pages/WatchlistPage';
-import ProfileSearchBar from '../components/ProfileSearchBar';
-import RecentActivity from '../components/RecentActivity';
-import defaultProfile from '../components/assets/images/pfp.png';
+import { useCachedProfileData } from '../hooks/useCachedProfileData';
+import { useWatchlists } from '../hooks/useWatchlists';
+import { useSharedUsers } from '../hooks/useSharedUsers';
+import RecentActivity from '../components/ActivityTab';
+import LibrarySidebar from '../components/LibrarySidebar';
+import FriendSidebar from '../components/FriendSidebar';
+import ProfileTab from '../components/ProfileTab';
+import { Grid, Users, User, Sidebar } from '@geist-ui/icons';
+
+const WatchlistPage = lazy(() => import('./WatchlistPage'));
 
 const ProfilePage = () => {
   const navigate = useNavigate();
   const { username } = useParams();
-  const { client: supabase, isLoading: supabaseLoading } = useContext(SupabaseContext);
-  const { isLoaded, user } = useUser();
+  const { isLoaded: isUserLoaded, user: clerkUser } = useUser();
   const { session } = useSession();
 
-  const [loading, setLoading] = useState(true);
-  const [profileUser, setProfileUser] = useState(null);
-  const [friends, setFriends] = useState([]);
-  const [friendRequests, setFriendRequests] = useState([]);
+  const { userProfile, friendsProfiles, friendRequests } = useCachedProfileData();
   const [searchResults, setSearchResults] = useState([]);
-  const [watchlists, setWatchlists] = useState([]);
+  const [friendRequestsState, setFriendRequests] = useState([]);
+  const [hovered, setHovered] = useState({ sidebar: false, profile: false, watchlists: false, friends: false });
+  const [activeTab, setActiveTab] = useState('profile');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [friendsSidebarOpen, setFriendsSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    if (supabaseLoading || !isLoaded || !session) return;
-
-    const fetchUserProfile = async () => {
-      try {
-        const token = await session.getToken();
-        const response = await fetch('http://localhost:3001/api/users', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const users = await response.json();
-        const fetchedUser = users.data.find(u => u.username === username);
-        if (!fetchedUser) {
-          navigate('/');
-          return;
-        }
-        setProfileUser(fetchedUser);
-
-        const { data: friendsData } = await supabase
-          .from('friends')
-          .select('friends')
-          .eq('profile_id', fetchedUser.id);
-        setFriends(friendsData[0]?.friends || []);
-
-        const { data: friendRequestsData } = await supabase
-          .from('friend_requests')
-          .select('*')
-          .eq('receiver_id', fetchedUser.id)
-          .eq('status', 'pending');
-        setFriendRequests(friendRequestsData);
-
-        const { data: watchlistsData } = await supabase
-          .from('watchlists')
-          .select('*')
-          .eq('user_id', fetchedUser.id);
-        setWatchlists(watchlistsData);
-
-        setLoading(false);
-      } catch (error) {
-        navigate('/');
-      }
-    };
-
-    fetchUserProfile();
-  }, [username, navigate, supabase, supabaseLoading, isLoaded, session]);
+  const { data: watchlistData, isLoading: isWatchlistsLoading, error: watchlistsError } = useWatchlists(clerkUser?.id);
+  const { watchlists, ownerships, ownerIds } = watchlistData || {};
+  const { data: sharedUsersData, error: sharedUsersError } = useSharedUsers(ownerIds);
 
   const sendFriendRequest = async (receiverId, receiverUsername) => {
     try {
@@ -77,7 +39,7 @@ const ProfilePage = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ senderId: user.id, senderUsername: user.username, receiverId, receiverUsername }),
+        body: JSON.stringify({ senderId: clerkUser.id, senderUsername: clerkUser.username, receiverId, receiverUsername }),
       });
     } catch (error) {
       console.error('Error sending friend request:', error.message);
@@ -95,6 +57,8 @@ const ProfilePage = () => {
         },
         body: JSON.stringify({ requestId }),
       });
+
+      setFriendRequests(prevRequests => prevRequests.filter(request => request.id !== requestId));
     } catch (error) {
       console.error('Error accepting friend request:', error.message);
     }
@@ -111,6 +75,8 @@ const ProfilePage = () => {
         },
         body: JSON.stringify({ requestId }),
       });
+
+      setFriendRequests(prevRequests => prevRequests.filter(request => request.id !== requestId));
     } catch (error) {
       console.error('Error rejecting friend request:', error.message);
     }
@@ -133,65 +99,137 @@ const ProfilePage = () => {
     }
   };
 
-  if (loading || supabaseLoading) {
+  if (!isUserLoaded || !session || !clerkUser || !userProfile || isWatchlistsLoading) {
     return <div>Loading...</div>;
   }
 
+  if (watchlistsError) {
+    console.error('Error fetching watchlists:', watchlistsError.message);
+    return <div>Error loading watchlists</div>;
+  }
+
+  if (sharedUsersError) {
+    console.error('Error fetching shared users:', sharedUsersError.message);
+    return <div>Error loading user data</div>;
+  }
+
+  const watchlistCount = watchlists?.length || 0;
+  const mediaCount = watchlists?.reduce((count, list) => count + (list.media?.length || 0), 0) || 0;
+
+  const goToWatchlists = () => {
+    navigate(`/profile/${userProfile.username}/lists`);
+  };
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+    setHovered({ ...hovered, sidebar: false });
+  };
+
+  const toggleFriendsSidebar = () => {
+    setFriendsSidebarOpen(!friendsSidebarOpen);
+  };
+
+  // Merge watchlists with sharedUsersData to get the owner names
+  const watchlistsWithOwners = watchlists?.map(watchlist => {
+    const ownership = ownerships.find(own => own.watchlist_id === watchlist.id);
+    const owner = sharedUsersData?.find(user => user.id === ownership.user_id);
+    return {
+      ...watchlist,
+      ownerName: owner ? owner.username : 'Unknown',
+    };
+  });
+
+  const sidebarWidth = sidebarOpen ? '240px' : '0'; // Adjusting the width of the library sidebar
+  const friendSidebarWidth = friendsSidebarOpen ? '240px' : '0'; // Adjusting the width of the friend sidebar
+
   return (
-    <div className="w-screen h-screen flex bg-[#0a0a0d]">
-      {/* Left Sidebar */}
-      <div className="w-1/5 bg-[#0a0a0d] text-white p-4">
-        <h2 className="text-2xl mb-4">Your Watchlists</h2>
-        <ul>
-          {watchlists.map(list => (
-            <li key={list.id} className="cursor-pointer mb-2" onClick={() => navigate(`/list/${username}/${encodeURIComponent(list.name)}/${list.id}`)}>
-              {list.name}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Main Content */}
-      <div className="w-3/4 bg-[#0a0a0d] text-white p-4">
-        <WatchlistPage />
-        <RecentActivity />
-      </div>
-
-      {/* Right Sidebar */}
-      <div className="w-1/5 bg-[#0a0a0d] text-white p-4">
-        <ProfileSearchBar onSearch={handleSearch} />
-        <div className="mb-8">
-          <h2 className="text-2xl mb-4">Search Results</h2>
-          {searchResults.map(u => (
-            <div key={u.id} className="border-b flex justify-between py-2">
-              <span className="cursor-pointer" onClick={() => navigate(`/profile/${u.username}`)}>
-                <img src={u.profile_image_url || defaultProfile} alt="Profile" className="w-8 h-8 rounded-full mr-2" />
-                {u.username}
-              </span>
-              <button onClick={() => sendFriendRequest(u.id, u.username)} className="text-blue-500">Add Friend</button>
+    <div className="w-screen h-screen flex flex-col bg-[#232323]">
+      <nav className={`bg-[#121212] p-2 flex justify-between transition-all duration-300 fixed top-24 left-0 w-full z-40 rounded-lg`} style={{ marginLeft: sidebarWidth, marginRight: friendSidebarWidth }}>
+        <div className="flex space-x-4">
+          {!sidebarOpen && (
+            <div className="relative group">
+              <Sidebar
+                size={28}
+                className="cursor-pointer transition-colors duration-300"
+                color={hovered.sidebar ? '#f6f6f6' : '#777777'}
+                onMouseEnter={() => setHovered({ ...hovered, sidebar: true })}
+                onMouseLeave={() => setHovered({ ...hovered, sidebar: false })}
+                onClick={toggleSidebar}
+              />
+              {activeTab === 'sidebar' && (
+                <div className="absolute bottom-[-4px] left-0 right-0 h-0.5 w-2/3 mx-auto bg-[#777777] group-hover:bg-[#f6f6f6]" />
+              )}
             </div>
-          ))}
+          )}
+          <div className="relative group">
+            <User
+              size={28}
+              className="cursor-pointer transition-colors duration-300"
+              color={hovered.profile ? '#f6f6f6' : '#777777'}
+              onMouseEnter={() => setHovered({ ...hovered, profile: true })}
+              onMouseLeave={() => setHovered({ ...hovered, profile: false })}
+              onClick={() => setActiveTab('profile')}
+            />
+            {activeTab === 'profile' && (
+              <div className="absolute bottom-[-4px] left-0 right-0 h-0.5 w-2/3 mx-auto bg-[#777777] group-hover:bg-[#f6f6f6]" />
+            )}
+          </div>
+          <div className="relative group">
+            <Grid
+              size={28}
+              className="cursor-pointer transition-colors duration-300"
+              color={hovered.watchlists ? '#f6f6f6' : '#777777'}
+              onMouseEnter={() => setHovered({ ...hovered, watchlists: true })}
+              onMouseLeave={() => setHovered({ ...hovered, watchlists: false })}
+              onClick={() => setActiveTab('watchlists')}
+            />
+            {activeTab === 'watchlists' && (
+              <div className="absolute bottom-[-4px] left-0 right-0 h-0.5 w-2/3 mx-auto bg-[#777777] group-hover:bg-[#f6f6f6]" />
+            )}
+          </div>
         </div>
-        <div>
-          <h2 className="text-2xl mb-4">Existing Friends</h2>
-          {friends.map(friend => (
-            <div key={friend.id} className="border-b py-2">
-              <span>{friend.username}</span>
-            </div>
-          ))}
+        <div className="flex items-center space-x-4 fixed right-8">
+          <div className="relative group">
+            <Users
+              size={28}
+              color={hovered.friends ? '#f6f6f6' : '#777777'}
+              className="cursor-pointer transition-colors duration-300"
+              onMouseEnter={() => setHovered({ ...hovered, friends: true })}
+              onMouseLeave={() => setHovered({ ...hovered, friends: false })}
+              onClick={toggleFriendsSidebar}
+            />
+            {friendsSidebarOpen && (
+              <div className="absolute bottom-[-4px] left-0 right-0 h-0.5 w-2/3 mx-auto bg-[#777777] group-hover:bg-[#f6f6f6]" />
+            )}
+          </div>
         </div>
-        <div className="mt-8">
-          <h2 className="text-2xl mb-4">Friend Requests</h2>
-          {friendRequests.map(request => (
-            <div key={request.id} className="border-b flex justify-between py-2">
-              <span>{request.sender_username}</span>
-              <div>
-                <button onClick={() => handleAcceptRequest(request.id)} className="text-green-500 mr-2">Accept</button>
-                <button onClick={() => handleRejectRequest(request.id)} className="text-red-500">Reject</button>
-              </div>
-            </div>
-          ))}
+      </nav>
+      <div className="flex-grow flex mt-32">
+        <LibrarySidebar watchlists={watchlistsWithOwners} username={username} sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+        <div className={`flex-grow transition-all duration-300`} style={{ marginLeft: sidebarWidth, marginRight: friendSidebarWidth }}>
+          <div className="flex-grow w-full mx-auto p-4">
+            <Suspense fallback={<div>Loading...</div>}>
+              {activeTab === 'profile' && <ProfileTab userProfile={userProfile} watchlistCount={watchlistCount} mediaCount={mediaCount} />}
+              {activeTab === 'watchlists' && (
+                <WatchlistPage 
+                  isFriendSidebarOpen={friendsSidebarOpen} 
+                  isLibrarySidebarOpen={sidebarOpen}  // Pass both sidebar states as props
+                />
+              )}
+            </Suspense>
+          </div>
         </div>
+        <FriendSidebar
+          friendsProfiles={friendsProfiles}
+          friendRequests={friendRequests}
+          handleAcceptRequest={handleAcceptRequest}
+          handleRejectRequest={handleRejectRequest}
+          handleSearch={handleSearch}
+          sendFriendRequest={sendFriendRequest}
+          searchResults={searchResults}
+          closeSidebar={toggleFriendsSidebar}
+          sidebarOpen={friendsSidebarOpen}
+        />
       </div>
     </div>
   );

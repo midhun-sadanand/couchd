@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { UserButton } from '@clerk/clerk-react';
-import { Bell, Grid } from '@geist-ui/icons';
+import { Bell } from '@geist-ui/icons';
 import { useCachedProfileData } from '../../hooks/useCachedProfileData';
 import supabase from '../../utils/supabaseClient';
+import WatchlistButton from '../WatchlistButton'; // Import the new component
 
 const ProfileHeader = () => {
   const navigate = useNavigate();
   const { signOut: clerkSignOut } = useAuth();
-  const { userProfile, friendsProfiles } = useCachedProfileData();
+  const { userProfile } = useCachedProfileData();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -18,7 +19,7 @@ const ProfileHeader = () => {
   };
 
   const goToWatchlists = () => {
-    navigate('/lists');
+    navigate(`/profile/${userProfile.username}/lists`);
   };
 
   const goToProfile = () => {
@@ -34,11 +35,11 @@ const ProfileHeader = () => {
   const [hovered, setHovered] = useState({ home: false, grid: false, bell: false });
 
   return (
-    <header className="text-white p-4 shadow-md bg-black">
+    <header className="text-white p-4 shadow-md bg-[#171717] fixed top-0 left-0 w-full z-50 mb-16"> {/* Added mb-16 */}
       <div className="mx-auto flex justify-between items-center" style={{ maxWidth: '85%' }}>
         <div className="my-1 mr-6">
           <h1 className="font-bold text-2xl text-left">couchd</h1>
-          <h2 className="italic text-left">conscious media consumption</h2>
+          <h2 className="italic text-left">conscious consumption</h2>
         </div>
         <div className="flex items-center space-x-4">
           <svg
@@ -55,14 +56,10 @@ const ProfileHeader = () => {
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
           </svg>
-
-          <Grid
-            size={28}
+          <WatchlistButton
             onClick={goToWatchlists}
-            color={hovered.grid ? '#ffffff' : '#a1a1a1'}
-            className="cursor-pointer transition-colors duration-300"
-            onMouseEnter={() => setHovered({ ...hovered, grid: true })}
-            onMouseLeave={() => setHovered({ ...hovered, grid: false })}
+            hovered={hovered}
+            setHovered={setHovered}
           />
           <Bell
             size={28}
@@ -76,7 +73,6 @@ const ProfileHeader = () => {
           </div>
         </div>
       </div>
-      <div className="mx-auto mt-4 border-t-2 border-gray-600" style={{ maxWidth: '85%' }}></div>
     </header>
   );
 };

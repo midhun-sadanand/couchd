@@ -18,6 +18,7 @@ const WatchlistPage = lazy(() => import('./pages/WatchlistPage'));
 const MediaPage = lazy(() => import('./pages/MediaPage'));
 const PostSignUp = lazy(() => import('./pages/PostSignUp'));
 const SearchResults = lazy(() => import('./pages/SearchResults'));
+const ActivityPage = lazy(() => import('./components/ActivityTab'));
 
 const clerkPubKey = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
 
@@ -62,7 +63,8 @@ const AppContent = ({ showLogin, showSignup, toggleLogin, toggleSignup }) => {
                 }
               />
               <Route path="signup" element={<SignupPage />} />
-              <Route path="lists" element={<WatchlistPage />} />
+              <Route path="/profile/:username/lists" element={<WatchlistPage />} />
+              <Route path="/profile/:username/activity" element={<ActivityPage />} />
               <Route path="/list/:username/:watchlistName/:watchlistId" element={<MediaPage />} />
               <Route path="/profile/:username" element={<SignedIn><ProfilePage /></SignedIn>} />
               <Route path="/:username" element={<SignedIn><ProfilePage /></SignedIn>} />

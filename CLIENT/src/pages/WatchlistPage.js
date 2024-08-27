@@ -1,25 +1,27 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
-import { SupabaseContext } from '../utils/auth'; // Import the context directly
-import WatchlistWidget from '../components/common/WatchlistWidget'; // Ensure the path is correct
-import { Button } from '@geist-ui/core'; // Import Geist components
-import { Plus } from '@geist-ui/icons'; // Import Geist icon
-import AddWatchlistModal from '../components/AddWatchlistModal'; // Import the new modal component
+import { SupabaseContext } from '../utils/auth';
+import WatchlistWidget from '../components/common/WatchlistWidget';
+import { Plus } from '@geist-ui/icons';
+import AddWatchlistModal from '../components/AddWatchlistModal';
 import { useWatchlists } from '../hooks/useWatchlists';
-import { useQueryClient } from '@tanstack/react-query'; // Import useQueryClient
+import { useQueryClient } from '@tanstack/react-query';
 
-const WatchlistPage = () => {
+const WatchlistPage = ({ isFriendSidebarOpen, isLibrarySidebarOpen }) => {
   const [showModal, setShowModal] = useState(false);
   const [options, setOptions] = useState([]);
+  const [availableWidth, setAvailableWidth] = useState(window.innerWidth);
   const navigate = useNavigate();
-  const { user: clerkUser, isLoaded } = useUser(); // Get Clerk user and isLoaded property
-  const { client: supabase } = useContext(SupabaseContext); // Use context to get Supabase client
-  const { data: watchlists, error } = useWatchlists(clerkUser?.id);
-  const queryClient = useQueryClient(); // Initialize useQueryClient
+  const { user: clerkUser, isLoaded } = useUser();
+  const { client: supabase } = useContext(SupabaseContext);
+  const { data: watchlistData, error } = useWatchlists(clerkUser?.id);
+  const queryClient = useQueryClient();
+
+  const watchlists = watchlistData?.watchlists || [];
 
   useEffect(() => {
-    if (!isLoaded) return; // Wait until Clerk user is fully loaded
+    if (!isLoaded) return;
     if (!clerkUser) {
       navigate('/login');
       return;
@@ -27,7 +29,7 @@ const WatchlistPage = () => {
   }, [clerkUser, isLoaded, navigate]);
 
   useEffect(() => {
-    if (watchlists) {
+    if (watchlists.length > 0) {
       const allTags = new Set();
       watchlists.forEach(watchlist => {
         watchlist.tags.forEach(tag => allTags.add(tag));
@@ -37,10 +39,23 @@ const WatchlistPage = () => {
     }
   }, [watchlists]);
 
+  const updateAvailableWidth = () => {
+    const librarySidebarWidth = isLibrarySidebarOpen ? 240 : 0;
+    const friendSidebarWidth = isFriendSidebarOpen ? 320 : 0;
+    const adjustedWidth = window.innerWidth - librarySidebarWidth - friendSidebarWidth;
+    setAvailableWidth(adjustedWidth);
+  };
+
+  useEffect(() => {
+    updateAvailableWidth();
+    window.addEventListener('resize', updateAvailableWidth);
+    return () => window.removeEventListener('resize', updateAvailableWidth);
+    console.log('Available width:', availableWidth); 
+  }, [isFriendSidebarOpen, isLibrarySidebarOpen]);
+
   const deleteWatchlist = async (deletedId) => {
     if (window.confirm(`Are you sure you want to delete this list?`)) {
       try {
-        // Delete the watchlist itself
         const { error: watchlistError } = await supabase
           .from('watchlists')
           .delete()
@@ -50,7 +65,6 @@ const WatchlistPage = () => {
           throw watchlistError;
         }
 
-        // Delete the ownership entry
         const { error: ownershipError } = await supabase
           .from('watchlist_ownership')
           .delete()
@@ -60,7 +74,6 @@ const WatchlistPage = () => {
           throw ownershipError;
         }
 
-        // Delete the sharing entries
         const { error: sharingError } = await supabase
           .from('watchlist_sharing')
           .delete()
@@ -82,23 +95,51 @@ const WatchlistPage = () => {
     return <div>Error loading watchlists</div>;
   }
 
+  const calculateGridCols = (width) => {
+    console.log('Width:', width); 
+    const librarySidebarWidth = isLibrarySidebarOpen ? 240 : 0;
+    const friendSidebarWidth = isFriendSidebarOpen ? 320 : 0;
+    const adjustedWidth = width - librarySidebarWidth - friendSidebarWidth;
+
+    if (width >= 1200) return 4;  // 4 columns for larger screens
+    if (width >= 960) return 3;   // 3 columns for medium screens
+    if (width >= 720) return 2;   // 2 columns for smaller screens
+    return 1;                             // 1 column for very small screens
+  };
+
+  const gridCols = calculateGridCols(availableWidth);
+  console.log("GRID COLS", gridCols);
+
   return (
-    <div className="container mx-auto p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 relative">
-      <h1 className="text-6xl my-10 text-[#e6e6e6] font-bold col-span-full text-center">Your Watchlists</h1>
-      {watchlists && watchlists.map((list) => (
-        <WatchlistWidget
-          key={list.id}
-          watchlistId={list.id} // Pass the watchlist ID for deletion
-          username={clerkUser.username}
-          listName={list.name}
-          description={list.description} // Pass the description to the widget
-          unwatchedCount={list.to_consume_count}
-          watchingCount={list.consuming_count}
-          watchedCount={list.consumed_count}
-          tags={list.tags || []} // Ensure tags is always an array
-          deleteWatchlist={deleteWatchlist} // Pass the delete function
-        />
-      ))}
+    <div className="min-h-screen flex flex-col items-center" style={{ padding: '0 16px' }}>
+      <h1 className="text-6xl my-10 text-[#e6e6e6] font-bold text-center">
+        Your Watchlists
+      </h1>
+      <div
+        className="grid gap-4"
+        style={{
+          gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
+          width: '100%',
+          maxWidth: '1200px',
+          justifyContent: 'center',
+          justifyItems: 'center',
+        }}
+      >
+        {watchlists.map((list) => (
+          <WatchlistWidget
+            key={list.id}
+            watchlistId={list.id}
+            username={clerkUser.username}
+            listName={list.name}
+            description={list.description}
+            unwatchedCount={list.to_consume_count}
+            watchingCount={list.consuming_count}
+            watchedCount={list.consumed_count}
+            tags={list.tags || []}
+            deleteWatchlist={deleteWatchlist}
+          />
+        ))}
+      </div>
       <button
         className="plus-button"
         onClick={() => setShowModal(true)}
