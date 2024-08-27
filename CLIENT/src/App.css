@@ -117,20 +117,46 @@ body, html, #root {
   }
 }
 
+.animate-spin {
+  animation: spin 3s linear infinite; }
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-bounce {
+animation: bounce 1.5s infinite; }
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(-25%);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
 
 /* Fade-in animations for HomePage */
 
 /* Add these styles to your CSS file */
 
 .fixed-text-container {
-  position: fixed;
-  top: 80px; /* Adjust this value as needed */
+  position: sticky;
+  top: 160px; /* Adjust this value as needed */
   transform: translateX(0%);
   width: 100%;
   max-width: 800px;
   text-align: left;
   z-index: 10;
-  margin-top: 2rem; 
+  padding-top: 2rem;
+  max-height: 100px; 
 }
 
 .fixed-text {
@@ -189,6 +215,11 @@ body, html, #root {
 .fade-in-subheading {
   opacity: 0;
   animation: fadeIn 3.6s cubic-bezier(0.25, 0.4, 0.4, 1) 0.5s forwards;
+}
+
+.fade-in {
+  opacity: 0;
+  animation: fadeIn 2s cubic-bezier(0.25, 0.4, 0.4, 1) 0s forwards;
 }
 
 @keyframes fadeIn {
@@ -549,6 +580,37 @@ body, html, #root {
   justify-content: center;
 }
 
+/*dotgrid styling */
+.dot-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.activity {
+  margin-bottom: 20px;
+}
+
+.dots {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin: 1px;
+  cursor: pointer;
+}
+
+.circle {
+  width: 18px;
+  height: 18px;
+  background-color: #888;
+  border-radius: 50%;
+  position: absolute;
+}
 
 /* Success message styling */
 .success-message-container {
@@ -694,6 +756,34 @@ body, html, #root {
 
 }
 
+/* blinking cursor styling */
+.typing-container {
+  display: inline;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.cursor {
+  display: inline-block;
+  width: 22px;
+  background-color: white;
+  margin-left: 4px;
+  vertical-align: bottom;
+}
+
+.blink {
+  animation: blink 1.7s step-end infinite;
+}
+
+@keyframes blink {
+  from, to {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
 /* Ensure new modal tags do not conflict with existing styles */
 .search-modal .modal-tag {
   background-color: #292929 !important; /* Tailwind gray-700 */
@@ -818,11 +908,6 @@ body, html, #root {
   padding: 0 !important; /* Remove padding for the button */
 }
 
-.text-2xl {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #888888
-}
 
 .description {
   font-size: 0.875rem;

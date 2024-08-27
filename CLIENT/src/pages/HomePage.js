@@ -1,11 +1,16 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState} from 'react';
 import { SignedIn, SignedOut, SignIn, SignUp, useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import ScrollRevealText from '../components/ScrollRevealText';
+import ScrollCards from '../components/ScrollCards';
+import { motion, useScroll, useTransform } from 'framer-motion';
 
 function HomePage({ showLogin, showSignup, toggleLogin, toggleSignup }) {
   const navigate = useNavigate();
   const { isSignedIn, user } = useUser();
+  const { scrollYProgress } = useScroll();
+  const [isVisible, setIsVisible] = useState(false);
+  const pixelThreshold = 200;
 
   useEffect(() => {
     if (isSignedIn) {
@@ -28,6 +33,21 @@ function HomePage({ showLogin, showSignup, toggleLogin, toggleSignup }) {
     };
   }, [showLogin, showSignup, toggleLogin, toggleSignup]);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY;
+      if (scrollPosition > pixelThreshold) { // Adjust the threshold as needed
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+
   const initialLines = [
     "You just opened YouTube.",
     "\u00A0\u00A0\u00A0Wait, what'd you want to watch again?",
@@ -35,7 +55,7 @@ function HomePage({ showLogin, showSignup, toggleLogin, toggleSignup }) {
     "\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0Might as well keep scrolling.",
     "\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0Well you are already here.",
     "\u00A0\u00A0\u00A0What did you just watch?",
-    "Didn't you just open Youtube?"
+    "Didn't you just open Youtube?",
   ];
 
   return (
@@ -69,16 +89,22 @@ function HomePage({ showLogin, showSignup, toggleLogin, toggleSignup }) {
             Passive consumption warps your conscious experience of the world. <br/>
             Regain the agency to actively choose what you consume.
           </p>
+          {isVisible &&
+          <div className="sticky top-16 pt-64">
+            <span className="text-6xl">BREAK THE LOOP</span>
+            <span className="pt-40"><ScrollCards /></span>
+          </div>}
 
           {/* Add more content to make the page longer */}
           <div className="h-[600vh]"></div> {/* Spacer div to make the page longer */}
-
-          <ScrollRevealText 
-            initialLines={initialLines} 
-            revealDistance={300} 
-            startRevealOffset={900} 
-          /> {/* Use the ScrollRevealText component */}
-
+          {/*<div className="flex">
+            <ScrollRevealText 
+              initialLines={initialLines} 
+              revealDistance={300}
+              startRevealOffset={900} 
+            /> {/* Use the ScrollRevealText component */}
+          {/*}  <div className="text-2xl fade-in scroll-mb-40">Break the cycle.</div>
+          </div>*/}
           {(showLogin || showSignup) && (
             <div
               className="backdrop"

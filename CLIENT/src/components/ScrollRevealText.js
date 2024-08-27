@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const ScrollRevealText = ({ initialLines, revealDistance, startRevealOffset }) => {
+const ScrollRevealText = ({ initialLines, revealDistance, startRevealOffset}) => {
   const [lines, setLines] = useState(initialLines);
   const [visibleLineIndex, setVisibleLineIndex] = useState(-1);
 
@@ -26,11 +26,11 @@ const ScrollRevealText = ({ initialLines, revealDistance, startRevealOffset }) =
   }, [lines.length, revealDistance, startRevealOffset]);
 
   return (
-    <div className="fixed-text-container">
+    <div className="fixed-text-container h-1/2">
       {lines.map((line, index) => (
         <p
           key={index}
-          className={`fixed-text ${index <= visibleLineIndex  ? 'vis' : ''} ${index > visibleLineIndex ? 'invis' : ''}`}
+          className={`fixed-text text-black ${index <= visibleLineIndex  ? 'vis ' : ''} ${index > visibleLineIndex ? 'invis' : ''}`}
         >
           {line}
         </p>

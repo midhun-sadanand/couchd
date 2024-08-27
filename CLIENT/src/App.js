@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/reac
 import { fetchWatchlists } from './hooks/useWatchlists'; // Import the fetch function
 import { useCachedProfileData } from './hooks/useCachedProfileData'; // Import the new hook
 
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 const HomePage = lazy(() => import('./pages/HomePage'));
 const SignupPage = lazy(() => import('./pages/SignupPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -52,13 +53,7 @@ const AppContent = ({ showLogin, showSignup, toggleLogin, toggleSignup }) => {
             >
               <Route
                 index
-                element={
-                  <HomePage
-                    showLogin={showLogin}
-                    showSignup={showSignup}
-                    toggleLogin={toggleLogin}
-                    toggleSignup={toggleSignup}
-                  />
+                element={<LandingPage />
                 }
               />
               <Route path="signup" element={<SignupPage />} />
