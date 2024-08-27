@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CSSTransition } from 'react-transition-group'; 
 import VideoPlayer from './VideoPlayer'; // Adjust the path as needed
 import NotesInput from './common/Notes'; // Ensure this path is correct
 import Rating from './Rating'; // Ensure this path is correct
+import { createPortal } from 'react-dom';
 
 const YouTubeCard = ({
   id, title, medium, length, date, created_at, synopsis, image, url, creator, addedBy, status, notes, rating, onDelete, onNotesChange, onStatusChange, onRatingChange, index, isOpen, setIsOpen
@@ -11,7 +13,10 @@ const YouTubeCard = ({
   const [localRating, setLocalRating] = useState(rating || 0); // Default rating to 0
   const [localStatus, setLocalStatus] = useState(status || 'to consume');
   const [notesOpen, setNotesOpen] = useState(false);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const hasChanges = useRef(false);
+  const statusButtonRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   useEffect(() => {
     setLocalRating(rating || 0);
@@ -46,8 +51,15 @@ const YouTubeCard = ({
   };
 
   const handleStatusChange = (newStatus) => {
+    const oldStatus = localStatus;
     setLocalStatus(newStatus);
+    setIsStatusDropdownOpen(false);
     hasChanges.current = true;
+
+    onStatusChange(id, newStatus, oldStatus).catch((error) => {
+      setLocalStatus(oldStatus);
+      console.error('Error updating status:', error.message);
+    });
   };
 
   const handleToggle = async () => {
@@ -61,6 +73,79 @@ const YouTubeCard = ({
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Intl.DateTimeFormat('en-US', options).format(new Date(date));
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target) &&
+        !statusButtonRef.current.contains(event.target)
+      ) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const toggleStatusDropdown = () => {
+    setIsStatusDropdownOpen((prev) => !prev);
+  };
+
+  const statusColorClass = (status) => {
+    switch (status) {
+      case 'to consume':
+        return 'bg-[#B4B4B4]';
+      case 'consuming':
+        return 'bg-[#909090]';
+      case 'consumed':
+        return 'bg-[#636363]';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
+  const renderDropdown = () => {
+    const otherStatuses = ['to consume', 'consuming', 'consumed'].filter(
+      (option) => option !== localStatus
+    );
+  
+    return createPortal(
+      <CSSTransition
+        in={isStatusDropdownOpen}
+        timeout={200}
+        classNames="dropdown"
+        unmountOnExit
+      >
+        <div
+          ref={dropdownRef}
+          className="absolute w-40 bg-[#3b3b3b] text-white rounded-md shadow-lg z-50"
+          style={{
+            top: `${statusButtonRef.current?.getBoundingClientRect().bottom + window.scrollY + 4}px`,
+            left: `${statusButtonRef.current?.getBoundingClientRect().left}px`,
+            zIndex: 1000,
+            width: `${statusButtonRef.current?.getBoundingClientRect().width}px`,
+          }}
+        >
+          <ul className="py-1 text-sm">
+            {otherStatuses.map((option) => (
+              <li
+                key={option}
+                className="status-dropdown-item hover:bg-gray-600"
+                onClick={() => handleStatusChange(option)}
+              >
+                {option}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </CSSTransition>,
+      document.body
+    );
+  }; 
 
   return (
     <Draggable draggableId={id.toString()} index={index}>
@@ -87,20 +172,41 @@ const YouTubeCard = ({
                 </div>
               </div>
             </div>
-            <div className="flex items-center">
-              <select
-                className={`status-indicator ${localStatus ? `status-${localStatus.toLowerCase().replace(' ', '-')}` : ''}`}
-                value={localStatus}
-                onChange={(e) => handleStatusChange(e.target.value)}
-              >
-                <option value="to consume">to consume</option>
-                <option value="consuming">consuming</option>
-                <option value="consumed">consumed</option>
-              </select>
-              <button onClick={() => onDelete(id)} className="remove-button py-2 px-4">Delete</button>
-              <button onClick={handleToggle} className="p-2">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className={`w-6 h-6 arrow ${isOpen ? 'arrow-down' : 'arrow-up'}`}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+            <div className="flex items-center relative">
+              <div className="relative">
+                <button
+                  ref={statusButtonRef}
+                  className={`status-indicator ${statusColorClass(localStatus)} text-white px-3 py-2 rounded focus:outline-none flex items-center justify-between w-40`}
+                  onClick={toggleStatusDropdown}
+                  style={{ width: '125px' }} // Adjust this value to make the button narrower
+
+                >
+                  <span className="">{localStatus}</span>
+                  <svg
+                    className={`w-5 h-5 ml-2 transition-transform duration-200 ${
+                      isStatusDropdownOpen ? 'rotate-180' : 'rotate-0'
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+                {renderDropdown()}
+              </div>
+              <button onClick={() => onDelete(id)} className="remove-button py-2 px-4 ml-2 text-red-500 hover:text-red-700 focus:outline-none">
+                Delete
+              </button>
+              <button onClick={handleToggle} className="p-2 ml-2 focus:outline-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className={`w-6 h-6 transition-transform duration-200 ${isOpen ? 'rotate-180' : 'rotate-0'}`}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
                 </svg>
               </button>
             </div>
@@ -137,9 +243,21 @@ const YouTubeCard = ({
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
                     </svg>
                   </div>
-                  {notesOpen && (
-                    <NotesInput initialNotes={notes} onChange={(newNotes) => onNotesChange(id, newNotes)} />
-                  )}
+                  <AnimatePresence>
+                    {notesOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <NotesInput
+                          initialNotes={notes}
+                          onChange={(newNotes) => onNotesChange(id, newNotes)}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </motion.div>
             )}

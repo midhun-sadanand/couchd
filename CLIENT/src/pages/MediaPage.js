@@ -167,6 +167,7 @@ const MediaPage = () => {
               index={index}
               isOpen={openCards[item.id] || false}
               setIsOpen={setIsOpen}
+              addedBy={item.added_by || 'Guest'}
               isDropdownOpen={isStatusDropdownOpen[item.id] || false}
               toggleDropdown={() => toggleStatusDropdown(item.id)}
             />
@@ -193,6 +194,7 @@ const MediaPage = () => {
               index={index}
               isOpen={openCards[item.id] || false}
               setIsOpen={setIsOpen}
+              addedBy={item.added_by || 'Guest'}
               isDropdownOpen={isStatusDropdownOpen[item.id] || false}
               toggleDropdown={() => toggleStatusDropdown(item.id)}
             />
@@ -324,6 +326,14 @@ const MediaPage = () => {
         break;
       case 'Added By':
         sortedMediaItems = [...mediaItems].sort((a, b) => a.added_by.localeCompare(b.added_by));
+        break;
+      case 'Status':
+        const statusOrder = ['consuming', 'to consume', 'consumed'];
+        sortedMediaItems = [...mediaItems].sort((a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status));
+        break;
+      case 'Medium':
+        const mediumOrder = ['Youtube', 'Movie', 'TV Show'];
+        sortedMediaItems = [...mediaItems].sort((a, b) => mediumOrder.indexOf(a.medium) - mediumOrder.indexOf(b.medium));
         break;
       case 'Custom Order':
       default:
@@ -567,7 +577,7 @@ const MediaPage = () => {
             <div className="flex bottom:0 items-center">
               <div className="flex items-center" style={{ minWidth: `${sharedUsers.length * 20 + 40}px` }}>
                 <img
-                  src={clerkUser?.imageUrl}
+                  src={watchlistData?.ownerProfile?.imageUrl}
                   alt="Owner"
                   className="w-8 h-8 rounded-full shadow-2xl align-bottom border border-[#535353] z-20"
                 />
@@ -583,7 +593,7 @@ const MediaPage = () => {
                 ))}
               </div>
               <span className="text-sm text-gray-400">
-                {clerkUser?.username}, {sharedUsers.map(user => user.username).join(', ')} • {mediaItems.length} media
+                {watchlistData?.ownerProfile?.username}, {sharedUsers.map(user => user.username).join(', ')} • {mediaItems.length} media
               </span>
             </div>
           </div>
@@ -596,7 +606,7 @@ const MediaPage = () => {
         <div className="relative inline-block text-left" ref={sortDropdownRef}>
           <button
             onClick={toggleDropdown}
-            className="ml-4 bg-gray-700 text-white px-3 py-2 rounded focus:outline-none"
+            className="ml-4 bg-[#3b3b3b] text-white px-3 py-2 rounded focus:outline-none"
             style={{ width: '160px' }}
           >
             {sortOption}
@@ -616,9 +626,12 @@ const MediaPage = () => {
             classNames="dropdown"
             unmountOnExit
           >
-            <div className="dropdown-menu-sort slide-out-down absolute z-10 mt-2 w-full bg-gray-700 text-white rounded-md shadow-lg">
+            <div className="dropdown-menu-sort slide-out-down absolute z-10 ml-4 mt-2 w-full bg-gray-700 text-white text-xl rounded-md shadow-lg"
+                 style={{ width: '160px' }}
+
+            >
               <ul className="py-1 text-sm">
-                {['Custom Order', 'Date Added', 'Date Modified', 'Title', 'Added By'].map((option) => (
+                {['Custom Order', 'Status', 'Medium', 'Date Added', 'Date Modified', 'Title', 'Added By'].map((option) => (
                   <li
                     key={option}
                     className="cursor-pointer px-4 py-2 hover:bg-gray-600"

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CSSTransition } from 'react-transition-group'; 
 import NotesInput from './common/Notes';
 import Rating from './Rating';
-import { CSSTransition } from 'react-transition-group';
 import { createPortal } from 'react-dom';
 
 const MovieCard = ({
@@ -17,6 +17,7 @@ const MovieCard = ({
   const hasChanges = useRef(false);
   const statusButtonRef = useRef(null);
   const dropdownRef = useRef(null);
+  console.log("ADDED BY", addedBy);
 
   useEffect(() => {
     setLocalRating(rating || 0);
@@ -50,18 +51,16 @@ const MovieCard = ({
     hasChanges.current = true;
   };
 
-  const handleStatusChange = async (newStatus) => {
+  const handleStatusChange = (newStatus) => {
     const oldStatus = localStatus;
     setLocalStatus(newStatus);
+    setIsStatusDropdownOpen(false);
     hasChanges.current = true;
 
-    try {
-      await onStatusChange(id, newStatus, oldStatus);
-      setIsStatusDropdownOpen(false);
-    } catch (error) {
+    onStatusChange(id, newStatus, oldStatus).catch((error) => {
       setLocalStatus(oldStatus);
       console.error('Error updating status:', error.message);
-    }
+    });
   };
 
   const handleToggle = async () => {
@@ -105,17 +104,21 @@ const MovieCard = ({
   const statusColorClass = (status) => {
     switch (status) {
       case 'to consume':
-        return 'bg-red-500';
+        return 'bg-[#B4B4B4]';
       case 'consuming':
-        return 'bg-yellow-500';
+        return 'bg-[#909090]';
       case 'consumed':
-        return 'bg-green-500';
+        return 'bg-[#636363]';
       default:
         return 'bg-gray-500';
     }
   };
 
   const renderDropdown = () => {
+    const otherStatuses = ['to consume', 'consuming', 'consumed'].filter(
+      (option) => option !== localStatus
+    );
+  
     return createPortal(
       <CSSTransition
         in={isStatusDropdownOpen}
@@ -125,18 +128,19 @@ const MovieCard = ({
       >
         <div
           ref={dropdownRef}
-          className="absolute mt-2 w-40 bg-gray-700 text-white rounded-md shadow-lg z-50"
+          className="absolute w-40 bg-[#3b3b3b] text-white rounded-md shadow-lg z-50"
           style={{
+            top: `${statusButtonRef.current?.getBoundingClientRect().bottom + window.scrollY + 4}px`,
+            left: `${statusButtonRef.current?.getBoundingClientRect().left}px`,
             zIndex: 1000,
-            top: `${statusButtonRef.current?.getBoundingClientRect().bottom || 0}px`,
-            left: `${statusButtonRef.current?.getBoundingClientRect().left || 0}px`,
+            width: `${statusButtonRef.current?.getBoundingClientRect().width}px`,
           }}
         >
           <ul className="py-1 text-sm">
-            {['to consume', 'consuming', 'consumed'].map((option) => (
+            {otherStatuses.map((option) => (
               <li
                 key={option}
-                className="cursor-pointer px-4 py-2 hover:bg-gray-600 capitalize"
+                className="status-dropdown-item hover:bg-gray-600"
                 onClick={() => handleStatusChange(option)}
               >
                 {option}
@@ -145,9 +149,9 @@ const MovieCard = ({
           </ul>
         </div>
       </CSSTransition>,
-      document.body // Render the dropdown at the top of the DOM tree
+      document.body
     );
-  };
+  };  
 
   return (
     <Draggable draggableId={id.toString()} index={index}>
@@ -185,8 +189,10 @@ const MovieCard = ({
                   ref={statusButtonRef}
                   className={`status-indicator ${statusColorClass(localStatus)} text-white px-3 py-2 rounded focus:outline-none flex items-center justify-between w-40`}
                   onClick={toggleStatusDropdown}
+                  style={{ width: '125px' }} // Adjust this value to make the button narrower
+
                 >
-                  <span className="capitalize">{localStatus}</span>
+                  <span className="">{localStatus}</span>
                   <svg
                     className={`w-5 h-5 ml-2 transition-transform duration-200 ${
                       isStatusDropdownOpen ? 'rotate-180' : 'rotate-0'
@@ -236,7 +242,8 @@ const MovieCard = ({
                         overflow: 'hidden',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
+                        justifyContent: 'left',
+
                       }}
                     >
                       <img
@@ -246,8 +253,15 @@ const MovieCard = ({
                       />
                       {showSynopsis && synopsis && (
                         <div
-                          className="absolute inset-0 bg-black bg-opacity-75 text-white p-4 flex items-center justify-center text-center overflow-auto"
-                          style={{ scrollbarWidth: 'none' }}
+                          className="absolute top-0 left-0 right-0 w-full bottom-0 bg-black bg-opacity-75 text-white p-4 flex items-center justify-center text-center overflow-auto"
+                          style={{ 
+                            scrollbarWidth: 'none',
+                            maxHeight: '50vh',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            maxWidth: '33.33vh',
+
+                          }}
                         >
                           <p>{synopsis}</p>
                         </div>
@@ -270,7 +284,7 @@ const MovieCard = ({
                     </div>
                     {length && medium && (
                       <div className="mt-4 text-right text-gray-300">
-                        <span className="capitalize">{medium}</span> · {length}
+                        <span className="capitalize">{medium}</span> Â· {length}
                       </div>
                     )}
                   </div>
@@ -280,7 +294,7 @@ const MovieCard = ({
                     className="flex items-center cursor-pointer"
                     onClick={() => setNotesOpen(!notesOpen)}
                   >
-                    <div className="text-sm text-gray-400">Thoughts</div>
+                    <div className="text-sm text-gray-400">thoughts</div>
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
