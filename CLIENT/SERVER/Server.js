@@ -44,7 +44,6 @@ const updateMediaItemCounters = async (watchlistId) => {
   }
 };
 
-
 app.put('/api/media-items/:id/status', ClerkExpressRequireAuth({ secretKey: clerkSecretKey }), async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -92,7 +91,6 @@ app.delete('/api/media-items/:id', ClerkExpressRequireAuth({ secretKey: clerkSec
     res.status(500).json({ error: error.message });
   }
 });
-
 
 app.get('/api/users', ClerkExpressRequireAuth({ secretKey: clerkSecretKey }), async (req, res) => {
   try {
@@ -240,6 +238,27 @@ app.get('/api/friends/:userId', ClerkExpressRequireAuth({ secretKey: clerkSecret
     res.status(200).json(data);
   } catch (error) {
     console.error('Error in fetch friends endpoint:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// New endpoint for fetching friend requests
+app.get('/api/friend-requests', ClerkExpressRequireAuth({ secretKey: clerkSecretKey }), async (req, res) => {
+  const { receiverId } = req.query;
+  try {
+    const { data, error } = await supabase
+      .from('friend_requests')
+      .select('*')
+      .eq('receiver_id', receiverId)
+      .eq('status', 'pending');
+
+    if (error) {
+      throw error;
+    }
+
+    res.status(200).json(data);
+  } catch (error) {
+    console.error('Error fetching friend requests:', error);
     res.status(500).json({ error: error.message });
   }
 });
