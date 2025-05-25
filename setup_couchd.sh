@@ -1,3 +1,116 @@
+#!/bin/bash
+
+# Initialize a new Node.js project and install dependencies
+npm init -y
+npm install next react react-dom @clerk/nextjs @supabase/supabase-js @tanstack/react-query @geist-ui/core @geist-ui/icons framer-motion react-beautiful-dnd animejs classnames lodash
+npm install -D typescript tailwindcss postcss autoprefixer @types/react @types/node @types/lodash @types/react-beautiful-dnd @types/animejs @types/classnames
+
+# Add Next.js build scripts to package.json
+npm set-script dev "next dev"
+npm set-script build "next build"
+npm set-script start "next start"
+
+# Initialize Tailwind CSS and PostCSS configuration
+npx tailwindcss init -p
+
+# Create required directories
+mkdir -p src/app/api/friend-requests
+mkdir -p src/app/api/friends
+mkdir -p src/app/api/get-users
+mkdir -p src/app/api/media-items
+mkdir -p src/app/api/search
+mkdir -p src/app/api/users
+mkdir -p src/app/api/watchlists
+mkdir -p "src/app/sign-in/[[...index]]"
+mkdir -p "src/app/sign-up/[[...index]]"
+mkdir -p src/components
+mkdir -p src/lib
+mkdir -p src/styles
+mkdir -p src/types
+mkdir -p public/fonts
+mkdir -p public/images
+
+# (Manual step) Copy the legacy font files (e.g., .woff2, .woff, .ttf) into the ./public/fonts/ directory
+# (Manual step) Copy any required image assets (e.g., logos, icons, favicon.ico) from the legacy app into the ./public/ directory
+
+# Write Tailwind CSS configuration (overriding the default content paths and adding custom font families)
+cat > tailwind.config.js <<'EOF'
+module.exports = {
+  content: [
+    "./src/app/**/*.{js,ts,jsx,tsx}",
+    "./src/components/**/*.{js,ts,jsx,tsx}",
+    "./src/hooks/**/*.{js,ts,jsx,tsx}",
+    "./src/lib/**/*.{js,ts,jsx,tsx}"
+  ],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['var(--font-geist-sans)', 'sans-serif'],
+        mono: ['var(--font-geist-mono)', 'monospace']
+      }
+    }
+  },
+  plugins: []
+}
+EOF
+
+# Write global CSS file
+cat > src/app/globals.css <<'EOF'
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom global styles (if any) can be added here */
+EOF
+
+# Write Next.js layout component
+cat > src/app/layout.tsx <<'EOF'
+import Link from 'next/link';
+import type { Metadata } from 'next';
+import {
+  ClerkProvider,
+  SignedIn,
+  SignedOut,
+  UserButton
+} from '@clerk/nextjs';
+import { Geist, Geist_Mono } from 'next/font/google';
+import '../app/globals.css';
+
+const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
+const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
+
+export const metadata: Metadata = {
+  title: 'Couchd',
+  description: 'Next.js 14 Couchd app migration'
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ClerkProvider>
+      <html lang="en" className="h-full">
+        <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-white text-gray-900`}>
+          <header className="w-full border-b border-gray-200 px-4 py-2 flex items-center justify-between">
+            <h1 className="text-lg font-bold">Couchd</h1>
+            <nav>
+              <SignedOut>
+                <Link href="/sign-in" className="mr-4">Sign In</Link>
+                <Link href="/sign-up">Sign Up</Link>
+              </SignedOut>
+              <SignedIn>
+                <UserButton afterSignOutUrl="/" />
+              </SignedIn>
+            </nav>
+          </header>
+          {children}
+        </body>
+      </html>
+    </ClerkProvider>
+  );
+}
+EOF
+
+# Write Next.js homepage component
+cat > src/app/page.tsx <<'EOF'
 "use client";
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
@@ -147,7 +260,7 @@ export default function HomePage() {
                 <li key={item.id} className="mb-3 p-3 border rounded flex items-center justify-between">
                   <div className="flex items-center">
                     {item.poster_url && (
-                      // eslint-disable-next-line @next/next/no-img-element
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={item.poster_url} alt={item.title} className="w-12 h-18 object-cover rounded mr-3" />
                     )}
                     <div>
@@ -335,3 +448,122 @@ function FriendSearch({ friends, incomingRequests, outgoingRequests }: {
     </div>
   );
 }
+EOF
+
+# Write custom sign-in and sign-up pages
+cat > src/app/sign-in/[[...index]]/page.tsx <<'EOF'
+import { SignIn } from '@clerk/nextjs';
+
+export default function SignInPage() {
+  return <SignIn routing="path" path="/sign-in" />;
+}
+EOF
+
+cat > src/app/sign-up/[[...index]]/page.tsx <<'EOF'
+import { SignUp } from '@clerk/nextjs';
+
+export default function SignUpPage() {
+  return <SignUp routing="path" path="/sign-up" />;
+}
+EOF
+
+# Write Clerk middleware for authentication
+cat > src/middleware.ts <<'EOF'
+import { clerkMiddleware } from '@clerk/nextjs/server';
+
+export default clerkMiddleware();
+
+export const config = {
+  matcher: [
+    // Skip static files and Next internals
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Apply to all API routes
+    '/(api)(.*)'
+  ]
+};
+EOF
+
+# Write Supabase client library
+cat > src/lib/supabase.ts <<'EOF'
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+export default supabase;
+EOF
+
+# Write environment variables file
+cat > .env.local <<'EOF'
+# Clerk API Keys (replace with your actual keys)
+CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+CLERK_SIGN_IN_URL=/sign-in
+CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
+CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
+
+# Supabase keys (replace with your actual values)
+NEXT_PUBLIC_SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# External API keys
+TMDB_API_KEY=  # e.g., your TheMovieDB API key
+EOF
+
+# Write Next.js configuration file
+cat > next.config.ts <<'EOF'
+import type { NextConfig } from 'next';
+const nextConfig: NextConfig = {
+  images: {
+    domains: ['image.tmdb.org']
+  }
+};
+export default nextConfig;
+EOF
+
+# Write next-env.d.ts (Next.js TypeScript definitions)
+cat > next-env.d.ts <<'EOF'
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+/// <reference types="next/navigation-types/compat/navigation" />
+EOF
+
+# Write TypeScript configuration
+cat > tsconfig.json <<'EOF'
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "incremental": true,
+    "esModuleInterop": true,
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve"
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules", ".next"]
+}
+EOF
+
+# Write basic ESLint configuration
+cat > eslint.config.mjs <<'EOF'
+import nextPlugin from '@next/eslint-plugin-next';
+export default [
+  nextPlugin.configs.recommended,
+  nextPlugin.configs['core-web-vitals']
+];
+EOF
+
+echo "All done! Now fill in the .env.local file, copy your font and image assets into the public folder, and run 'npm run dev' to start the development server."
+
