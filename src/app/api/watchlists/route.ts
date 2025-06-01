@@ -1,31 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/server';
+import { createClient } from '@supabase/supabase-js';
+import { getAuth } from '@clerk/nextjs/server';
+
+export async function GET(req: NextRequest) {
+  try {
+    const { userId, getToken } = getAuth(req);
+    if (!userId) {
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
+    const token = await getToken({ template: 'supabase' });
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      }
+    );
+    const { data: watchlists, error } = await supabase
+      .from('watchlists')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return NextResponse.json(watchlists || []);
+  } catch (error) {
+    console.error('Error fetching watchlists:', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
+}
 
 export async function POST(req: NextRequest) {
-  const { watchlistName, description, tags, isPublic, userId } = await req.json();
+  try {
+    const { userId, getToken } = getAuth(req);
+    if (!userId) {
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
+    const token = await getToken({ template: 'supabase' });
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      }
+    );
+    const body = await req.json();
+    const { name, description, isPublic } = body;
 
-  const { data: wl, error: wlErr } = await supabase
-    .from('watchlists')
-    .insert([{
-      name        : watchlistName,
-      user_id     : userId,
-      description ,
-      tags        ,
-      is_public   : isPublic
-    }])
-    .select();
+    if (!name) {
+      return new NextResponse('Name is required', { status: 400 });
+    }
 
-  if (wlErr)
-    return NextResponse.json({ error: wlErr.message }, { status: 500 });
+    const { data: watchlist, error } = await supabase
+      .from('watchlists')
+      .insert([
+        {
+          name,
+          description,
+          is_public: isPublic || false,
+          user_id: userId,
+        }
+      ])
+      .select()
+      .single();
 
-  const newWatchlist = wl![0];
+    if (error) throw error;
 
-  const { error: ownErr } = await supabase
-    .from('watchlist_ownership')
-    .insert([{ user_id: userId, watchlist_id: newWatchlist.id }]);
-
-  if (ownErr)
-    return NextResponse.json({ error: ownErr.message }, { status: 500 });
-
-  return NextResponse.json(newWatchlist, { status: 201 });
+    return NextResponse.json(watchlist);
+  } catch (error) {
+    console.error('Error creating watchlist:', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
 }

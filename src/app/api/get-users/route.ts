@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { clerkClient } from '@/lib/server';
+import { clerkClient } from '@clerk/clerk-sdk-node';
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,6 +9,7 @@ export async function POST(req: NextRequest) {
     );
     return NextResponse.json(users);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('Error fetching users:', err);
+    return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

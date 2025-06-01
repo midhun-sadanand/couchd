@@ -5,7 +5,7 @@ export async function GET(req: NextRequest) {
   const query = new URL(req.url).searchParams.get('query')?.toLowerCase() || '';
 
   try {
-    const users = await clerkClient.users.getUserList();
+    const { data: users } = await clerkClient.users.getUserList();
     const filtered = users.filter(
       (u: any) => u.username && u.username.toLowerCase().includes(query)
     );

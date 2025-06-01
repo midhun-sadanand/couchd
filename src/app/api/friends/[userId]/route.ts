@@ -1,10 +1,24 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/server';
+import { createClient } from '@supabase/supabase-js';
+import { getAuth } from '@clerk/nextjs/server';
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: { userId: string } }
 ) {
+  const { getToken } = getAuth(req);
+  const token = await getToken({ template: 'supabase' });
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    }
+  );
   const { data, error } = await supabase
     .from('friends')
     .select('friends')
