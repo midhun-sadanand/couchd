@@ -58,6 +58,14 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
           }
           const headers = new Headers(options.headers);
           headers.set('Authorization', `Bearer ${token}`);
+          
+          // Debug logging
+          console.log('Supabase Request:', {
+            url,
+            headers: Object.fromEntries(headers.entries()),
+            token: token.substring(0, 10) + '...' // Only log first 10 chars for security
+          });
+          
           return fetch(url, { ...options, headers });
         },
       },
