@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
+import type { NextRequest } from 'next/server';
 
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { username: string } }
 ) {
   try {
@@ -22,7 +23,7 @@ export async function GET(
     );
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, username')
       .eq('username', params.username)
       .single();
 

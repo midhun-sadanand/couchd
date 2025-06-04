@@ -21,14 +21,28 @@ export function useSharedUsers(watchlistId: string) {
     }
     const fetchSharedUsers = async () => {
       if (!user || !watchlistId) return;
+      if (typeof watchlistId !== 'string' || watchlistId.trim() === '') return;
       try {
         setIsLoading(true);
-        const { data, error } = await supabase
-          .from('shared_users')
-          .select('id, username')
+        const { data: ownerships, error: ownershipError } = await supabase
+          .from('watchlist_ownership')
+          .select('user_id')
           .eq('watchlist_id', watchlistId);
-        if (error) throw error;
-        setSharedUsers(data || []);
+
+        if (ownershipError) throw ownershipError;
+
+        if (ownerships && ownerships.length > 0) {
+          const userIds = ownerships.map(o => o.user_id);
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, username')
+            .in('id', userIds);
+
+          if (profilesError) throw profilesError;
+          setSharedUsers(profiles || []);
+        } else {
+          setSharedUsers([]);
+        }
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to fetch shared users'));
       } finally {

@@ -20,16 +20,21 @@ export async function POST(req: NextRequest) {
     }
   );
 
-  const { data, error } = await supabase.from('friend_requests').insert([{
-    sender_id   : senderId,
-    sender_username : senderUsername,
-    receiver_id : receiverId,
-    receiver_username : receiverUsername,
-    status      : 'pending'
-  }]);
+  try {
+    // Create friend request using Clerk IDs directly
+    const { data, error } = await supabase.from('friend_requests').insert([{
+      sender_id: senderId,
+      sender_username: senderUsername,
+      receiver_id: receiverId,
+      receiver_username: receiverUsername,
+      status: 'pending'
+    }]);
 
-  if (error)
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) throw error;
 
-  return NextResponse.json(data, { status: 201 });
+    return NextResponse.json(data, { status: 201 });
+  } catch (error) {
+    console.error('Error creating friend request:', error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal Server Error' }, { status: 500 });
+  }
 }

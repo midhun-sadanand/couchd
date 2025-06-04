@@ -8,10 +8,13 @@ import React, {
   ReactNode,
 } from 'react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { useSession } from '@clerk/clerk-react';
+import { useUser, useSession } from '@clerk/nextjs';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+console.log('Supabase Anon Key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.slice(0, 8) + '...');
 
 /* ------------------------------------------------------------------ */
 /*  Context types                                                     */
@@ -22,57 +25,90 @@ interface SupabaseContextType {
   isLoading: boolean;
 }
 
-const defaultContext: SupabaseContextType = {
+const SupabaseContext = createContext<SupabaseContextType>({
   client: null,
   isLoading: true,
-};
+});
 
-export const SupabaseContext =
-  createContext<SupabaseContextType>(defaultContext);
+export { SupabaseContext };
 
 /* ------------------------------------------------------------------ */
 /*  Provider                                                          */
 /* ------------------------------------------------------------------ */
 
 export function SupabaseProvider({ children }: { children: ReactNode }) {
-  const { session, isLoaded } = useSession();
   const [client, setClient] = useState<SupabaseClient | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { user, isLoaded: isUserLoaded } = useUser();
+  const { session } = useSession();
 
-  /* ---------------- Create (or clear) the client when session changes ---- */
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!session) {
-      setClient(null);
-      setIsLoading(false);
-      return;
-    }
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        fetch: async (url, options: RequestInit = {}) => {
-          /* Inject Clerk-issued Supabase JWT */
-          const token = await session.getToken({ template: 'supabase' });
-          if (!token) {
-            console.error('Missing Clerk→Supabase token');
-            throw new Error('No Supabase token');
+    const initializeSupabase = async () => {
+      if (!isUserLoaded || !user || !session) {
+        console.log('Auth Debug - No user or session loaded yet:', {
+          isUserLoaded,
+          hasUser: !!user,
+          hasSession: !!session,
+          timestamp: new Date().toISOString()
+        });
+        return;
+      }
+
+      try {
+        const token = await session.getToken({ template: 'supabase' });
+        
+        console.log('Auth Debug - Token details:', {
+          hasToken: !!token,
+          tokenLength: token?.length,
+          tokenPreview: token ? `${token.substring(0, 10)}...` : null,
+          userId: user.id,
+          timestamp: new Date().toISOString()
+        });
+
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            global: {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
           }
-          const headers = new Headers(options.headers);
-          headers.set('Authorization', `Bearer ${token}`);
-          
-          // Debug logging
-          console.log('Supabase Request:', {
-            url,
-            headers: Object.fromEntries(headers.entries()),
-            token: token.substring(0, 10) + '...' // Only log first 10 chars for security
-          });
-          
-          return fetch(url, { ...options, headers });
-        },
-      },
-    });
-    setClient(supabase);
-    setIsLoading(false);
-  }, [isLoaded, session]);
+        );
+
+        // Test the connection with a simple query
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', user.id)
+          .single();
+
+        console.log('Auth Debug - Test query result:', {
+          hasData: !!data,
+          error: error ? {
+            code: error.code,
+            message: error.message,
+            details: error.details
+          } : null,
+          userId: user.id,
+          timestamp: new Date().toISOString()
+        });
+
+        setClient(supabase);
+      } catch (error) {
+        console.error('Auth Error - Failed to initialize Supabase:', {
+          error,
+          userId: user.id,
+          timestamp: new Date().toISOString()
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeSupabase();
+  }, [user, isUserLoaded, session]);
 
   /* ------------- (optional) keep token fresh if you set long TTL ---------- */
   useEffect(() => {
@@ -104,6 +140,14 @@ export function useSupabase() {
 }
 
 export function useSupabaseClient() {
-  const { client, isLoading } = useSupabase();
-  return isLoading ? null : client;
+  const { client } = useSupabase();
+  return client;
+}
+
+export function clearBrowserCache() {
+  if (typeof window !== 'undefined') {
+    localStorage.clear();
+    sessionStorage.clear();
+    console.log('Browser cache cleared (localStorage and sessionStorage)');
+  }
 }

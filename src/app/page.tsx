@@ -8,6 +8,7 @@ import DotHovers2 from '@/components/DotHovers2';
 import ConsumeText from '@/components/ConsumeText';
 import { SignedOut, SignIn, SignUp, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
+import { useSupabase } from '@/utils/auth';
 
 const Page = () => {
   const [showLogin, setShowLogin] = useState(false);
@@ -31,12 +32,24 @@ const Page = () => {
   const { scrollYProgress } = useScroll();
   const { isSignedIn, user } = useUser();
   const router = useRouter();
+  const { client: supabase, isLoading: supabaseLoading } = useSupabase();
 
   useEffect(() => {
+    // Debug logging for auth state
+    console.log('Auth State Debug:', {
+      isSignedIn,
+      hasUser: !!user,
+      userId: user?.id,
+      username: user?.username,
+      supabaseLoading,
+      hasSupabaseClient: !!supabase,
+      session: user?.id
+    });
+
     if (isSignedIn && user?.username) {
       router.push(`/profile/${user.username}`);
     }
-  }, [isSignedIn, user, router]);
+  }, [isSignedIn, user, router, supabaseLoading, supabase]);
 
   const handleMoving = (entries: any) => {
     const [entry] = entries;

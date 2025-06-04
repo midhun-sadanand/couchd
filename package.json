@@ -9,8 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@clerk/clerk-sdk-node": "^5.1.6",
-    "@clerk/nextjs": "^6.20.0",
+    "@clerk/nextjs": "^4.29.9",
     "@geist-ui/core": "^2.3.8",
     "@geist-ui/icons": "^1.0.2",
     "@supabase/supabase-js": "^2.49.8",
@@ -32,6 +31,7 @@
     "styled-components": "^6.1.18"
   },
   "devDependencies": {
+    "@clerk/types": "^4.60.0",
     "@tailwindcss/postcss": "^4.1.7",
     "@types/animejs": "^3.1.4",
     "@types/lodash": "^4.17.17",

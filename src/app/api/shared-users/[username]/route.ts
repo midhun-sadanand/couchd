@@ -1,12 +1,27 @@
 import { NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
-import { supabase } from '@/lib/server';
+import { createClient } from '@supabase/supabase-js';
+import type { NextRequest } from 'next/server';
 
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { username: string } }
 ) {
   try {
+    const { getToken } = getAuth(req);
+    const token = await getToken({ template: 'supabase' });
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      }
+    );
+
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id')
@@ -22,7 +37,7 @@ export async function GET(
 
     const { data: sharedUsers, error: sharedError } = await supabase
       .from('shared_watchlists')
-      .select('user_id, profiles:user_id (id, username, avatar_url)')
+      .select('user_id, profiles:user_id (id, username)')
       .eq('watchlist_id', profile.id);
 
     if (sharedError) throw sharedError;

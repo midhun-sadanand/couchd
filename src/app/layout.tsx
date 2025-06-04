@@ -15,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
-      <body className="min-h-screen antialiased">
+      <body className="min-h-screen antialiased" suppressHydrationWarning>
         {/* All client-side providers/state live below */}
         <Providers>
           <Layout>{children}</Layout>

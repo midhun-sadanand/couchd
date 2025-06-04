@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from '@geist-ui/icons';
 import { useUser } from '@clerk/clerk-react';
 import { useSupabaseClient } from '../utils/auth';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 interface Friend {
   id: string;
@@ -21,6 +22,12 @@ interface FriendSidebarProps {
   userId: string;
 }
 
+function generateUUID(userId: string): string {
+  const cleanId = userId.replace(/[^a-zA-Z0-9]/g, '');
+  const uuid = `${cleanId.slice(0, 8)}-${cleanId.slice(8, 12)}-${cleanId.slice(12, 16)}-${cleanId.slice(16, 20)}-${cleanId.slice(20, 32)}`;
+  return uuid;
+}
+
 const FriendSidebar: React.FC<FriendSidebarProps> = ({
   friendsProfiles = [],
   friendRequests = [],
@@ -37,21 +44,36 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
   const [searchResultsState, setSearchResultsState] = useState<any[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
   const { user } = useUser();
   const supabase = useSupabaseClient();
 
   useEffect(() => {
     const fetchFriends = async () => {
-      if (!user) return;
+      if (!user || !supabase) return;
 
       try {
+        // Get user's profile ID
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', generateUUID(user.id))
+          .single();
+
+        if (profileError) throw profileError;
+
+        // Get friends using profile ID
         const { data, error } = await supabase
           .from('friends')
-          .select('friend_id, profiles:friend_id (id, username, avatar_url)')
-          .eq('user_id', user.id);
+          .select('friend_id, profiles:friend_id (id, username)')
+          .eq('user_id', profile.id);
 
         if (error) throw error;
-        setFriends(data?.map(item => item.profiles) || []);
+        setFriends((data || []).map((item: any) => ({
+          id: item.profiles?.id,
+          username: item.profiles?.username,
+          avatar_url: item.profiles?.avatar_url || null
+        })).filter((f: Friend) => f.id && f.username));
       } catch (err) {
         console.error('Error fetching friends:', err instanceof Error ? err : new Error('Failed to fetch friends'));
       }
@@ -61,6 +83,8 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
   }, [user, supabase]);
 
   const handleResponse = async (requestId: string, status: 'accepted' | 'rejected') => {
+    if (!supabase) return;
+
     try {
       await supabase
         .from('friend_requests')
@@ -74,12 +98,39 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
           return;
         }
 
-        await supabase
-          .from('friends')
-          .insert([
-            { user_id: userId, friend_id: request.sender_id, status: 'accepted' },
-            { user_id: request.sender_id, friend_id: userId, status: 'accepted' }
-          ]);
+        // Get profile IDs for both users
+        const [senderProfile, receiverProfile] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', generateUUID(request.sender_id)),
+          supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', generateUUID(userId))
+            .single()
+        ]);
+
+        if (senderProfile.error) throw senderProfile.error;
+        if (receiverProfile.error) throw receiverProfile.error;
+
+        // Create bidirectional friend relationship
+        await Promise.all([
+          supabase
+            .from('friends')
+            .insert([{
+              user_id: senderProfile.data!.id,
+              friend_id: receiverProfile.data!.id,
+              created_at: new Date().toISOString()
+            }]),
+          supabase
+            .from('friends')
+            .insert([{
+              user_id: receiverProfile.data!.id,
+              friend_id: senderProfile.data!.id,
+              created_at: new Date().toISOString()
+            }])
+        ]);
 
         setRequests(prev => prev.filter(req => req.id !== requestId));
       } else {
@@ -91,6 +142,8 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
   };
 
   const searchFriends = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!supabase) return;
+
     const name = event.target.value;
     setFriendName(name);
     if (name.length >= 3) {
@@ -102,7 +155,7 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
           .limit(10);
 
         if (error) throw error;
-        setSearchResultsState(data);
+        setSearchResultsState(data || []);
         setShowDropdown(true);
       } catch (error) {
         console.error('Error searching for friends:', error);
@@ -121,15 +174,35 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
     setShowDropdown(false);
   };
 
-  const checkAccepted = async (userId: string, requestId: string) => {
+  const checkAccepted = async (userId: string, friendId: string) => {
+    if (!supabase) return false;
+
     try {
+      // Get profile IDs for both users
+      const [userProfile, friendProfile] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', generateUUID(userId))
+          .single(),
+        supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', generateUUID(friendId))
+          .single()
+      ]);
+
+      if (userProfile.error) throw userProfile.error;
+      if (friendProfile.error) throw friendProfile.error;
+
       const { data, error } = await supabase
         .from('friends')
         .select('*')
-        .eq('user_id', userId)
-        .eq('friend_id', requestId)
+        .eq('user_id', userProfile.data!.id)
+        .eq('friend_id', friendProfile.data!.id)
         .eq('status', 'accepted');
 
+      if (error) throw error;
       return !!data.length;
     } catch (error) {
       console.error('Error checking friend status:', error);
@@ -138,7 +211,7 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
   };
 
   const sendFriendRequest = async () => {
-    if (!selectedFriendId || !user) return;
+    if (!selectedFriendId || !user || !supabase) return;
     setFriendName('');
 
     try {
@@ -148,11 +221,30 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
         return;
       }
 
+      // Get profile IDs for both users
+      const [senderProfile, receiverProfile] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', generateUUID(user.id))
+          .single(),
+        supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', selectedFriendId)
+          .single()
+      ]);
+
+      if (senderProfile.error) throw senderProfile.error;
+      if (receiverProfile.error) throw receiverProfile.error;
+
       await supabase
         .from('friend_requests')
-        .insert([
-          { sender_id: user.id, receiver_id: selectedFriendId }
-        ]);
+        .insert([{
+          sender_id: senderProfile.data!.id,
+          receiver_id: receiverProfile.data!.id,
+          status: 'pending'
+        }]);
 
       alert('Friend request sent!');
     } catch (error) {
@@ -177,8 +269,8 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
       </div>
 
       <ul>
-        {friendsProfiles.length > 0 ? (
-          friendsProfiles.map(friend => (
+        {friends.length > 0 ? (
+          friends.map(friend => (
             <li key={friend.id} className="mb-4 flex items-center">
               <img 
                 src={friend.avatar_url ? friend.avatar_url : ''} 
