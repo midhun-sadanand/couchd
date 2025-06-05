@@ -53,27 +53,18 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
       if (!user || !supabase) return;
 
       try {
-        // Get user's profile ID
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', generateUUID(user.id))
-          .single();
+        // // Get friends using user_id directly
+        // const { data, error } = await supabase
+        //   .from('friends')
+        //   .select('friend_id, profiles:friend_id (user_id, username, avatar_url)')
+        //   .eq('user_id', user.id);
 
-        if (profileError) throw profileError;
-
-        // Get friends using profile ID
-        const { data, error } = await supabase
-          .from('friends')
-          .select('friend_id, profiles:friend_id (id, username)')
-          .eq('user_id', profile.id);
-
-        if (error) throw error;
-        setFriends((data || []).map((item: any) => ({
-          id: item.profiles?.id,
-          username: item.profiles?.username,
-          avatar_url: item.profiles?.avatar_url || null
-        })).filter((f: Friend) => f.id && f.username));
+        // if (error) throw error;
+        // setFriends((data || []).map((item: any) => ({
+        //   id: item.profiles?.user_id,
+        //   username: item.profiles?.username,
+        //   avatar_url: item.profiles?.avatar_url || null
+        // })).filter((f: Friend) => f.id && f.username));
       } catch (err) {
         console.error('Error fetching friends:', err instanceof Error ? err : new Error('Failed to fetch friends'));
       }
@@ -98,36 +89,20 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
           return;
         }
 
-        // Get profile IDs for both users
-        const [senderProfile, receiverProfile] = await Promise.all([
-          supabase
-            .from('profiles')
-            .select('id')
-            .eq('id', generateUUID(request.sender_id)),
-          supabase
-            .from('profiles')
-            .select('id')
-            .eq('id', generateUUID(userId))
-            .single()
-        ]);
-
-        if (senderProfile.error) throw senderProfile.error;
-        if (receiverProfile.error) throw receiverProfile.error;
-
-        // Create bidirectional friend relationship
+        // Create bidirectional friend relationship using user_ids directly
         await Promise.all([
           supabase
             .from('friends')
             .insert([{
-              user_id: senderProfile.data!.id,
-              friend_id: receiverProfile.data!.id,
+              user_id: request.sender_id,
+              friend_id: userId,
               created_at: new Date().toISOString()
             }]),
           supabase
             .from('friends')
             .insert([{
-              user_id: receiverProfile.data!.id,
-              friend_id: senderProfile.data!.id,
+              user_id: userId,
+              friend_id: request.sender_id,
               created_at: new Date().toISOString()
             }])
         ]);
@@ -178,28 +153,11 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
     if (!supabase) return false;
 
     try {
-      // Get profile IDs for both users
-      const [userProfile, friendProfile] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', generateUUID(userId))
-          .single(),
-        supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', generateUUID(friendId))
-          .single()
-      ]);
-
-      if (userProfile.error) throw userProfile.error;
-      if (friendProfile.error) throw friendProfile.error;
-
       const { data, error } = await supabase
         .from('friends')
         .select('*')
-        .eq('user_id', userProfile.data!.id)
-        .eq('friend_id', friendProfile.data!.id)
+        .eq('user_id', userId)
+        .eq('friend_id', friendId)
         .eq('status', 'accepted');
 
       if (error) throw error;
@@ -221,28 +179,11 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
         return;
       }
 
-      // Get profile IDs for both users
-      const [senderProfile, receiverProfile] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', generateUUID(user.id))
-          .single(),
-        supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', selectedFriendId)
-          .single()
-      ]);
-
-      if (senderProfile.error) throw senderProfile.error;
-      if (receiverProfile.error) throw receiverProfile.error;
-
       await supabase
         .from('friend_requests')
         .insert([{
-          sender_id: senderProfile.data!.id,
-          receiver_id: receiverProfile.data!.id,
+          sender_id: user.id,
+          receiver_id: selectedFriendId,
           status: 'pending'
         }]);
 

@@ -21,43 +21,45 @@ export function useWatchlists(userId: string | undefined) {
 
     const fetchWatchlists = async () => {
       try {
-        setIsLoading(true);
-        // Fetch watchlists directly using the user_id (Clerk ID string)
-        const { data: watchlists, error: watchlistsError } = await supabase
-          .from('watchlists')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false });
+        // setIsLoading(true);
+        // // Fetch watchlists directly using the user_id (Clerk ID string)
+        // const { data: watchlists, error: watchlistsError } = await supabase
+        //   .from('watchlists')
+        //   .select('*')
+        //   .eq('user_id', userId)
+        //   .order('created_at', { ascending: false });
 
-        if (watchlistsError) {
-          console.error('Error fetching watchlists:', watchlistsError);
-          throw watchlistsError;
-        }
+        // if (watchlistsError) {
+        //   console.error('Error fetching watchlists:', watchlistsError);
+        //   throw watchlistsError;
+        // }
 
-        // Fetch watchlist ownerships only if there are valid watchlist IDs
-        let ownerships: any[] = [];
-        if (watchlists && watchlists.length > 0) {
-          const validWatchlistIds = watchlists.map(w => w.id).filter(id => !!id);
-          if (validWatchlistIds.length > 0) {
-            const result = await supabase
-              .from('watchlist_ownership')
-              .select('user_id, watchlist_id')
-              .in('watchlist_id', validWatchlistIds);
-            if (result.error) {
-              console.error('Error fetching watchlist ownerships:', result.error);
-              throw result.error;
-            }
-            ownerships = result.data || [];
-          }
-        }
+        // console.log('Watchlists:', watchlists);
 
-        const ownerIds = [...new Set(ownerships.map(o => o.user_id))];
+        // // Fetch watchlist ownerships only if there are valid watchlist IDs
+        // let ownerships: any[] = [];
+        // if (watchlists && watchlists.length > 0) {
+        //   const validWatchlistIds = watchlists.map(w => w.id).filter(id => !!id);
+        //   if (validWatchlistIds.length > 0) {
+        //     const result = await supabase
+        //       .from('watchlist_ownership')
+        //       .select('user_id, watchlist_id')
+        //       .in('watchlist_id', validWatchlistIds);
+        //     if (result.error) {
+        //       console.error('Error fetching watchlist ownerships:', result.error);
+        //       throw result.error;
+        //     }
+        //     ownerships = result.data || [];
+        //   }
+        // }
 
-        setData({
-          watchlists: watchlists || [],
-          ownerships: ownerships || [],
-          ownerIds
-        });
+        // const ownerIds = [...new Set(ownerships.map(o => o.user_id))];
+
+        // setData({
+        //   watchlists: watchlists || [],
+        //   ownerships: ownerships || [],
+        //   ownerIds
+        // });
       } catch (err) {
         console.error('Error in fetchWatchlists:', err);
         setError(err instanceof Error ? err : new Error('Failed to fetch watchlists'));

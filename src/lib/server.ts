@@ -2,30 +2,34 @@
 import { createClient } from '@supabase/supabase-js';
 import { clerkClient } from '@clerk/clerk-sdk-node';
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
+
+if (!supabaseUrl) {
+  throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_URL');
+}
+
+if (!supabaseAnonKey) {
+  throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_ANON_KEY');
+}
+
+if (!supabaseServiceRoleKey) {
+  throw new Error('Missing env.SUPABASE_SERVICE_ROLE_KEY');
+}
+
 // Create a function to get an authenticated Supabase client
 export async function getAuthenticatedSupabaseClient(userId: string) {
   try {
-    const user = await clerkClient.users.getUser(userId);
-    const token = await user.getToken({ template: 'supabase' });
-    
-    // Debug logging
-    console.log('Server-side Supabase Client:', {
-      userId,
-      hasToken: !!token,
-      tokenPreview: token ? token.substring(0, 10) + '...' : 'none',
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    });
-
+    // For server-side operations, we'll use the service role key
     return createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabaseUrl,
+      supabaseServiceRoleKey,
       {
-        global: {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
       }
     );
   } catch (error) {
@@ -34,16 +38,23 @@ export async function getAuthenticatedSupabaseClient(userId: string) {
   }
 }
 
-// Keep the service role client for admin operations
-export const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
+// Create a default Supabase client for server-side operations
+export const supabase = createClient(
+  supabaseUrl,
+  supabaseAnonKey
 );
 
-// Debug logging for admin client
-console.log('Supabase Admin Client:', {
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  hasServiceKey: !!process.env.SUPABASE_SERVICE_KEY
+// Keep the service role client for admin operations
+export const supabaseAdmin = createClient(
+  supabaseUrl,
+  supabaseServiceRoleKey
+);
+
+// Debug logging for clients
+console.log('Supabase Clients:', {
+  supabaseUrl,
+  hasAnonKey: !!supabaseAnonKey,
+  hasServiceKey: !!supabaseServiceRoleKey
 });
 
 export { clerkClient };

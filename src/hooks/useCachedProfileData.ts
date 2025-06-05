@@ -60,30 +60,6 @@ export function useCachedProfileData(): CachedProfileData {
         });
 
         if (fetchError) {
-          // Check if it's a UUID error
-          if (fetchError.message?.includes('invalid input syntax for type uuid')) {
-            console.log('UUID error detected, checking database schema...');
-            // Log the current query for debugging
-            console.log('Current query:', {
-              table: 'profiles',
-              id: user.id,
-              idType: typeof user.id
-            });
-
-            // Try the query again with explicit text casting
-            const { data: retryProfile, error: retryError } = await supabase
-              .from('profiles')
-              .select('id, username')
-              .eq('id', user.id)
-              .single();
-
-            if (retryError) {
-              throw retryError;
-            }
-            setUserProfile(retryProfile);
-            return;
-          }
-
           if (fetchError.code === 'PGRST116') {
             // Profile doesn't exist, create it
             console.log('Profile not found, creating new profile');
