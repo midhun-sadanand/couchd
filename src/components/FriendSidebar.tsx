@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { X } from '@geist-ui/icons';
-import { useUser } from '@supabase/auth-helpers-react';
 import { useSupabaseClient } from '../utils/auth';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -45,12 +44,11 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
   const [requests, setRequests] = useState<any[]>([]);
   const [searchResultsState, setSearchResultsState] = useState<any[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
-  const { user } = useUser();
   const supabase = useSupabaseClient();
 
   useEffect(() => {
     const fetchFriends = async () => {
-      if (!user || !supabase) return;
+      if (!userId || !supabase) return;
 
       try {
         // // Get friends using user_id directly
@@ -71,7 +69,7 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
     };
 
     fetchFriends();
-  }, [user, supabase]);
+  }, [userId, supabase]);
 
   const handleResponse = async (requestId: string, status: 'accepted' | 'rejected') => {
     if (!supabase) return;
@@ -169,11 +167,11 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
   };
 
   const sendFriendRequest = async () => {
-    if (!selectedFriendId || !user || !supabase) return;
+    if (!selectedFriendId || !userId || !supabase) return;
     setFriendName('');
 
     try {
-      const isAccepted = await checkAccepted(user.id, selectedFriendId);
+      const isAccepted = await checkAccepted(userId, selectedFriendId);
       if (isAccepted) {
         alert('You are already friends!');
         return;
@@ -182,7 +180,7 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
       await supabase
         .from('friend_requests')
         .insert([{
-          sender_id: user.id,
+          sender_id: userId,
           receiver_id: selectedFriendId,
           status: 'pending'
         }]);
@@ -193,7 +191,7 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
     }
   };
 
-  if (!user) return <div>Loading...</div>;
+  if (!userId) return <div>Loading...</div>;
 
   return (
     <div 

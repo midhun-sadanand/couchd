@@ -1,18 +1,21 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/utils/auth';
-import { Plus } from '@geist-ui/icons';
-import { useQueryClient } from '@tanstack/react-query';
+import { useSupabaseClient } from '@/utils/auth';
 import WatchlistWidget from './WatchlistWidget';
 import AddWatchlistModal from './AddWatchlistModal';
 import { useWatchlists } from '@/hooks/useWatchlists';
-import { useSupabaseClient } from '../utils/auth';
+import { Plus } from '@geist-ui/icons';
+import { useQueryClient } from '@tanstack/react-query';
 import ImageUploadModal from './ImageUploadModal';
 import ShareWatchlist from './ShareWatchlist';
+import WatchlistButton from './WatchlistButton';
 
 interface WatchlistPageProps {
-  isFriendSidebarOpen: boolean;
-  isLibrarySidebarOpen: boolean;
+  isFriendSidebarOpen?: boolean;
+  isLibrarySidebarOpen?: boolean;
 }
 
 interface Watchlist {
@@ -40,15 +43,13 @@ interface User {
   username: string;
 }
 
-const WatchlistPage: React.FC<WatchlistPageProps> = ({ 
-  isFriendSidebarOpen, 
-  isLibrarySidebarOpen 
-}) => {
+const WatchlistPage: React.FC<WatchlistPageProps> = ({ isFriendSidebarOpen = false, isLibrarySidebarOpen = false }) => {
   const [showModal, setShowModal] = useState(false);
   const [options, setOptions] = useState<TagOption[]>([]);
-  const [availableWidth, setAvailableWidth] = useState<number>(0);
+  const [availableWidth, setAvailableWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  const [hovered, setHovered] = useState({ grid: false });
   const router = useRouter();
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const { data: watchlistData, error } = useWatchlists(user?.id);
   const queryClient = useQueryClient();
   const supabase = useSupabaseClient();
@@ -59,52 +60,51 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({
 
   const watchlists = watchlistData?.watchlists || [];
 
+  // Auth redirect
   useEffect(() => {
+    if (!isLoaded) return;
     if (!user) {
       router.push('/login');
-      return;
     }
-  }, [user, router]);
+  }, [user, isLoaded, router]);
 
+  // Tag options
   useEffect(() => {
     if (watchlists.length > 0) {
       const allTags = new Set<string>();
       watchlists.forEach(watchlist => {
-        watchlist.tags.forEach(tag => allTags.add(tag));
+        (watchlist.tags || []).forEach((tag: string) => allTags.add(tag));
       });
-
       setOptions([...allTags].map(tag => ({ label: tag, value: tag })));
     }
   }, [watchlists]);
 
-  const updateAvailableWidth = () => {
-    const librarySidebarWidth = isLibrarySidebarOpen ? 240 : 0;
-    const friendSidebarWidth = isFriendSidebarOpen ? 320 : 0;
-    const adjustedWidth = window.innerWidth - librarySidebarWidth - friendSidebarWidth;
-    setAvailableWidth(adjustedWidth);
-  };
-
+  // Responsive grid
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      updateAvailableWidth();
-      window.addEventListener('resize', updateAvailableWidth);
-      return () => window.removeEventListener('resize', updateAvailableWidth);
-    }
+    const updateAvailableWidth = () => {
+      const librarySidebarWidth = isLibrarySidebarOpen ? 240 : 0;
+      const friendSidebarWidth = isFriendSidebarOpen ? 320 : 0;
+      setAvailableWidth(window.innerWidth - librarySidebarWidth - friendSidebarWidth);
+    };
+    updateAvailableWidth();
+    window.addEventListener('resize', updateAvailableWidth);
+    return () => window.removeEventListener('resize', updateAvailableWidth);
   }, [isFriendSidebarOpen, isLibrarySidebarOpen]);
 
+  // Delete watchlist
   const deleteWatchlist = async (deletedId: string) => {
     if (window.confirm(`Are you sure you want to delete this list?`)) {
       try {
-        // Delete watchlist and related data
-        await supabase
+        const { error: watchlistError } = await supabase
           .from('watchlists')
           .delete()
-          .eq('id', deletedId);
-
-        // Invalidate queries to refresh the data
-        queryClient.invalidateQueries(['watchlists', user?.id]);
-      } catch (error) {
-        console.error('Error deleting list:', error);
+          .match({ id: deletedId });
+        if (watchlistError) throw watchlistError;
+        // Optionally: delete from ownership/sharing tables if needed
+        // Refetch or invalidate query here if using react-query
+        window.location.reload(); // Quick fix for now
+      } catch (error: any) {
+        console.error('Error deleting list:', error.message);
       }
     }
   };
@@ -157,24 +157,20 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({
   };
 
   if (error) {
-    console.error('Error fetching watchlists:', error);
-    return <div>Error loading watchlists</div>;
+    return <div className="min-h-screen flex items-center justify-center text-red-500">Error loading watchlists</div>;
+  }
+
+  if (!isLoaded || !user) {
+    return <div className="min-h-screen flex items-center justify-center text-[#e6e6e6]">Loading...</div>;
   }
 
   const calculateGridCols = (width: number) => {
-    const librarySidebarWidth = isLibrarySidebarOpen ? 240 : 0;
-    const friendSidebarWidth = isFriendSidebarOpen ? 320 : 0;
-    const adjustedWidth = width - librarySidebarWidth - friendSidebarWidth;
-
-    if (width >= 1200) return 4;  // 4 columns for larger screens
-    if (width >= 960) return 3;   // 3 columns for medium screens
-    if (width >= 720) return 2;   // 2 columns for smaller screens
-    return 1;                     // 1 column for very small screens
+    if (width >= 1200) return 4;
+    if (width >= 960) return 3;
+    if (width >= 720) return 2;
+    return 1;
   };
-
   const gridCols = calculateGridCols(availableWidth);
-
-  if (isLoading) return <div>Loading...</div>;
 
   return (
     <div className="min-h-screen flex flex-col items-center" style={{ padding: '0 16px' }}>
@@ -195,7 +191,7 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({
           <WatchlistWidget
             key={list.id}
             watchlistId={list.id}
-            username={user?.email || ''}
+            username={user.username || user.email || ''}
             listName={list.name}
             description={list.description}
             unwatchedCount={list.to_consume_count}
@@ -206,17 +202,18 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({
           />
         ))}
       </div>
-      <button
-        className="plus-button"
-        onClick={() => setShowModal(true)}
-      >
-        <Plus color="#e6e6e6" />
-      </button>
-      <AddWatchlistModal 
-        visible={showModal} 
-        onClose={() => setShowModal(false)} 
-        options={options} 
-        setOptions={setOptions} 
+      <div className="fixed bottom-8 right-8">
+        <WatchlistButton
+          onClick={() => setShowModal(true)}
+          hovered={hovered}
+          setHovered={setHovered}
+        />
+      </div>
+      <AddWatchlistModal
+        visible={showModal}
+        onClose={() => setShowModal(false)}
+        options={options}
+        setOptions={setOptions}
         watchlists={watchlists}
         user={user}
       />

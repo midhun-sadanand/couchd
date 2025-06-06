@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useUser } from '@supabase/auth-helpers-react';
 import { useSupabaseClient } from '../utils/auth';
 
 interface MediaItem {
@@ -45,23 +44,22 @@ interface WatchlistDataState {
   isOwner: boolean;
 }
 
-export function useWatchlistData(watchlistId: string) {
+export function useWatchlistData(userId: string) {
   const [watchlist, setWatchlist] = useState<Watchlist | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const { user } = useUser();
   const supabase = useSupabaseClient();
 
   useEffect(() => {
     const fetchWatchlist = async () => {
-      if (!user || !watchlistId) return;
+      if (!userId) return;
 
       try {
         setIsLoading(true);
         const { data, error } = await supabase
           .from('watchlists')
           .select('*')
-          .eq('id', watchlistId)
+          .eq('user_id', userId)
           .single();
 
         if (error) throw error;
@@ -74,7 +72,7 @@ export function useWatchlistData(watchlistId: string) {
     };
 
     fetchWatchlist();
-  }, [user, watchlistId, supabase]);
+  }, [userId, supabase]);
 
   return { watchlist, isLoading, error };
 }

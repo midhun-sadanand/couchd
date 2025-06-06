@@ -4,15 +4,9 @@ import { Grid } from '@geist-ui/icons';
 interface WatchlistButtonProps {
   onClick: () => void;
   hovered: {
-    home: boolean;
     grid: boolean;
-    bell: boolean;
   };
-  setHovered: React.Dispatch<React.SetStateAction<{
-    home: boolean;
-    grid: boolean;
-    bell: boolean;
-  }>>;
+  setHovered: (hovered: { grid: boolean }) => void;
 }
 
 const WatchlistButton: React.FC<WatchlistButtonProps> = ({ onClick, hovered, setHovered }) => (
