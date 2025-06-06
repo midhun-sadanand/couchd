@@ -1,5 +1,4 @@
-import { NextResponse, NextRequest } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/server';
 
 export async function PATCH(
@@ -7,34 +6,10 @@ export async function PATCH(
   { params }: { params: { id: string; itemId: string } }
 ) {
   try {
-    const { userId } = getAuth(req);
-    if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-
     const body = await req.json();
     const { status, rating, notes, progress } = body;
 
-    // Check if the user owns the watchlist
-    const { data: watchlist, error: watchlistError } = await supabase
-      .from('watchlists')
-      .select('user_id')
-      .eq('id', params.id)
-      .single();
-
-    if (watchlistError) {
-      if (watchlistError.code === 'PGRST116') {
-        return new NextResponse('Watchlist not found', { status: 404 });
-      }
-      throw watchlistError;
-    }
-
-    if (watchlist.user_id !== userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-
-    // Update the item
-    const { data: item, error: itemError } = await supabase
+    const { data: item, error } = await supabase
       .from('media_items')
       .update({
         status,
@@ -48,17 +23,17 @@ export async function PATCH(
       .select()
       .single();
 
-    if (itemError) {
-      if (itemError.code === 'PGRST116') {
+    if (error) {
+      if (error.code === 'PGRST116') {
         return new NextResponse('Item not found', { status: 404 });
       }
-      throw itemError;
+      throw error;
     }
 
     return NextResponse.json(item);
-  } catch (error) {
-    console.error('Error updating watchlist item:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+  } catch (err: any) {
+    console.error('Error updating watchlist item:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
@@ -67,41 +42,24 @@ export async function DELETE(
   { params }: { params: { id: string; itemId: string } }
 ) {
   try {
-    const { userId } = getAuth(req);
-    if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-
-    // Check if the user owns the watchlist
-    const { data: watchlist, error: watchlistError } = await supabase
-      .from('watchlists')
-      .select('user_id')
-      .eq('id', params.id)
+    const { data: item, error } = await supabase
+      .from('watchlist_items')
+      .delete()
+      .eq('watchlist_id', params.id)
+      .eq('id', params.itemId)
+      .select()
       .single();
 
-    if (watchlistError) {
-      if (watchlistError.code === 'PGRST116') {
-        return new NextResponse('Watchlist not found', { status: 404 });
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return new NextResponse('Item not found', { status: 404 });
       }
-      throw watchlistError;
+      throw error;
     }
 
-    if (watchlist.user_id !== userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-
-    // Delete the item
-    const { error: deleteError } = await supabase
-      .from('media_items')
-      .delete()
-      .eq('id', params.itemId)
-      .eq('watchlist_id', params.id);
-
-    if (deleteError) throw deleteError;
-
-    return new NextResponse(null, { status: 204 });
-  } catch (error) {
-    console.error('Error deleting watchlist item:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json(item);
+  } catch (err: any) {
+    console.error('Error deleting watchlist item:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 } 

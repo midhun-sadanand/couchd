@@ -6,17 +6,12 @@ import ScrollCards from '@/components/ScrollCards';
 import TypingEffect from '@/components/TypingEffect';
 import DotHovers2 from '@/components/DotHovers2';
 import ConsumeText from '@/components/ConsumeText';
-import { SignedOut, SignIn, SignUp, useUser } from '@clerk/nextjs';
+import { useUser } from '@/utils/auth';
+import AuthModal from '@/components/AuthModal';
 import { useRouter } from 'next/navigation';
-import { useSupabase } from '@/utils/auth';
 
 const Page = () => {
-  const [showLogin, setShowLogin] = useState(false);
-  const [showSignup, setShowSignup] = useState(false);
-
-  const toggleLogin = () => setShowLogin((prev) => !prev);
-  const toggleSignup = () => setShowSignup((prev) => !prev);
-
+  const [showAuth, setShowAuth] = useState(false);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [scrollPercentage, setScrollPercentage] = useState(0);
   const [hasAppeared, setHasAppeared] = useState(false);
@@ -30,26 +25,9 @@ const Page = () => {
   const [fadeIn, setFadeIn] = useState(true);
   const elementRef = useRef(null);
   const { scrollYProgress } = useScroll();
-  const { isSignedIn, user } = useUser();
+  const { user, loading } = useUser();
   const router = useRouter();
-  const { client: supabase, isLoading: supabaseLoading } = useSupabase();
-
-  useEffect(() => {
-    // Debug logging for auth state
-    console.log('Auth State Debug:', {
-      isSignedIn,
-      hasUser: !!user,
-      userId: user?.id,
-      username: user?.username,
-      supabaseLoading,
-      hasSupabaseClient: !!supabase,
-      session: user?.id
-    });
-
-    if (isSignedIn && user?.username) {
-      router.push(`/profile/${user.username}`);
-    }
-  }, [isSignedIn, user, router, supabaseLoading, supabase]);
+  console.log('user', user, 'loading', loading);
 
   const handleMoving = (entries: any) => {
     const [entry] = entries;
@@ -72,7 +50,7 @@ const Page = () => {
         observer.unobserve(elementRef.current);
       }
     };
-  }, [0.1]);
+  }, []);
 
   const handleScroll = () => {
     const position = window.scrollY;
@@ -151,6 +129,17 @@ const Page = () => {
     });
   };
 
+  // Redirect authenticated users to their profile
+  useEffect(() => {
+    if (user) {
+      router.push(`/profile/${user.email || user.id}`);
+    }
+  }, [user, router]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className="bg-[#232323] text-white">
       {titleAppear && (
@@ -212,27 +201,23 @@ const Page = () => {
           <ScrollCards />
         </div>
       </div>
-      {(showLogin || showSignup) && (
-        <div
-          className="backdrop"
-          onClick={() => {
-            if (showLogin) setShowLogin(false);
-            if (showSignup) setShowSignup(false);
-          }}
-        ></div>
+      {!user && (
+        <div className="flex justify-center mt-8">
+          <button
+            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            onClick={() => {
+              setShowAuth(true);
+              console.log('setShowAuth(true) called, showAuth:', true);
+            }}
+          >
+            Sign In / Register
+          </button>
+          <AuthModal open={showAuth} onClose={() => {
+            setShowAuth(false);
+            console.log('setShowAuth(false) called, showAuth:', false);
+          }} />
+        </div>
       )}
-      <SignedOut>
-        {showLogin && (
-          <div className="form-container">
-            <SignIn />
-          </div>
-        )}
-        {showSignup && (
-          <div className="form-container">
-            <SignUp />
-          </div>
-        )}
-      </SignedOut>
     </div>
   );
 };

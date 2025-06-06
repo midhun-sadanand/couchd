@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useUser } from '@/utils/auth';
 import { useSupabase } from '../utils/auth';
 
 interface User {

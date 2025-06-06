@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getAuth } from '@clerk/nextjs/server';
 
 export async function POST(req: NextRequest) {
-  const { getToken } = getAuth(req);
-  const token = await getToken({ template: 'supabase' });
   const { requestId } = await req.json();
 
   const supabase = createClient(

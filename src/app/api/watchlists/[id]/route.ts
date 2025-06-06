@@ -1,5 +1,4 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/server';
 
 export async function GET(
@@ -7,11 +6,6 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = getAuth(req);
-    if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-
     // Check if the id is a watchlistId or a username
     const { data: watchlist, error: watchlistError } = await supabase
       .from('watchlists')

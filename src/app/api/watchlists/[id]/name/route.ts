@@ -1,5 +1,4 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/server';
 
 export async function PATCH(
@@ -7,18 +6,6 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = getAuth(req);
-    if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-
-    const body = await req.json();
-    const { name } = body;
-
-    if (!name) {
-      return new NextResponse('Name is required', { status: 400 });
-    }
-
     // Check if the user owns the watchlist
     const { data: watchlist, error: watchlistError } = await supabase
       .from('watchlists')
@@ -33,11 +20,14 @@ export async function PATCH(
       throw watchlistError;
     }
 
-    if (watchlist.user_id !== userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
+    // Update the watchlist name
+    const body = await req.json();
+    const { name } = body;
+
+    if (!name) {
+      return new NextResponse('Name is required', { status: 400 });
     }
 
-    // Update the watchlist name
     const { data: updatedWatchlist, error: updateError } = await supabase
       .from('watchlists')
       .update({

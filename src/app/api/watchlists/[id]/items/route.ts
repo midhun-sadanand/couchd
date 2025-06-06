@@ -1,5 +1,4 @@
-import { NextResponse, NextRequest } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/server';
 
 export async function GET(
@@ -27,56 +26,28 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = getAuth(req);
-    if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
+    const { title, type, imageUrl } = await req.json();
 
-    const body = await req.json();
-    const { title, type, tmdb_id, poster_path } = body;
-
-    if (!title || !type || !tmdb_id) {
-      return new NextResponse('Missing required fields', { status: 400 });
-    }
-
-    // Check if the user owns the watchlist
-    const { data: watchlist, error: watchlistError } = await supabase
-      .from('watchlists')
-      .select('user_id')
-      .eq('id', params.id)
-      .single();
-
-    if (watchlistError) {
-      if (watchlistError.code === 'PGRST116') {
-        return new NextResponse('Watchlist not found', { status: 404 });
-      }
-      throw watchlistError;
-    }
-
-    if (watchlist.user_id !== userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-
-    // Add the item to the watchlist
-    const { data: item, error: itemError } = await supabase
-      .from('media_items')
+    const { data: item, error } = await supabase
+      .from('watchlist_items')
       .insert([
         {
+          watchlist_id: params.id,
           title,
           type,
-          tmdb_id,
-          poster_path,
-          watchlist_id: params.id,
+          image_url: imageUrl,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         }
       ])
       .select()
       .single();
 
-    if (itemError) throw itemError;
+    if (error) throw error;
 
     return NextResponse.json(item);
-  } catch (error) {
-    console.error('Error adding item to watchlist:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+  } catch (err: any) {
+    console.error('Error creating watchlist item:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 } 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X } from '@geist-ui/icons';
-import { useUser } from '@clerk/clerk-react';
+import { useUser } from '@supabase/auth-helpers-react';
 import { useSupabaseClient } from '../utils/auth';
 import type { SupabaseClient } from '@supabase/supabase-js';
 

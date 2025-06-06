@@ -1,6 +1,5 @@
 // src/lib/server.ts
 import { createClient } from '@supabase/supabase-js';
-import { clerkClient } from '@clerk/clerk-sdk-node';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
@@ -57,4 +56,4 @@ console.log('Supabase Clients:', {
   hasServiceKey: !!supabaseServiceRoleKey
 });
 
-export { clerkClient };
+export { supabaseServiceRoleKey, supabaseUrl, supabaseAnonKey };

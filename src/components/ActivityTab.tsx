@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import useRecentActivity from '../hooks/useRecentActivity';
 import { formatActivity } from '../utils/formatActivity';
-import { useUser } from '@clerk/clerk-react';
 
 interface ActivityTabProps {
   username: string;
@@ -9,7 +8,6 @@ interface ActivityTabProps {
 
 const ActivityTab: React.FC<ActivityTabProps> = ({ username }) => {
   const activities = useRecentActivity();
-  const { user } = useUser();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 

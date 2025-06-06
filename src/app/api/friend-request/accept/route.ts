@@ -1,22 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getAuth } from '@clerk/nextjs/server';
 
 export async function POST(req: NextRequest) {
-  const { getToken } = getAuth(req);
-  const token = await getToken({ template: 'supabase' });
   const { requestId } = await req.json();
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    }
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
   try {
@@ -32,7 +22,7 @@ export async function POST(req: NextRequest) {
 
     const { sender_id, receiver_id } = request;
 
-    // Create bidirectional friend relationship using Clerk IDs directly
+    // Create bidirectional friend relationship using Supabase user IDs
     const [senderResult, receiverResult] = await Promise.all([
       supabase.from('friends').insert([{
         user_id: sender_id,

@@ -2,9 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import { useParams } from 'next/navigation';
-import { useUser, useSession } from '@clerk/nextjs';
-import { Grid, Users, User, Sidebar } from '@geist-ui/icons';
-import { useSupabase } from '@/utils/auth';
+import { useSupabase, useUser } from '@/utils/auth';
 
 import { useCachedProfileData } from '@/hooks/useCachedProfileData';
 import { useWatchlists } from '@/hooks/useWatchlists';
@@ -25,9 +23,8 @@ interface HoverState {
 export default function ProfilePage() {
   const params = useParams();
   const username = params.username as string;
-  const { isLoaded: isUserLoaded, user: clerkUser } = useUser();
-  const { session } = useSession();
   const { client: supabase, isLoading: supabaseLoading } = useSupabase();
+  const { user, loading } = useUser();
 
   const [searchResults, setSearchResults] = useState([]);
   const [friendRequestsState, setFriendRequests] = useState([]);
@@ -42,13 +39,13 @@ export default function ProfilePage() {
   const [friendsSidebarOpen, setFriendsSidebarOpen] = useState(false);
 
   const { userProfile, friendsProfiles, friendRequests } = useCachedProfileData();
-  const { data: watchlistData, isLoading: isWatchlistsLoading, error: watchlistsError } = useWatchlists(clerkUser?.id);
+  const { data: watchlistData, isLoading: isWatchlistsLoading, error: watchlistsError } = useWatchlists();
   const { watchlists, ownerships, ownerIds } = watchlistData || {};
   const { data: sharedUsersData, error: sharedUsersError } = useSharedUsers(ownerIds);
 
   const sendFriendRequest = async (receiverId: string, receiverUsername: string) => {
     try {
-      const token = await session?.getToken();
+      const token = await user?.getToken();
       const response = await fetch('/api/friend-request', {
         method: 'POST',
         headers: {
@@ -56,8 +53,8 @@ export default function ProfilePage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ 
-          senderId: clerkUser?.id, 
-          senderUsername: clerkUser?.username, 
+          senderId: user?.id, 
+          senderUsername: user?.email || user?.user_metadata?.username, 
           receiverId, 
           receiverUsername 
         }),
@@ -71,7 +68,7 @@ export default function ProfilePage() {
 
   const handleAcceptRequest = async (requestId: string) => {
     try {
-      const token = await session?.getToken();
+      const token = await user?.getToken();
       const response = await fetch('/api/friend-request/accept', {
         method: 'POST',
         headers: {
@@ -91,7 +88,7 @@ export default function ProfilePage() {
 
   const handleRejectRequest = async (requestId: string) => {
     try {
-      const token = await session?.getToken();
+      const token = await user?.getToken();
       const response = await fetch('/api/friend-request/reject', {
         method: 'POST',
         headers: {
@@ -111,7 +108,7 @@ export default function ProfilePage() {
 
   const handleSearch = async (query: string) => {
     try {
-      const token = await session?.getToken();
+      const token = await user?.getToken();
       const response = await fetch(`/api/search?query=${query}`, {
         method: 'GET',
         headers: {
@@ -128,7 +125,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (!isUserLoaded || !session || !clerkUser || !userProfile || isWatchlistsLoading || supabaseLoading) {
+  if (loading || !user || !userProfile || isWatchlistsLoading || supabaseLoading) {
     return <div>Loading...</div>;
   }
 

@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, UserButton } from '@clerk/nextjs';
 import { Bell } from '@geist-ui/icons';
 import { useCachedProfileData } from '@/hooks/useCachedProfileData';
 import { useSupabaseClient } from '@/utils/auth';
@@ -10,14 +9,12 @@ import WatchlistButton from './WatchlistButton';
 
 const ProfileHeader = () => {
   const router = useRouter();
-  const { signOut: clerkSignOut } = useAuth();
   const { userProfile } = useCachedProfileData();
   const supabase = useSupabaseClient();
   if (!supabase) return null;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    await clerkSignOut();
     router.push('/');
   };
 
@@ -73,9 +70,12 @@ const ProfileHeader = () => {
             onMouseEnter={() => setHovered({ ...hovered, bell: true })}
             onMouseLeave={() => setHovered({ ...hovered, bell: false })}
           />
-          <div className="flex items-center space-x-2">
-            <UserButton />
-          </div>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Sign Out
+          </button>
         </div>
       </div>
     </header>

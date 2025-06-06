@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useUser } from '@supabase/auth-helpers-react';
 import { useSupabaseClient } from '../utils/auth';
 
 interface MediaItem {
@@ -87,7 +87,7 @@ export function useWatchlistDataState(watchlistId: string, userId?: string): Wat
       if (!userId) throw new Error('User not authenticated');
 
       const user = await db.user.findUnique({
-        where: { clerkId: userId }
+        where: { userId: userId }
       });
 
       if (!user) throw new Error('User not found');
@@ -117,7 +117,7 @@ export function useWatchlistDataState(watchlistId: string, userId?: string): Wat
       if (!userId) throw new Error('User not authenticated');
 
       const user = await db.user.findUnique({
-        where: { clerkId: userId }
+        where: { userId: userId }
       });
 
       if (!user) throw new Error('User not found');
@@ -145,7 +145,7 @@ export function useWatchlistDataState(watchlistId: string, userId?: string): Wat
       if (!userId) throw new Error('User not authenticated');
 
       const user = await db.user.findUnique({
-        where: { clerkId: userId }
+        where: { userId: userId }
       });
 
       if (!user) throw new Error('User not found');

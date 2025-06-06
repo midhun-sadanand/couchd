@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useSession } from '@clerk/nextjs';
 import { useSupabase } from '@/utils/auth';
 import { Modal, Button, Input, AutoComplete, useToasts, useTheme, Note, Toggle } from '@geist-ui/core';
 
@@ -23,8 +22,6 @@ const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ user, visible, on
   const [isPublic, setIsPublic] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const router = useRouter();
-  const { user: clerkUser } = useUser();
-  const { session } = useSession();
   const { client: supabase } = useSupabase();
   const { setToast } = useToasts();
   const theme = useTheme();
@@ -42,25 +39,18 @@ const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ user, visible, on
     }
 
     try {
-      if (!session || !clerkUser) {
-        throw new Error('User not authenticated');
-      }
-
       // Call server-side API to create the watchlist and update profiles
-      const token = await session.getToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/watchlists`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           watchlistName,
           description,
           tags,
           isPublic,
-          userId: clerkUser.id,
-          username: user.username,
+          userId: user.username,
         }),
       });
 

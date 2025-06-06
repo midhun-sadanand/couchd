@@ -1,5 +1,4 @@
-import { NextResponse, NextRequest } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/server';
 
 export async function PATCH(
@@ -7,48 +6,25 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = getAuth(req);
-    if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
+    const { description } = await req.json();
 
-    const body = await req.json();
-    const { description } = body;
-
-    // Check if the user owns the watchlist
-    const { data: watchlist, error: watchlistError } = await supabase
+    const { data: watchlist, error } = await supabase
       .from('watchlists')
-      .select('user_id')
-      .eq('id', params.id)
-      .single();
-
-    if (watchlistError) {
-      if (watchlistError.code === 'PGRST116') {
-        return new NextResponse('Watchlist not found', { status: 404 });
-      }
-      throw watchlistError;
-    }
-
-    if (watchlist.user_id !== userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-
-    // Update the watchlist description
-    const { data: updatedWatchlist, error: updateError } = await supabase
-      .from('watchlists')
-      .update({
-        description,
-        updated_at: new Date().toISOString(),
-      })
+      .update({ description })
       .eq('id', params.id)
       .select()
       .single();
 
-    if (updateError) throw updateError;
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return new NextResponse('Watchlist not found', { status: 404 });
+      }
+      throw error;
+    }
 
-    return NextResponse.json(updatedWatchlist);
-  } catch (error) {
-    console.error('Error updating watchlist description:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json(watchlist);
+  } catch (err: any) {
+    console.error('Error updating watchlist description:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 } 

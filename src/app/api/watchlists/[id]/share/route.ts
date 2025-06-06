@@ -1,5 +1,4 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/server';
 
 export async function POST(
@@ -7,18 +6,6 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = getAuth(req);
-    if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-
-    const body = await req.json();
-    const { sharedUserId } = body;
-
-    if (!sharedUserId) {
-      return new NextResponse('Missing sharedUserId', { status: 400 });
-    }
-
     // Check if the user owns the watchlist
     const { data: watchlist, error: watchlistError } = await supabase
       .from('watchlists')
@@ -31,10 +18,6 @@ export async function POST(
         return new NextResponse('Watchlist not found', { status: 404 });
       }
       throw watchlistError;
-    }
-
-    if (watchlist.user_id !== userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
     }
 
     // Add the share

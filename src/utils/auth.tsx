@@ -7,8 +7,8 @@ import React, {
   useState,
   ReactNode,
 } from 'react';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { useUser, useSession } from '@clerk/nextjs';
+import { createClient } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -21,7 +21,7 @@ console.log('Supabase Anon Key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.sli
 /* ------------------------------------------------------------------ */
 
 interface SupabaseContextType {
-  client: SupabaseClient | null;
+  client: any;
   isLoading: boolean;
 }
 
@@ -37,92 +37,37 @@ export { SupabaseContext };
 /* ------------------------------------------------------------------ */
 
 export function SupabaseProvider({ children }: { children: ReactNode }) {
-  const [client, setClient] = useState<SupabaseClient | null>(null);
+  const [client, setClient] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { user, isLoaded: isUserLoaded } = useUser();
-  const { session } = useSession();
 
   useEffect(() => {
     const initializeSupabase = async () => {
-      if (!isUserLoaded || !user || !session) {
-        console.log('Auth Debug - No user or session loaded yet:', {
-          isUserLoaded,
-          hasUser: !!user,
-          hasSession: !!session,
-          timestamp: new Date().toISOString()
-        });
-        return;
-      }
-
       try {
-        const token = await session.getToken({ template: 'supabase' });
-        
-        console.log('Auth Debug - Token details:', {
-          hasToken: !!token,
-          tokenLength: token?.length,
-          tokenPreview: token ? `${token.substring(0, 10)}...` : null,
-          userId: user.id,
-          timestamp: new Date().toISOString()
-        });
-
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-          {
-            global: {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            },
-          }
-        );
-
-        // Test the connection with a simple query
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', user.id)
-          .single();
-
-        console.log('Auth Debug - Test query result:', {
-          hasData: !!data,
-          error: error ? {
-            code: error.code,
-            message: error.message,
-            details: error.details
-          } : null,
-          userId: user.id,
-          timestamp: new Date().toISOString()
-        });
-
+        const supabase = createClient(supabaseUrl, supabaseAnonKey);
         setClient(supabase);
       } catch (error) {
         console.error('Auth Error - Failed to initialize Supabase:', {
           error,
-          userId: user.id,
           timestamp: new Date().toISOString()
         });
       } finally {
         setIsLoading(false);
       }
     };
-
     initializeSupabase();
-  }, [user, isUserLoaded, session]);
+  }, []);
 
-  /* ------------- (optional) keep token fresh if you set long TTL ---------- */
+  // Optionally, keep token fresh if you set long TTL (no-op if not logged in)
   useEffect(() => {
-    if (!session) return;
-
+    if (!client) return;
     // refresh every 55 min
     const id = setInterval(() => {
-      session.getToken({ template: 'supabase', skipCache: true }).catch(() => {
+      client.auth.getSession().catch(() => {
         /* swallow – any real failure will appear on next request */
       });
     }, 55 * 60 * 1000);
-
     return () => clearInterval(id);
-  }, [session]);
+  }, [client]);
 
   return (
     <SupabaseContext.Provider value={{ client, isLoading }}>
@@ -150,4 +95,45 @@ export function clearBrowserCache() {
     sessionStorage.clear();
     console.log('Browser cache cleared (localStorage and sessionStorage)');
   }
+}
+
+export const useUser = () => {
+  const { client: supabase } = useSupabase();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    console.log('supabase in useUser', supabase);
+    if (!supabase) {
+      setLoading(true);
+      return;
+    }
+    let subscription: any;
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+    const { data } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+    subscription = data?.subscription;
+    return () => {
+      if (subscription) subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  return { user, loading };
+};
+
+export function useSignOut() {
+  const { client: supabase } = useSupabase();
+  const router = useRouter();
+  return async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+      console.log('signed out');
+      router.push('/');
+    }
+  };
 }

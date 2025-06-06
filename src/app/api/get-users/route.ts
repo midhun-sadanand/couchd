@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { clerkClient } from '@clerk/clerk-sdk-node';
+import { supabase } from '@/lib/server';
 
 export async function POST(req: NextRequest) {
   try {
     const { userIds } = await req.json();
-    const users = await Promise.all(
-      userIds.map((id: string) => clerkClient.users.getUser(id))
-    );
+    // Fetch users by ids from Supabase profiles table
+    const { data: users, error } = await supabase.from('profiles').select('*').in('id', userIds);
+    if (error) throw error;
     return NextResponse.json(users);
   } catch (err: any) {
     console.error('Error fetching users:', err);

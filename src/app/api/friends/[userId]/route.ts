@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getAuth } from '@clerk/nextjs/server';
 import type { NextRequest } from 'next/server';
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { userId: string } }
 ) {
-  const { getToken } = getAuth(req);
-  const token = await getToken({ template: 'supabase' });
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

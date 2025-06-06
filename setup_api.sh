@@ -5,7 +5,7 @@ set -euo pipefail
 # 0.  PRE-FLIGHT
 ###############################################################################
 echo "🔧  Installing server packages …"
-npm install --save @supabase/supabase-js @clerk/nextjs >/dev/null
+npm install --save @supabase/supabase-js >/dev/null
 
 ###############################################################################
 # 1.  DIRECTORY SKELETON
@@ -35,43 +35,38 @@ for d in "${DIRS[@]}"; do mkdir -p "$d"; done
 cat > src/lib/server.ts <<'EOF'
 // src/lib/server.ts
 import { createClient } from '@supabase/supabase-js';
-import { clerkClient }   from '@clerk/nextjs/server';
 
 export const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_KEY!
 );
-
-export { clerkClient };
 EOF
 
 cat > src/lib/updateCounters.ts <<'EOF'
 // src/lib/updateCounters.ts
 import { supabase } from './server';
 
-export async function updateMediaItemCounters(watchlistId: number) {
-  const { data: counts, error } = await supabase
+export async function updateMediaItemCounters(watchlistId: string) {
+  // ... implementation ...
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: { id: string } }
+) {
+  const { data, error } = await supabase
     .from('media_items')
-    .select('status, count:status')
-    .eq('watchlist_id', watchlistId)
-    .group('status');
+    .delete()
+    .eq('id', params.id)
+    .select()
+    .single();
 
-  if (error) throw error;
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
-  const toConsume   = counts.find(c => c.status === 'to consume')?.count ?? 0;
-  const consuming   = counts.find(c => c.status === 'consuming')?.count ?? 0;
-  const consumed    = counts.find(c => c.status === 'consumed')?.count  ?? 0;
-
-  const { error: upErr } = await supabase
-    .from('watchlists')
-    .update({
-      to_consume_count: toConsume,
-      consuming_count : consuming,
-      consumed_count  : consumed
-    })
-    .eq('id', watchlistId);
-
-  if (upErr) throw upErr;
+  await updateMediaItemCounters(data.watchlist_id);
+  return NextResponse.json(data);
 }
 EOF
 

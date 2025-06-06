@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useUser } from '../utils/auth';
 import { useSupabase } from '../utils/auth';
 
 interface MediaItem {
@@ -17,11 +17,11 @@ export function useMediaItems(watchlistId: string) {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const { user } = useUser();
+  const { user, loading } = useUser();
   const { client: supabase, isLoading: supabaseLoading } = useSupabase();
 
   useEffect(() => {
-    if (supabaseLoading || !supabase) {
+    if (supabaseLoading || loading || !supabase) {
       setIsLoading(true);
       return;
     }
@@ -43,7 +43,7 @@ export function useMediaItems(watchlistId: string) {
       }
     };
     fetchMediaItems();
-  }, [user, watchlistId, supabase, supabaseLoading]);
+  }, [user, watchlistId, supabase, supabaseLoading, loading]);
 
-  return { mediaItems, isLoading: isLoading || supabaseLoading, error };
+  return { mediaItems, isLoading: isLoading || supabaseLoading || loading, error };
 } 

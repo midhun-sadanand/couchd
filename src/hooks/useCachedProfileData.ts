@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useUser } from '@/utils/auth';
 import { useSupabase } from '../utils/auth';
 
 interface User {
@@ -31,16 +31,7 @@ export function useCachedProfileData(): CachedProfileData {
 
     const fetchOrCreateProfile = async () => {
       try {
-        // Debug logging for Clerk user data
-        console.log('Clerk User Data:', {
-          id: user.id,
-          username: user.username,
-          hasId: !!user.id,
-          idType: typeof user.id,
-          idLength: user.id?.length
-        });
-
-        // Try to fetch existing profile using the Clerk user ID as text
+        // Try to fetch existing profile using the Supabase user ID
         console.log('Attempting to fetch profile with ID:', user.id);
         const { data: existingProfile, error: fetchError } = await supabase
           .from('profiles')
@@ -66,7 +57,7 @@ export function useCachedProfileData(): CachedProfileData {
             const { data: newProfile, error: insertError } = await supabase
               .from('profiles')
               .insert([{
-                id: user.id,  // Use Clerk ID directly as text
+                id: user.id,
                 username: user.username || `user_${user.id.slice(0, 8)}`,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
@@ -115,7 +106,7 @@ export function useCachedProfileData(): CachedProfileData {
     const fetchFriends = async () => {
       try {
         setIsLoading(true);
-        // Fetch friends using the user_id (Clerk ID string)
+        // Fetch friends using the user_id (Supabase ID)
         const { data: friends, error: friendsError } = await supabase
           .from('friends')
           .select('friend_id')

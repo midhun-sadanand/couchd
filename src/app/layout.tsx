@@ -14,9 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full" suppressHydrationWarning>
-      <body className="min-h-screen antialiased" suppressHydrationWarning>
-        {/* All client-side providers/state live below */}
+    <html lang="en" className="h-full">
+      <body className="antialiased min-h-screen bg-white text-gray-900">
         <Providers>
           <Layout>{children}</Layout>
         </Providers>

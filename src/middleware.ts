@@ -1,4 +1,3 @@
-import { withClerkMiddleware, getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createClient } from '@supabase/supabase-js';
@@ -15,79 +14,60 @@ const supabase = createClient(
   }
 );
 
-// Create profile in Supabase when user signs up
-async function createProfile(userId: string, username: string | null) {
-  try {
-    console.log('Middleware Debug - Attempting to create profile:', {
-      userId,
-      username,
-      timestamp: new Date().toISOString()
-    });
+// Helper function to get user session from request
+async function getAuth(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader) return { userId: null, user: null };
 
+  try {
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      return { userId: null, user: null };
+    }
+
+    return { userId: user.id, user };
+  } catch (error) {
+    console.error('Auth error:', error);
+    return { userId: null, user: null };
+  }
+}
+
+// Create profile in Supabase when user signs up
+async function createProfile(userId: string) {
+  try {
     const { data: existingProfile, error: fetchError } = await supabase
       .from('profiles')
       .select('id')
       .eq('id', userId)
       .single();
 
-    console.log('Middleware Debug - Profile check result:', {
-      existingProfile,
-      fetchError,
-      timestamp: new Date().toISOString()
-    });
-
     if (!existingProfile) {
-      const { data: newProfile, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from('profiles')
         .insert([{
-          id: userId,  // Use Clerk ID directly as text
-          username: username || `user_${userId.slice(0, 8)}`,
+          id: userId,
+          username: `user_${userId.slice(0, 8)}`,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
-
-      console.log('Middleware Debug - Profile creation result:', {
-        newProfile,
-        insertError,
-        timestamp: new Date().toISOString()
-      });
-
+        }]);
       if (insertError) {
-        console.error('Middleware Error - Failed to create profile:', {
-          error: insertError,
-          userId,
-          timestamp: new Date().toISOString()
-        });
+        console.error('Middleware Error - Failed to create profile:', insertError);
       }
     }
   } catch (error) {
-    console.error('Middleware Error - Profile creation failed:', {
-      error,
-      userId,
-      timestamp: new Date().toISOString()
-    });
+    console.error('Middleware Error - Profile creation failed:', error);
   }
 }
 
-export default withClerkMiddleware(async (request: NextRequest) => {
-  const { userId, user } = getAuth(request);
-  
-  console.log('Middleware Debug - Request details:', {
-    path: request.nextUrl.pathname,
-    userId,
-    username: user?.username,
-    timestamp: new Date().toISOString()
-  });
-  
-  // Handle profile creation for new users
+export default async (request: NextRequest) => {
+  const { userId } = await getAuth(request);
   if (userId) {
-    await createProfile(userId, user?.username || null);
+    await createProfile(userId);
   }
-  
   return NextResponse.next();
-});
+};
 
 // Stop Middleware running on static files
 export const config = {

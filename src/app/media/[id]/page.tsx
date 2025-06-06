@@ -3,8 +3,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
-import { useUser } from '@clerk/nextjs';
-import { arrayMoveImmutable as arrayMove } from 'array-move';
 import { CSSTransition } from 'react-transition-group';
 
 import MovieCard from '@/components/MovieCard';
@@ -46,8 +44,6 @@ interface WatchlistData {
 export default function MediaPage() {
   const params = useParams();
   const watchlistId = params.id as string;
-  const { user: clerkUser, isLoaded } = useUser();
-  const { friendsProfiles } = useCachedProfileData();
 
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [watchlistPublic, setWatchlistPublic] = useState(false);

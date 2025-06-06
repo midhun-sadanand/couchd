@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@clerk/clerk-react';
+import { useUser } from '@/utils/auth';
 import { Plus } from '@geist-ui/icons';
 import { useQueryClient } from '@tanstack/react-query';
 import WatchlistWidget from './WatchlistWidget';
@@ -48,8 +48,8 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({
   const [options, setOptions] = useState<TagOption[]>([]);
   const [availableWidth, setAvailableWidth] = useState<number>(0);
   const router = useRouter();
-  const { user: clerkUser, isLoaded } = useUser();
-  const { data: watchlistData, error } = useWatchlists(clerkUser?.id);
+  const { user } = useUser();
+  const { data: watchlistData, error } = useWatchlists(user?.id);
   const queryClient = useQueryClient();
   const supabase = useSupabaseClient();
   const [watchlist, setWatchlist] = useState<Watchlist | null>(null);
@@ -60,12 +60,11 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({
   const watchlists = watchlistData?.watchlists || [];
 
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!clerkUser) {
+    if (!user) {
       router.push('/login');
       return;
     }
-  }, [clerkUser, isLoaded, router]);
+  }, [user, router]);
 
   useEffect(() => {
     if (watchlists.length > 0) {
@@ -103,7 +102,7 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({
           .eq('id', deletedId);
 
         // Invalidate queries to refresh the data
-        queryClient.invalidateQueries(['watchlists', clerkUser?.id]);
+        queryClient.invalidateQueries(['watchlists', user?.id]);
       } catch (error) {
         console.error('Error deleting list:', error);
       }
@@ -112,7 +111,7 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({
 
   useEffect(() => {
     const fetchWatchlist = async () => {
-      if (!clerkUser || !watchlistData?.watchlists[0].id) return;
+      if (!user || !watchlistData?.watchlists[0].id) return;
 
       try {
         setIsLoading(true);
@@ -141,7 +140,7 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({
     };
 
     fetchWatchlist();
-  }, [clerkUser, watchlistData?.watchlists[0].id, supabase]);
+  }, [user, watchlistData?.watchlists[0].id, supabase]);
 
   const handleImageUpload = (imageUrl: string) => {
     if (watchlist) {
@@ -196,7 +195,7 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({
           <WatchlistWidget
             key={list.id}
             watchlistId={list.id}
-            username={clerkUser?.username || ''}
+            username={user?.email || ''}
             listName={list.name}
             description={list.description}
             unwatchedCount={list.to_consume_count}
@@ -219,7 +218,7 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({
         options={options} 
         setOptions={setOptions} 
         watchlists={watchlists}
-        user={clerkUser}
+        user={user}
       />
       <div className="flex items-center justify-between mt-8">
         <div className="flex items-center space-x-4">
@@ -262,7 +261,7 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({
           watchlistName={watchlist?.name || ''}
           watchlistDescription={watchlist?.description || ''}
           watchlistImage={watchlist?.image || ''}
-          username={clerkUser?.username || ''}
+          username={user?.email || ''}
           addSharedUser={(user) => setSharedUsers([...sharedUsers, user])}
           removeSharedUser={(userId) => setSharedUsers(sharedUsers.filter(u => u.id !== userId))}
           updateSharedUsers={setSharedUsers}

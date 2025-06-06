@@ -1,29 +1,14 @@
-import { NextResponse } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
-import { createClient } from '@supabase/supabase-js';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/server';
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { username: string } }
 ) {
   try {
-    const { getToken } = getAuth(req);
-    const token = await getToken({ template: 'supabase' });
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      }
-    );
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('id, username')
+      .select('*')
       .eq('username', params.username)
       .single();
 
@@ -35,8 +20,8 @@ export async function GET(
     }
 
     return NextResponse.json(profile);
-  } catch (error) {
-    console.error('Error fetching profile:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+  } catch (err: any) {
+    console.error('Error fetching profile:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 } 

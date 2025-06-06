@@ -1,32 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { getAuth } from '@clerk/nextjs/server';
+import { supabase } from '@/lib/server';
 
 export async function GET(req: NextRequest) {
-  const { getToken } = getAuth(req);
-  const token = await getToken({ template: 'supabase' });
-  const receiverId = new URL(req.url).searchParams.get('receiverId');
+  try {
+    const { data: friendRequests, error } = await supabase
+      .from('friend_requests')
+      .select(`
+        *,
+        sender:profiles!sender_id (id, username),
+        receiver:profiles!receiver_id (id, username)
+      `)
+      .order('created_at', { ascending: false });
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    }
-  );
+    if (error) throw error;
 
-  const { data, error } = await supabase
-    .from('friend_requests')
-    .select('*')
-    .eq('receiver_id', receiverId)
-    .eq('status', 'pending');
+    return NextResponse.json(friendRequests);
+  } catch (err: any) {
+    console.error('Error fetching friend requests:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
 
-  if (error)
-    return NextResponse.json({ error: error.message }, { status: 500 });
+export async function POST(req: NextRequest) {
+  try {
+    const { receiverId } = await req.json();
 
-  return NextResponse.json(data);
+    const { data: friendRequest, error } = await supabase
+      .from('friend_requests')
+      .insert([
+        {
+          receiver_id: receiverId,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json(friendRequest);
+  } catch (err: any) {
+    console.error('Error creating friend request:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }
