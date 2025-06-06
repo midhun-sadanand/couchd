@@ -3,41 +3,83 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useUser } from '@/utils/auth';
-import { useWatchlistData } from '@/hooks/useWatchlistData';
-import { useMediaItems } from '@/hooks/useMediaItems';
+import { useSupabaseClient } from '@/utils/auth';
 import MovieCard from '@/components/MovieCard';
 import YouTubeCard from '@/components/YouTubeCard';
 
-const WatchlistDetailPage: React.FC = () => {
+const MediaPage: React.FC = () => {
   const { watchlistId } = useParams();
-  const { user, isLoaded } = useUser();
+  const { user, loading: userLoading } = useUser();
+  const supabase = useSupabaseClient();
 
-  // Fetch the watchlist and its media items
-  const { watchlist, isLoading: isWatchlistLoading, error: watchlistError } = useWatchlistData(watchlistId as string);
-  const { mediaItems, isLoading: isMediaLoading, error: mediaError } = useMediaItems(watchlistId as string);
+  const [watchlist, setWatchlist] = useState<any>(null);
+  const [mediaItems, setMediaItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Loading state
-  if (!isLoaded || isWatchlistLoading || isMediaLoading) {
-    return <div className="min-h-screen flex items-center justify-center text-[#e6e6e6]">Loading...</div>;
-  }
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Fetch the watchlist
+        const { data: wl, error: wlError } = await supabase
+          .from('watchlists')
+          .select('*')
+          .eq('id', watchlistId)
+          .single();
+        if (wlError) throw wlError;
 
-  // Error state
-  if (watchlistError) {
+        // Parse tags if needed
+        let tags: string[] = [];
+        if (wl.tags) {
+          try {
+            tags = Array.isArray(wl.tags)
+              ? wl.tags
+              : JSON.parse(wl.tags);
+          } catch {
+            tags = wl.tags.split(',').map((t: string) => t.trim());
+          }
+        }
+
+        setWatchlist({ ...wl, tags });
+
+        // Fetch media items
+        const { data: mi, error: miError } = await supabase
+          .from('media_items')
+          .select('*')
+          .eq('watchlist_id', watchlistId)
+          .order('created_at', { ascending: false });
+        if (miError) throw miError;
+
+        setMediaItems(mi || []);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (watchlistId && supabase) fetchData();
+  }, [watchlistId, supabase]);
+
+  if (userLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-red-500">
-        Error loading watchlist: {watchlistError.message}
+      <div className="min-h-screen flex flex-col items-center justify-center text-[#e6e6e6]">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#e6e6e6] mb-4"></div>
+        <span>Loading watchlist...</span>
       </div>
     );
   }
-  if (mediaError) {
+
+  if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center text-red-500">
-        Error loading media items: {mediaError.message}
+        {error}
       </div>
     );
   }
 
-  // No user (should not redirect, just show a message)
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center text-[#e6e6e6]">
@@ -46,7 +88,6 @@ const WatchlistDetailPage: React.FC = () => {
     );
   }
 
-  // No watchlist found
   if (!watchlist) {
     return (
       <div className="min-h-screen flex items-center justify-center text-[#e6e6e6]">
@@ -66,7 +107,7 @@ const WatchlistDetailPage: React.FC = () => {
           ))}
         </div>
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-          {mediaItems && mediaItems.length > 0 ? (
+          {mediaItems.length > 0 ? (
             mediaItems.map((item: any) =>
               item.medium === 'YouTube' ? (
                 <YouTubeCard key={item.id} {...item} />
@@ -83,4 +124,4 @@ const WatchlistDetailPage: React.FC = () => {
   );
 };
 
-export default WatchlistDetailPage;
+export default MediaPage;

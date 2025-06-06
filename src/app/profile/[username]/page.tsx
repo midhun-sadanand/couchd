@@ -11,7 +11,7 @@ import LibrarySidebar from '@/components/LibrarySidebar';
 import FriendSidebar from '@/components/FriendSidebar';
 import ProfileTab from '@/components/ProfileTab';
 import { Grid, Users, User, Sidebar } from '@geist-ui/icons';
-import WatchlistPage from '@/app/watchlist/[watchlistId]/page';
+import WatchlistList from '@/components/WatchlistList';
 
 interface User {
   id: string;
@@ -283,9 +283,10 @@ const ProfilePage = () => {
           <div className="flex-grow w-full mx-auto p-4">
             {activeTab === 'profile' && <ProfileTab userProfile={userProfile} watchlistCount={watchlistCount} mediaCount={mediaCount} />}
             {activeTab === 'watchlists' && (
-              <WatchlistPage 
+              <WatchlistList 
                 isFriendSidebarOpen={friendsSidebarOpen} 
                 isLibrarySidebarOpen={sidebarOpen}
+                userId={supabaseUser?.id}
               />
             )}
           </div>

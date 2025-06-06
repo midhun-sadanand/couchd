@@ -23,6 +23,7 @@ export interface WatchlistData {
   owner_id: string;
   owner_name: string;
   is_shared: boolean;
+  tags?: string[];
 }
 
 export interface User {

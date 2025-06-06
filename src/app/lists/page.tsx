@@ -1,8 +1,5 @@
-'use client';
-
-import React from 'react';
-import WatchlistPage from '@/components/WatchlistPage';
+import WatchlistList from '@/components/WatchlistList';
 
 export default function ListsPage() {
-  return <WatchlistPage isFriendSidebarOpen={false} isLibrarySidebarOpen={false} />;
+  return <WatchlistList />;
 } 
