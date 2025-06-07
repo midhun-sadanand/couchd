@@ -114,7 +114,7 @@ const WatchlistWidget: React.FC<WatchlistWidgetProps> = ({
   }, [description]);
 
   const handleClick = () => {
-    router.push(`/list/${username}/${encodeURIComponent(listName)}/${watchlistId}`);
+    router.push(`/watchlist/${watchlistId}`);
   };
 
   const handleDropdownClick = (e: React.MouseEvent) => {

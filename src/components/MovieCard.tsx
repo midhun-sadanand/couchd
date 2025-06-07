@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { Star, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { MediaItem, StatusType } from '@/types';
+import { motion, AnimatePresence } from 'framer-motion';
+import Rating from './Rating';
+import NotesInput from './NotesInput';
 
 interface MovieCardProps {
   item: MediaItem;
@@ -27,141 +30,195 @@ export default function MovieCard({
   isDropdownOpen,
   toggleDropdown,
 }: MovieCardProps) {
-  const [localNotes, setLocalNotes] = useState(item.notes || '');
-  const [localRating, setLocalRating] = useState(item.rating || 0);
+  // Defensive guard: if item is missing, don't render
+  if (!item) return null;
 
-  const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setLocalNotes(e.target.value);
-    onNotesChange(item.id, e.target.value);
+  // Defensive fallback values for all fields
+  const {
+    id = '',
+    title = '',
+    medium = '',
+    length = '',
+    release_date = '',
+    created_at = '',
+    synopsis = '',
+    image = '',
+    url = '',
+    creator = '',
+    status = 'to consume',
+    notes = '',
+    rating = 0,
+    added_by = 'Guest',
+  } = item || {};
+
+  // Use local state for notes and rating, fallback to empty string/0
+  const [localNotes, setLocalNotes] = useState<string>(notes ?? '');
+  const [localRating, setLocalRating] = useState<number>(typeof rating === 'number' ? rating : 0);
+  const [localStatus, setLocalStatus] = useState<StatusType>(status as StatusType);
+  const [notesOpen, setNotesOpen] = useState(false);
+
+  // Defensive event handlers
+  const handleNotesChange = (notes: string) => {
+    setLocalNotes(notes);
+    if (id) onNotesChange(id, notes);
   };
 
   const handleRatingChange = (newRating: number) => {
     setLocalRating(newRating);
-    onRatingChange(item.id, newRating);
+    if (id) onRatingChange(id, newRating);
   };
+
+  const handleStatusChange = (newStatus: StatusType) => {
+    setLocalStatus(newStatus);
+    if (id) onStatusChange(id, newStatus);
+  };
+
+  const handleToggle = () => { if (id) setIsOpen(id, !isOpen); };
 
   const statusOptions: StatusType[] = [
     'to consume',
     'consuming',
     'consumed',
     'dropped',
-    'on hold'
+    'on hold',
   ];
 
+  // Defensive: only call onDelete if id exists
+  const handleDelete = () => {
+    if (id) onDelete();
+  };
+
+  // Defensive: format date
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      return new Date(dateStr).toLocaleDateString();
+    } catch {
+      return '';
+    }
+  };
+
+  const statusColorClass = (status: StatusType) => {
+    switch (status) {
+      case 'to consume': return 'bg-[#B4B4B4]';
+      case 'consuming': return 'bg-[#909090]';
+      case 'consumed': return 'bg-[#636363]';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  // Defensive: only call toggleDropdown if defined
+  const handleToggleDropdown = () => {
+    if (toggleDropdown) toggleDropdown();
+  };
+
+  // Defensive: fallback for image error
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    e.currentTarget.src = '/default-movie.jpg';
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+    <div className="bg-[#232323] rounded-lg shadow-lg overflow-hidden border border-[#333]">
       <div className="p-4">
         <div className="flex justify-between items-start">
-          <div className="flex space-x-4">
-            {item.image && (
+          <div className="flex space-x-4 w-2/3">
+            {image && (
               <img
-                src={item.image}
-                alt={item.title}
-                className="w-32 h-24 object-cover rounded"
-                onError={(e) => {
-                  e.currentTarget.src = '/default-movie.jpg';
-                }}
+                src={image}
+                alt={title}
+                className="w-32 h-40 object-cover rounded shadow-md"
+                onError={handleImageError}
               />
             )}
-            <div>
-              <h3 className="text-lg font-semibold">{item.title}</h3>
-              <p className="text-sm text-gray-600">{item.medium}</p>
-              {item.release_date && (
-                <p className="text-sm text-gray-600">
-                  Released: {new Date(item.release_date).toLocaleDateString()}
+            <div className="flex flex-col space-y-2">
+              <h3 className="text-xl font-bold text-[#e6e6e6]">{title}</h3>
+              <p className="text-sm text-gray-400">{medium}</p>
+              {release_date && (
+                <p className="text-xs text-gray-500">
+                  Released: {formatDate(release_date)}
                 </p>
               )}
-              {item.length && <p className="text-sm text-gray-600">Length: {item.length}</p>}
-              {item.creator && <p className="text-sm text-gray-600">Director: {item.creator}</p>}
+              {length && <p className="text-xs text-gray-500">Length: {length}</p>}
+              {creator && <p className="text-xs text-gray-500">Director: {creator}</p>}
+              <div className="flex items-center space-x-2 mt-2">
+                <span className="text-xs text-gray-500">Added by <span className="underline">{added_by}</span></span>
+                <span className="text-xs text-gray-500">{formatDate(created_at)}</span>
+              </div>
             </div>
           </div>
-          <div className="flex space-x-2">
-            <div className="relative">
-              <button
-                onClick={toggleDropdown}
-                className="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 text-sm"
-              >
-                {item.status}
-                {isDropdownOpen ? <ChevronUp className="inline ml-1" size={16} /> : <ChevronDown className="inline ml-1" size={16} />}
-              </button>
-              {isDropdownOpen && (
-                <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg z-10">
-                  {statusOptions.map((option) => (
-                    <button
-                      key={option}
-                      onClick={() => onStatusChange(item.id, option)}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+          <div className="flex flex-col items-end space-y-2">
             <button
-              onClick={onDelete}
+              onClick={handleToggleDropdown}
+              className={`px-3 py-1 ${statusColorClass(localStatus)} rounded text-white text-xs font-semibold`}
+            >
+              {localStatus}
+              {isDropdownOpen ? <ChevronUp className="inline ml-1" size={16} /> : <ChevronDown className="inline ml-1" size={16} />}
+            </button>
+            {isDropdownOpen && (
+              <div className="absolute right-0 mt-8 w-40 bg-[#3b3b3b] rounded-md shadow-lg z-10">
+                {statusOptions.map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => handleStatusChange(option)}
+                    className="block w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-[#4b4b4b]"
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={handleDelete}
               className="p-1 text-red-500 hover:text-red-700"
             >
               <Trash2 size={20} />
             </button>
             <button
-              onClick={() => setIsOpen(item.id, !isOpen)}
-              className="p-1 text-gray-500 hover:text-gray-700"
+              onClick={handleToggle}
+              className="p-1 text-gray-400 hover:text-gray-200"
             >
               {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
             </button>
           </div>
         </div>
-
-        {isOpen && (
-          <div className="mt-4 space-y-4">
-            {item.synopsis && (
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mt-4 space-y-4"
+            >
+              {synopsis && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-300">Synopsis</h4>
+                  <p className="text-sm text-gray-400">{synopsis}</p>
+                </div>
+              )}
               <div>
-                <h4 className="text-sm font-medium text-gray-700">Synopsis</h4>
-                <p className="text-sm text-gray-600">{item.synopsis}</p>
+                <h4 className="text-sm font-medium text-gray-300">Notes</h4>
+                <NotesInput initialNotes={localNotes} onChange={handleNotesChange} />
               </div>
-            )}
-            <div>
-              <h4 className="text-sm font-medium text-gray-700">Notes</h4>
-              <textarea
-                value={localNotes}
-                onChange={handleNotesChange}
-                className="w-full p-2 border rounded text-sm"
-                rows={3}
-                placeholder="Add your notes here..."
-              />
-            </div>
-            <div>
-              <h4 className="text-sm font-medium text-gray-700">Rating</h4>
-              <div className="flex space-x-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    onClick={() => handleRatingChange(star)}
-                    className="text-gray-400 hover:text-yellow-400"
+              <div>
+                <h4 className="text-sm font-medium text-gray-300">Rating</h4>
+                <Rating rating={localRating} onRatingChange={handleRatingChange} />
+              </div>
+              {url && (
+                <div>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 text-sm"
                   >
-                    <Star
-                      size={20}
-                      className={star <= localRating ? 'fill-yellow-400 text-yellow-400' : ''}
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
-            {item.url && (
-              <div>
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 text-sm"
-                >
-                  View Details
-                </a>
-              </div>
-            )}
-          </div>
-        )}
+                    View Details
+                  </a>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

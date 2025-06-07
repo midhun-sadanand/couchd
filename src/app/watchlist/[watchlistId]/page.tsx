@@ -6,6 +6,7 @@ import { useUser } from '@/utils/auth';
 import { useSupabaseClient } from '@/utils/auth';
 import MovieCard from '@/components/MovieCard';
 import YouTubeCard from '@/components/YouTubeCard';
+import { MediaItem, StatusType } from '@/types';
 
 const MediaPage: React.FC = () => {
   const { watchlistId } = useParams();
@@ -13,9 +14,11 @@ const MediaPage: React.FC = () => {
   const supabase = useSupabaseClient();
 
   const [watchlist, setWatchlist] = useState<any>(null);
-  const [mediaItems, setMediaItems] = useState<any[]>([]);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [openCards, setOpenCards] = useState<Record<string, boolean>>({});
+  const [dropdownOpen, setDropdownOpen] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,6 +66,80 @@ const MediaPage: React.FC = () => {
     if (watchlistId && supabase) fetchData();
   }, [watchlistId, supabase]);
 
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('media_items')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      setMediaItems(prev => prev.filter(item => item.id !== id));
+    } catch (err: any) {
+      console.error('Error deleting media item:', err.message);
+    }
+  };
+
+  const handleNotesChange = async (id: string, notes: string) => {
+    try {
+      const { error } = await supabase
+        .from('media_items')
+        .update({ notes })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      setMediaItems(prev => prev.map(item => 
+        item.id === id ? { ...item, notes } : item
+      ));
+    } catch (err: any) {
+      console.error('Error updating notes:', err.message);
+    }
+  };
+
+  const handleStatusChange = async (id: string, status: StatusType) => {
+    try {
+      const { error } = await supabase
+        .from('media_items')
+        .update({ status })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      setMediaItems(prev => prev.map(item => 
+        item.id === id ? { ...item, status } : item
+      ));
+    } catch (err: any) {
+      console.error('Error updating status:', err.message);
+    }
+  };
+
+  const handleRatingChange = async (id: string, rating: number) => {
+    try {
+      const { error } = await supabase
+        .from('media_items')
+        .update({ rating })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      setMediaItems(prev => prev.map(item => 
+        item.id === id ? { ...item, rating } : item
+      ));
+    } catch (err: any) {
+      console.error('Error updating rating:', err.message);
+    }
+  };
+
+  const handleToggleOpen = (id: string, isOpen: boolean) => {
+    setOpenCards(prev => ({ ...prev, [id]: isOpen }));
+  };
+
+  const handleToggleDropdown = (id: string) => {
+    setDropdownOpen(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
   if (userLoading || loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-[#e6e6e6]">
@@ -108,13 +185,25 @@ const MediaPage: React.FC = () => {
         </div>
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
           {mediaItems.length > 0 ? (
-            mediaItems.map((item: any) =>
-              item.medium === 'YouTube' ? (
-                <YouTubeCard key={item.id} {...item} />
+            mediaItems.map((item: MediaItem) => {
+              const commonProps = {
+                item,
+                onDelete: () => handleDelete(item.id),
+                onNotesChange: handleNotesChange,
+                onStatusChange: handleStatusChange,
+                onRatingChange: handleRatingChange,
+                isOpen: openCards[item.id] || false,
+                setIsOpen: handleToggleOpen,
+                isDropdownOpen: dropdownOpen[item.id] || false,
+                toggleDropdown: () => handleToggleDropdown(item.id),
+              };
+
+              return item.medium === 'YouTube' ? (
+                <YouTubeCard key={item.id} {...commonProps} />
               ) : (
-                <MovieCard key={item.id} {...item} />
-              )
-            )
+                <MovieCard key={item.id} {...commonProps} />
+              );
+            })
           ) : (
             <div className="col-span-full text-gray-400">No media items in this watchlist yet.</div>
           )}
