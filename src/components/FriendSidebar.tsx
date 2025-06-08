@@ -38,36 +38,82 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
   sidebarOpen,
   userId
 }) => {
+  // Debug: Log the userId
+  console.log('FriendSidebar userId:', userId);
   const [friendName, setFriendName] = useState('');
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
   const [searchResultsState, setSearchResultsState] = useState<any[]>([]);
-  const [friends, setFriends] = useState<Friend[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const supabase = useSupabaseClient();
+  const [friends, setFriends] = useState<any[]>([]);
 
+  // Fetch friend requests
   useEffect(() => {
-    const fetchFriends = async () => {
+    const fetchFriendRequests = async () => {
       if (!userId || !supabase) return;
 
       try {
-        // // Get friends using user_id directly
-        // const { data, error } = await supabase
-        //   .from('friends')
-        //   .select('friend_id, profiles:friend_id (user_id, username, avatar_url)')
-        //   .eq('user_id', user.id);
+        console.log('Fetching friend requests for user:', userId);
+        const { data, error } = await supabase
+          .from('friend_requests')
+          .select(`
+            id,
+            sender_id,
+            receiver_id,
+            status,
+            created_at,
+            sender:profiles!sender_id (
+              id,
+              username
+            )
+          `)
+          .eq('receiver_id', userId)
+          .eq('status', 'pending');
 
-        // if (error) throw error;
-        // setFriends((data || []).map((item: any) => ({
-        //   id: item.profiles?.user_id,
-        //   username: item.profiles?.username,
-        //   avatar_url: item.profiles?.avatar_url || null
-        // })).filter((f: Friend) => f.id && f.username));
+        // Debug: Log the query result
+        console.log('Friend request query result:', data, error);
+
+        if (error) {
+          console.error('Error fetching friend requests:', error);
+          throw error;
+        }
+
+        console.log('Fetched friend requests:', data);
+        setRequests(data || []);
       } catch (err) {
-        console.error('Error fetching friends:', err instanceof Error ? err : new Error('Failed to fetch friends'));
+        console.error('Error in fetchFriendRequests:', err);
       }
     };
 
+    fetchFriendRequests();
+  }, [userId, supabase]);
+
+  // Fetch friends
+  useEffect(() => {
+    const fetchFriends = async () => {
+      if (!userId || !supabase) return;
+      try {
+        const { data, error } = await supabase
+          .from('friends')
+          .select(`
+            friend_id,
+            profiles:friend_id (
+              id,
+              username
+            )
+          `)
+          .eq('user_id', userId);
+        if (error) {
+          console.error('Error fetching friends:', error);
+          return;
+        }
+        setFriends((data || []).map((item: any) => item.profiles).filter(Boolean));
+      } catch (err) {
+        console.error('Error in fetchFriends:', err);
+      }
+    };
     fetchFriends();
   }, [userId, supabase]);
 
@@ -119,6 +165,8 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
 
     const name = event.target.value;
     setFriendName(name);
+    setError(null);
+    
     if (name.length >= 3) {
       try {
         const { data, error } = await supabase
@@ -133,6 +181,7 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
       } catch (error) {
         console.error('Error searching for friends:', error);
         setSearchResultsState([]);
+        setError('Error searching for users');
       }
     } else {
       setSearchResultsState([]);
@@ -167,27 +216,62 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
   };
 
   const sendFriendRequest = async () => {
-    if (!selectedFriendId || !userId || !supabase) return;
-    setFriendName('');
-
+    if (!userId || !supabase) return;
     try {
-      const isAccepted = await checkAccepted(userId, selectedFriendId);
-      if (isAccepted) {
-        alert('You are already friends!');
+      setError(null);
+      let receiverId = selectedFriendId;
+      // If no selected friend, search for the username directly
+      if (!receiverId) {
+        const { data: userData, error: userError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', friendName)
+          .single();
+        if (userError || !userData) {
+          setError('User not found. Please check the username and try again.');
+          return;
+        }
+        receiverId = userData.id;
+      }
+      if (!receiverId) {
+        setError('No receiver found.');
         return;
       }
-
+      // Check for existing pending friend request
+      const { data: existing, error: existingError } = await supabase
+        .from('friend_requests')
+        .select('id')
+        .eq('sender_id', userId)
+        .eq('receiver_id', receiverId)
+        .eq('status', 'pending')
+        .maybeSingle();
+      if (existingError) {
+        setError('Error checking for existing friend request.');
+        return;
+      }
+      if (existing) {
+        setError('Friend request already sent.');
+        return;
+      }
+      // Check if already friends
+      const isAccepted = await checkAccepted(userId, receiverId);
+      if (isAccepted) {
+        setError('You are already friends with this user!');
+        return;
+      }
       await supabase
         .from('friend_requests')
         .insert([{
           sender_id: userId,
-          receiver_id: selectedFriendId,
+          receiver_id: receiverId,
           status: 'pending'
         }]);
-
+      setFriendName('');
+      setSelectedFriendId(null);
       alert('Friend request sent!');
     } catch (error) {
       console.error('Error sending friend request:', error);
+      setError('Failed to send friend request. Please try again.');
     }
   };
 
@@ -201,52 +285,47 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
       style={{ right: sidebarOpen ? '0' : '-240px' }}
     >
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl">Friend Activity</h2>
+        <h2 className="text-xl">Friends</h2>
         <button onClick={closeSidebar} className="text-white">
           <X />
         </button>
       </div>
-
-      <ul>
+      {/* Friends List */}
+      <ul className="mb-4">
         {friends.length > 0 ? (
           friends.map(friend => (
-            <li key={friend.id} className="mb-4 flex items-center">
-              <img 
-                src={friend.avatar_url ? friend.avatar_url : ''} 
-                alt={friend.username} 
-                className="w-10 h-10 object-cover rounded-full mr-2" 
-              />
-              <div>
-                <div className="font-bold">{friend.username}</div>
-              </div>
+            <li key={friend.id} className="mb-2 flex items-center">
+              <span className="font-bold">{friend.username}</span>
             </li>
           ))
         ) : (
-          <li>No friends found.</li>
+          <li className="text-gray-400">No friends yet.</li>
         )}
       </ul>
-      
       <div className="relative mb-4">
         <input
           type="text"
           placeholder="Enter friend's name"
           value={friendName}
           onChange={searchFriends}
-          className="border p-2 w-full"
+          className="border p-2 w-full text-black bg-white rounded"
         />
+        {error && (
+          <div className="text-red-500 text-sm mt-1">{error}</div>
+        )}
         <button 
           onClick={sendFriendRequest} 
-          className="mt-2 btn bg-blue-500 hover:bg-blue-700 text-white w-full"
+          className="mt-2 btn bg-blue-500 hover:bg-blue-700 text-white w-full rounded"
         >
           Send Request
         </button>
         {showDropdown && searchResultsState.length > 0 && (
-          <div className="absolute mt-1 w-full bg-white shadow-lg z-10">
+          <div className="absolute mt-1 w-full bg-white shadow-lg z-10 rounded">
             <ul>
               {searchResultsState.map(friend => (
                 <li 
                   key={friend.id} 
-                  className="p-2 hover:bg-gray-200 cursor-pointer"
+                  className="p-2 hover:bg-gray-200 cursor-pointer text-black"
                   onClick={() => handleSelectFriend(friend.id)}
                 >
                   {friend.username}
@@ -270,25 +349,29 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
           </button>
         </div>
         {showDropdown && requests.length > 0 && (
-          <div className="absolute bg-white shadow-md mt-2 rounded z-10">
+          <div className="absolute bg-white shadow-md mt-2 rounded z-10 w-full">
             <ul>
               {requests.map(request => (
-                <li key={request.id} className="p-2 border-b border-gray-200">
-                  <span className="mr-2">
-                    Request from {request.sender ? request.sender.username : "Unknown"}
-                  </span>
-                  <button 
-                    onClick={() => handleResponse(request.id, 'accepted')} 
-                    className="ml-2 btn bg-green-500 hover:bg-green-600"
-                  >
-                    Accept
-                  </button>
-                  <button 
-                    onClick={() => handleResponse(request.id, 'rejected')} 
-                    className="ml-2 btn bg-red-500 hover:bg-red-600"
-                  >
-                    Reject
-                  </button>
+                <li key={request.id} className="p-2 border-b border-gray-200 text-black">
+                  <div className="flex flex-col">
+                    <span className="mr-2">
+                      Request from {request.sender?.username || "Unknown"}
+                    </span>
+                    <div className="flex gap-2 mt-2">
+                      <button 
+                        onClick={() => handleResponse(request.id, 'accepted')} 
+                        className="btn bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded"
+                      >
+                        Accept
+                      </button>
+                      <button 
+                        onClick={() => handleResponse(request.id, 'rejected')} 
+                        className="btn bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>
