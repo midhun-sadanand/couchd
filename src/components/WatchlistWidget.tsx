@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import EditNameModal from './EditWatchlistModal';
+import { useSupabaseClient } from '../utils/auth';
 
 interface WatchlistWidgetProps {
   username: string;
@@ -26,6 +27,7 @@ const WatchlistWidget: React.FC<WatchlistWidgetProps> = ({
   deleteWatchlist
 }) => {
   const router = useRouter();
+  const supabase = useSupabaseClient();
   const titleRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<HTMLDivElement>(null);
@@ -176,6 +178,8 @@ const WatchlistWidget: React.FC<WatchlistWidgetProps> = ({
         onClose={() => setEditNameModalOpen(false)}
         currentName={currentName}
         onSubmit={handleEditNameSubmit}
+        currentDescription={''}
+        currentTags={[]}
       />
     </>
   );

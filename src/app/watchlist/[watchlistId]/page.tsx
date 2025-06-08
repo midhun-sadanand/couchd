@@ -7,6 +7,7 @@ import { useSupabaseClient } from '@/utils/auth';
 import MovieCard from '@/components/MovieCard';
 import YouTubeCard from '@/components/YouTubeCard';
 import { MediaItem, StatusType } from '@/types';
+import ImageUploadModal from '@/components/ImageUploadModal';
 
 const MediaPage: React.FC = () => {
   const { watchlistId } = useParams();
@@ -19,6 +20,8 @@ const MediaPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [openCards, setOpenCards] = useState<Record<string, boolean>>({});
   const [dropdownOpen, setDropdownOpen] = useState<Record<string, boolean>>({});
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageUploadModalOpen, setImageUploadModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,6 +49,17 @@ const MediaPage: React.FC = () => {
         }
 
         setWatchlist({ ...wl, tags });
+
+        // Fetch image from Supabase Storage if exists
+        if (wl.image) {
+          const imagePath = String(wl.image);
+          const { data: publicUrlData } = supabase.storage
+            .from('images')
+            .getPublicUrl(imagePath);
+          setImageUrl(publicUrlData?.publicUrl || null);
+        } else {
+          setImageUrl(null);
+        }
 
         // Fetch media items
         const { data: mi, error: miError } = await supabase
@@ -140,6 +154,11 @@ const MediaPage: React.FC = () => {
     setDropdownOpen(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const handleImageUpload = (newImageUrl: string) => {
+    setImageUrl(newImageUrl);
+    setImageUploadModalOpen(false);
+  };
+
   if (userLoading || loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-[#e6e6e6]">
@@ -173,9 +192,26 @@ const MediaPage: React.FC = () => {
     );
   }
 
+  // Before the return statement, log the imageUrl for debugging
+  if (imageUrl) {
+    console.log('Watchlist image URL:', imageUrl);
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center bg-[#232323] p-4">
       <div className="w-full max-w-3xl">
+        {imageUrl && (
+          <div className="flex justify-center mb-4">
+            <img
+              src={watchlist.image}
+              alt={watchlist?.name || 'Watchlist'}
+              className="w-48 h-48 object-cover rounded-lg"
+              onError={(e) => {
+                e.currentTarget.src = '/default-watchlist.jpg';
+              }}
+            />
+          </div>
+        )}
         <h1 className="text-4xl font-bold text-[#e6e6e6] mb-2">{watchlist.name}</h1>
         <p className="text-lg text-gray-400 mb-4">{watchlist.description}</p>
         <div className="flex flex-wrap gap-2 mb-4">
@@ -208,7 +244,23 @@ const MediaPage: React.FC = () => {
             <div className="col-span-full text-gray-400">No media items in this watchlist yet.</div>
           )}
         </div>
+        <button
+          onClick={() => setImageUploadModalOpen(true)}
+          className="mt-4 bg-blue-600 text-white py-2 px-4 rounded"
+        >
+          Edit Watchlist
+        </button>
       </div>
+      {imageUploadModalOpen && (
+        <ImageUploadModal
+          watchlistId={watchlistId}
+          onClose={() => setImageUploadModalOpen(false)}
+          watchlistName={watchlist.name}
+          watchlistDescription={watchlist.description}
+          watchlistImage={watchlist.image}
+          onImageUpload={handleImageUpload}
+        />
+      )}
     </div>
   );
 };
