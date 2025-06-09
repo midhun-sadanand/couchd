@@ -24,6 +24,10 @@ const MediaPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openCards, setOpenCards] = useState<Record<string, boolean>>({});
+  const [dropdownOpen, setDropdownOpen] = useState<Record<string, boolean>>({});
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageUploadModalOpen, setImageUploadModalOpen] = useState(false);
+  const [friends, setFriends] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImageUploadModalOpen, setIsImageUploadModalOpen] = useState(false);
   const [sortOption, setSortOption] = useState('Custom Order');
@@ -31,6 +35,23 @@ const MediaPage: React.FC = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [sharedUsers, setSharedUsers] = useState<any[]>([]);
+
+  const fetchSharedUsers = useCallback(async () => {
+    if (!watchlist?.id || !supabase) return;
+    const { data, error } = await supabase
+      .from('watchlist_sharing')
+      .select('shared_with_user_id, profiles:shared_with_user_id (id, username)')
+      .eq('watchlist_id', watchlist.id);
+    if (!error && data) {
+      setSharedUsers(data.map((row: any) => row.profiles).filter(Boolean));
+    }
+  }, [watchlist, supabase]);
+
+  useEffect(() => {
+    fetchSharedUsers();
+  }, [watchlist, supabase, fetchSharedUsers]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -64,6 +85,33 @@ const MediaPage: React.FC = () => {
     };
     if (watchlistId && supabase) fetchData();
   }, [watchlistId, supabase]);
+
+  // Fetch friends for sharing
+  useEffect(() => {
+    const fetchFriends = async () => {
+      if (!user?.id || !supabase) return;
+      try {
+        const { data, error } = await supabase
+          .from('friends')
+          .select(`
+            friend_id,
+            profiles:friend_id (
+              id,
+              username
+            )
+          `)
+          .eq('user_id', user.id);
+        if (error) {
+          console.error('Error fetching friends:', error);
+          return;
+        }
+        setFriends((data || []).map((item: any) => item.profiles).filter(Boolean));
+      } catch (err) {
+        console.error('Error in fetchFriends:', err);
+      }
+    };
+    fetchFriends();
+  }, [user, supabase]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -214,6 +262,11 @@ const MediaPage: React.FC = () => {
     if (upErr) throw upErr;
   }
 
+  // When opening the modal, always fetch the latest shared users
+  const handleOpenEditModal = () => {
+    fetchSharedUsers().then(() => setIsEditModalOpen(true));
+  };
+
   if (userLoading || loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-[#e6e6e6]">
@@ -251,7 +304,7 @@ const MediaPage: React.FC = () => {
     <div className="container mx-auto top-24 p-4 dark:bg-gray-800 dark:text-white relative w-full">
       <div className="flex justify-between items-start mb-4 w-full">
         <div className="flex items-start space-x-4">
-          <div className="relative w-48 h-48 mb-4">
+          <div className="relative w-48 h-48 mb-4 group cursor-pointer" onClick={handleOpenEditModal}>
             {watchlist.image ? (
             <img
               src={watchlist.image}
@@ -267,16 +320,11 @@ const MediaPage: React.FC = () => {
                 <span className="text-gray-500">No Image</span>
               </div>
             )}
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100">
-              <button
-                onClick={() => setIsImageUploadModalOpen(true)}
-                className="text-white flex flex-col items-center"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6 mb-1">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                </svg>
-                <span>Edit watchlist</span>
-              </button>
+            <div className="absolute inset-0 bg-black bg-opacity-40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-10 h-10 text-white mb-2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+              </svg>
+              <span className="text-white font-semibold">Edit</span>
             </div>
           </div>
           <div className="flex flex-col justify-start h-48">
@@ -470,6 +518,20 @@ const MediaPage: React.FC = () => {
           isOpen={isImageUploadModalOpen}
           onClose={() => setIsImageUploadModalOpen(false)}
           onUpload={() => {}}
+        />
+      )}
+      {isEditModalOpen && (
+        <EditWatchlistModal
+          watchlist={watchlist}
+          onClose={() => setIsEditModalOpen(false)}
+          onSave={(updates) => {
+            // After saving, re-fetch shared users to ensure modal is up-to-date
+            fetchSharedUsers();
+            setIsEditModalOpen(false);
+          }}
+          friends={friends}
+          sharedUsers={sharedUsers}
+          refreshWatchlist={fetchSharedUsers}
         />
       )}
     </div>
