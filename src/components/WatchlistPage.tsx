@@ -57,6 +57,10 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({ isFriendSidebarOpen = fal
   const [isLoading, setIsLoading] = useState(true);
   const [showImageModal, setShowImageModal] = useState(false);
   const [sharedUsers, setSharedUsers] = useState<User[]>([]);
+  const [selectedTab, setSelectedTab] = useState<'created' | 'shared' | 'all'>('created');
+  const [createdWatchlists, setCreatedWatchlists] = useState<Watchlist[]>([]);
+  const [sharedWatchlists, setSharedWatchlists] = useState<Watchlist[]>([]);
+  const [allWatchlists, setAllWatchlists] = useState<Watchlist[]>([]);
 
   const watchlists = watchlistData?.watchlists || [];
 
@@ -156,6 +160,109 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({ isFriendSidebarOpen = fal
     setShowImageModal(false);
   };
 
+  useEffect(() => {
+    if (!user) return;
+    const fetchWatchlists = async () => {
+      try {
+        console.log('Fetching watchlists for user:', user.id);
+        
+        // Created by you
+        const { data: created, error: createdError } = await supabase
+          .from('watchlists')
+          .select('*')
+          .eq('user_id', user.id);
+        
+        if (createdError) {
+          console.error('Error fetching created watchlists:', createdError);
+          throw createdError;
+        }
+        console.log('Created watchlists:', created);
+
+        // Shared with you - using a more inclusive approach
+        const { data: shared, error: sharedError } = await supabase
+          .from('watchlist_sharing')
+          .select(`
+            watchlist_id,
+            watchlists (
+              *,
+              profiles (
+                username
+              )
+            )
+          `)
+          .eq('shared_with_user_id', user.id);
+
+        if (sharedError) {
+          console.error('Error fetching shared watchlists:', sharedError);
+          throw sharedError;
+        }
+        console.log('Raw shared watchlists data:', shared);
+        console.log('Number of shared watchlists found:', shared?.length || 0);
+
+        // Also check watchlists where user is in shared_with array
+        const { data: jsonShared, error: jsonSharedError } = await supabase
+          .from('watchlists')
+          .select(`
+            *,
+            profiles (
+              username
+            )
+          `)
+          .contains('shared_with', [user.id]);
+
+        if (jsonSharedError) {
+          console.error('Error fetching JSON shared watchlists:', jsonSharedError);
+          throw jsonSharedError;
+        }
+        console.log('JSON shared watchlists:', jsonShared);
+        console.log('Number of JSON shared watchlists found:', jsonShared?.length || 0);
+
+        // Transform shared watchlists data
+        const sharedWatchlists = [
+          ...(shared || []).map((row: any) => {
+            console.log('Processing shared watchlist row:', row);
+            return {
+              ...row.watchlists,
+              ownerUsername: row.watchlists?.profiles?.username
+            };
+          }),
+          ...(jsonShared || []).map((wl: any) => {
+            console.log('Processing JSON shared watchlist:', wl);
+            return {
+              ...wl,
+              ownerUsername: wl.profiles?.username
+            };
+          })
+        ].filter(Boolean);
+        
+        console.log('Transformed shared watchlists:', sharedWatchlists);
+        console.log('Number of transformed shared watchlists:', sharedWatchlists.length);
+
+        // All (no duplicates)
+        const all = [
+          ...(created || []),
+          ...sharedWatchlists.filter((wl: Watchlist) => 
+            !(created || []).some((cw: Watchlist) => cw.id === wl.id)
+          )
+        ];
+        console.log('All watchlists:', all);
+        console.log('Number of all watchlists:', all.length);
+
+        setCreatedWatchlists(created || []);
+        setSharedWatchlists(sharedWatchlists);
+        setAllWatchlists(all);
+      } catch (err) {
+        console.error('Error in fetchWatchlists:', err);
+      }
+    };
+    fetchWatchlists();
+  }, [user, supabase]);
+
+  let displayedWatchlists: Watchlist[] = [];
+  if (selectedTab === 'created') displayedWatchlists = createdWatchlists;
+  else if (selectedTab === 'shared') displayedWatchlists = sharedWatchlists;
+  else displayedWatchlists = allWatchlists;
+
   if (error) {
     return <div className="min-h-screen flex items-center justify-center text-red-500">Error loading watchlists</div>;
   }
@@ -177,6 +284,27 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({ isFriendSidebarOpen = fal
       <h1 className="text-6xl my-10 text-[#e6e6e6] font-bold text-center">
         Your Watchlists
       </h1>
+      {/* Tab Selector - moved directly under heading */}
+      <div className="flex space-x-4 mb-8 justify-center w-full">
+        <button
+          className={`px-4 py-2 rounded transition-colors duration-200 font-semibold text-lg ${selectedTab === 'created' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300 border border-[#444]'}`}
+          onClick={() => setSelectedTab('created')}
+        >
+          Created by You
+        </button>
+        <button
+          className={`px-4 py-2 rounded transition-colors duration-200 font-semibold text-lg ${selectedTab === 'shared' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300 border border-[#444]'}`}
+          onClick={() => setSelectedTab('shared')}
+        >
+          Shared with You
+        </button>
+        <button
+          className={`px-4 py-2 rounded transition-colors duration-200 font-semibold text-lg ${selectedTab === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300 border border-[#444]'}`}
+          onClick={() => setSelectedTab('all')}
+        >
+          All
+        </button>
+      </div>
       <div
         className="grid gap-4"
         style={{
@@ -187,7 +315,7 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({ isFriendSidebarOpen = fal
           justifyItems: 'center',
         }}
       >
-        {watchlists.map((list: Watchlist) => (
+        {displayedWatchlists.map((list: Watchlist) => (
           <WatchlistWidget
             key={list.id}
             watchlistId={list.id}

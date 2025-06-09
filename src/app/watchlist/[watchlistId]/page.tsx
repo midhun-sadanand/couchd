@@ -12,6 +12,154 @@ import SearchModal from '@/components/SearchModal';
 import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
 import { arrayMoveImmutable as arrayMove } from 'array-move';
 
+function EditWatchlistModal({ watchlist, onClose, onSave, friends, sharedUsers, refreshWatchlist }: { watchlist: any, onClose: () => void, onSave: (updates: any) => void, friends: any[], sharedUsers: any[], refreshWatchlist: () => void }) {
+  const supabase = useSupabaseClient();
+  const { user } = useUser();
+  const [name, setName] = useState(watchlist.name || '');
+  const [description, setDescription] = useState(watchlist.description || '');
+  const [image, setImage] = useState(watchlist.image || '');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const sharedUserIdSet = new Set(sharedUsers.map((u: any) => u.id));
+  const [pendingShares, setPendingShares] = useState<string[]>(Array.from(sharedUserIdSet));
+  const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Always update pendingShares when sharedUsers prop changes (e.g., after DB update)
+  useEffect(() => {
+    setPendingShares(Array.from(new Set(sharedUsers.map((u: any) => u.id))));
+  }, [sharedUsers]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setImageFile(e.target.files[0]);
+      const reader = new FileReader();
+      reader.onload = () => setImage(reader.result as string);
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  };
+
+  const handleShareToggle = (friendId: string) => {
+    setPendingShares(prev =>
+      prev.includes(friendId)
+        ? prev.filter(id => id !== friendId)
+        : [...prev, friendId]
+    );
+  };
+
+  const filteredFriends = friends.filter(friend =>
+    friend.username.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleSave = async () => {
+    setLoading(true);
+    let imageUrl = image;
+    try {
+      // 1. Upload new image if changed
+      if (imageFile) {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${watchlist.id}_${Date.now()}.${fileExt}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage.from('images').upload(fileName, imageFile, { upsert: true });
+        if (uploadError) throw uploadError;
+        const { data: publicUrlData } = supabase.storage.from('images').getPublicUrl(fileName);
+        imageUrl = publicUrlData.publicUrl;
+      }
+      // 2. Update watchlist
+      const { error: updateError } = await supabase
+        .from('watchlists')
+        .update({ name, description, image: imageUrl })
+        .eq('id', watchlist.id);
+      if (updateError) throw updateError;
+      // 3. Update sharing: add new, remove unshared
+      const { data: currentShares, error: shareFetchError } = await supabase
+        .from('watchlist_sharing')
+        .select('shared_with_user_id')
+        .eq('watchlist_id', watchlist.id);
+      if (shareFetchError) throw shareFetchError;
+      const currentSharedIds = (currentShares || []).map((row: any) => row.shared_with_user_id);
+      const toAdd = pendingShares.filter(id => !currentSharedIds.includes(id));
+      if (toAdd.length > 0) {
+        const addRows = toAdd.map(id => ({ watchlist_id: watchlist.id, shared_with_user_id: id }));
+        const { error: addError } = await supabase.from('watchlist_sharing').insert(addRows);
+        if (addError) throw addError;
+      }
+      const toRemove = currentSharedIds.filter((id: string) => !pendingShares.includes(id));
+      if (toRemove.length > 0) {
+        const { error: removeError } = await supabase
+          .from('watchlist_sharing')
+          .delete()
+          .eq('watchlist_id', watchlist.id)
+          .in('shared_with_user_id', toRemove);
+        if (removeError) throw removeError;
+      }
+      setLoading(false);
+      onSave({ name, description, image: imageUrl, sharedWith: pendingShares });
+      await refreshWatchlist(); // Ensure parent fetches latest DB state
+      onClose();
+    } catch (err: any) {
+      setLoading(false);
+      alert('Error saving: ' + (err.message || err));
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 z-50">
+      <div className="bg-[#232323] rounded-lg p-6 w-full max-w-md relative shadow-2xl border border-[#333]">
+        <button onClick={onClose} className="absolute top-2 right-2 text-gray-400 hover:text-white text-2xl">✕</button>
+        <h2 className="text-2xl font-bold mb-4 text-[#f6f6f6]">Edit Watchlist</h2>
+        <div className="mb-4 flex flex-col items-center">
+          <img src={image || '/default-watchlist.jpg'} alt="Watchlist" className="w-32 h-32 object-cover rounded mb-2 border border-[#444]" />
+          <input type="file" ref={fileInputRef} className="hidden" onChange={handleImageChange} />
+          <button onClick={() => fileInputRef.current?.click()} className="text-blue-400 underline">Change Image</button>
+        </div>
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-1 text-[#f6f6f6]">Name</label>
+          <input value={name} onChange={e => setName(e.target.value)} className="w-full border border-[#444] rounded p-2 bg-[#2e2e2e] text-[#f6f6f6] focus:outline-none" />
+        </div>
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-1 text-[#f6f6f6]">Description</label>
+          <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full border border-[#444] rounded p-2 bg-[#2e2e2e] text-[#f6f6f6] focus:outline-none" />
+        </div>
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-1 text-[#f6f6f6]">Share with friends</label>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full p-2 mb-2 border border-[#444] rounded bg-[#2e2e2e] text-[#f6f6f6] focus:outline-none"
+            placeholder="Search friends..."
+          />
+          <div className="max-h-40 overflow-y-auto space-y-2">
+            {filteredFriends.map(friend => {
+              const isShared = pendingShares.includes(friend.id);
+              return (
+                <div key={friend.id} className="flex justify-between items-center">
+                  <span className="text-[#f6f6f6]">{friend.username}</span>
+                  <button
+                    onClick={() => handleShareToggle(friend.id)}
+                    className={`px-2 py-1 rounded transition-colors duration-200 ${isShared ? 'bg-green-500' : 'bg-blue-500'} text-white`}
+                    disabled={loading}
+                  >
+                    {isShared ? 'Shared' : 'Share'}
+                  </button>
+                </div>
+              );
+            })}
+            {filteredFriends.length === 0 && <div className="text-gray-400 text-sm">No friends found.</div>}
+          </div>
+        </div>
+        <button
+          onClick={handleSave}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full mt-2 font-semibold transition-colors duration-200 disabled:opacity-60"
+          disabled={loading}
+        >
+          {loading ? 'Saving...' : 'Save'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const MediaPage: React.FC = () => {
   const { watchlistId } = useParams();
   const { user, loading: userLoading } = useUser();
@@ -22,6 +170,10 @@ const MediaPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openCards, setOpenCards] = useState<Record<string, boolean>>({});
+  const [dropdownOpen, setDropdownOpen] = useState<Record<string, boolean>>({});
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageUploadModalOpen, setImageUploadModalOpen] = useState(false);
+  const [friends, setFriends] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImageUploadModalOpen, setIsImageUploadModalOpen] = useState(false);
   const [sortOption, setSortOption] = useState('Custom Order');
@@ -29,6 +181,23 @@ const MediaPage: React.FC = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [sharedUsers, setSharedUsers] = useState<any[]>([]);
+
+  const fetchSharedUsers = useCallback(async () => {
+    if (!watchlist?.id || !supabase) return;
+    const { data, error } = await supabase
+      .from('watchlist_sharing')
+      .select('shared_with_user_id, profiles:shared_with_user_id (id, username)')
+      .eq('watchlist_id', watchlist.id);
+    if (!error && data) {
+      setSharedUsers(data.map((row: any) => row.profiles).filter(Boolean));
+    }
+  }, [watchlist, supabase]);
+
+  useEffect(() => {
+    fetchSharedUsers();
+  }, [watchlist, supabase, fetchSharedUsers]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -61,6 +230,33 @@ const MediaPage: React.FC = () => {
     };
     if (watchlistId && supabase) fetchData();
   }, [watchlistId, supabase]);
+
+  // Fetch friends for sharing
+  useEffect(() => {
+    const fetchFriends = async () => {
+      if (!user?.id || !supabase) return;
+      try {
+        const { data, error } = await supabase
+          .from('friends')
+          .select(`
+            friend_id,
+            profiles:friend_id (
+              id,
+              username
+            )
+          `)
+          .eq('user_id', user.id);
+        if (error) {
+          console.error('Error fetching friends:', error);
+          return;
+        }
+        setFriends((data || []).map((item: any) => item.profiles).filter(Boolean));
+      } catch (err) {
+        console.error('Error in fetchFriends:', err);
+      }
+    };
+    fetchFriends();
+  }, [user, supabase]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -182,6 +378,11 @@ const MediaPage: React.FC = () => {
     setIsDropdownOpen(!isDropdownOpen);
   };
 
+  // When opening the modal, always fetch the latest shared users
+  const handleOpenEditModal = () => {
+    fetchSharedUsers().then(() => setIsEditModalOpen(true));
+  };
+
   if (userLoading || loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-[#e6e6e6]">
@@ -219,7 +420,7 @@ const MediaPage: React.FC = () => {
     <div className="container mx-auto top-24 p-4 dark:bg-gray-800 dark:text-white relative w-full">
       <div className="flex justify-between items-start mb-4 w-full">
         <div className="flex items-start space-x-4">
-          <div className="relative w-48 h-48 mb-4">
+          <div className="relative w-48 h-48 mb-4 group cursor-pointer" onClick={handleOpenEditModal}>
             {watchlist.image ? (
               <img
                 src={watchlist.image}
@@ -235,16 +436,11 @@ const MediaPage: React.FC = () => {
                 <span className="text-gray-500">No Image</span>
               </div>
             )}
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100">
-              <button
-                onClick={() => setIsImageUploadModalOpen(true)}
-                className="text-white flex flex-col items-center"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6 mb-1">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                </svg>
-                <span>Edit watchlist</span>
-              </button>
+            <div className="absolute inset-0 bg-black bg-opacity-40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-10 h-10 text-white mb-2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+              </svg>
+              <span className="text-white font-semibold">Edit</span>
             </div>
           </div>
           <div className="flex flex-col justify-start h-48">
@@ -355,6 +551,20 @@ const MediaPage: React.FC = () => {
           isOpen={isImageUploadModalOpen}
           onClose={() => setIsImageUploadModalOpen(false)}
           onUpload={() => {}}
+        />
+      )}
+      {isEditModalOpen && (
+        <EditWatchlistModal
+          watchlist={watchlist}
+          onClose={() => setIsEditModalOpen(false)}
+          onSave={(updates) => {
+            // After saving, re-fetch shared users to ensure modal is up-to-date
+            fetchSharedUsers();
+            setIsEditModalOpen(false);
+          }}
+          friends={friends}
+          sharedUsers={sharedUsers}
+          refreshWatchlist={fetchSharedUsers}
         />
       )}
     </div>
