@@ -1,27 +1,34 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useUser } from '@/utils/auth';
 import { useSupabaseClient } from '@/utils/auth';
 import MovieCard from '@/components/MovieCard';
 import YouTubeCard from '@/components/YouTubeCard';
-import { MediaItem, StatusType } from '@/types';
 import ImageUploadModal from '@/components/ImageUploadModal';
+import SearchBar from '@/components/SearchBar';
+import SearchModal from '@/components/SearchModal';
+import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
+import { arrayMoveImmutable as arrayMove } from 'array-move';
 
 const MediaPage: React.FC = () => {
   const { watchlistId } = useParams();
   const { user, loading: userLoading } = useUser();
   const supabase = useSupabaseClient();
 
+  const [mediaItems, setMediaItems] = useState<any[]>([]);
   const [watchlist, setWatchlist] = useState<any>(null);
-  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openCards, setOpenCards] = useState<Record<string, boolean>>({});
-  const [dropdownOpen, setDropdownOpen] = useState<Record<string, boolean>>({});
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [imageUploadModalOpen, setImageUploadModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImageUploadModalOpen, setIsImageUploadModalOpen] = useState(false);
+  const [sortOption, setSortOption] = useState('Custom Order');
+  const [customOrder, setCustomOrder] = useState<any[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,31 +42,7 @@ const MediaPage: React.FC = () => {
           .eq('id', watchlistId)
           .single();
         if (wlError) throw wlError;
-
-        // Parse tags if needed
-        let tags: string[] = [];
-        if (wl.tags) {
-          try {
-            tags = Array.isArray(wl.tags)
-              ? wl.tags
-              : JSON.parse(wl.tags);
-          } catch {
-            tags = wl.tags.split(',').map((t: string) => t.trim());
-          }
-        }
-
-        setWatchlist({ ...wl, tags });
-
-        // Fetch image from Supabase Storage if exists
-        if (wl.image) {
-          const imagePath = String(wl.image);
-          const { data: publicUrlData } = supabase.storage
-            .from('images')
-            .getPublicUrl(imagePath);
-          setImageUrl(publicUrlData?.publicUrl || null);
-        } else {
-          setImageUrl(null);
-        }
+        setWatchlist(wl);
 
         // Fetch media items
         const { data: mi, error: miError } = await supabase
@@ -68,15 +51,14 @@ const MediaPage: React.FC = () => {
           .eq('watchlist_id', watchlistId)
           .order('created_at', { ascending: false });
         if (miError) throw miError;
-
         setMediaItems(mi || []);
+        setCustomOrder(mi || []);
       } catch (err: any) {
         setError(err.message || 'Failed to load data');
       } finally {
         setLoading(false);
       }
     };
-
     if (watchlistId && supabase) fetchData();
   }, [watchlistId, supabase]);
 
@@ -86,10 +68,9 @@ const MediaPage: React.FC = () => {
         .from('media_items')
         .delete()
         .eq('id', id);
-      
       if (error) throw error;
-      
       setMediaItems(prev => prev.filter(item => item.id !== id));
+      setCustomOrder(prev => prev.filter(item => item.id !== id));
     } catch (err: any) {
       console.error('Error deleting media item:', err.message);
     }
@@ -101,29 +82,21 @@ const MediaPage: React.FC = () => {
         .from('media_items')
         .update({ notes })
         .eq('id', id);
-      
       if (error) throw error;
-      
-      setMediaItems(prev => prev.map(item => 
-        item.id === id ? { ...item, notes } : item
-      ));
+      setMediaItems(prev => prev.map(item => item.id === id ? { ...item, notes } : item));
     } catch (err: any) {
       console.error('Error updating notes:', err.message);
     }
   };
 
-  const handleStatusChange = async (id: string, status: StatusType) => {
+  const handleStatusChange = async (id: string, status: string) => {
     try {
       const { error } = await supabase
         .from('media_items')
         .update({ status })
         .eq('id', id);
-      
       if (error) throw error;
-      
-      setMediaItems(prev => prev.map(item => 
-        item.id === id ? { ...item, status } : item
-      ));
+      setMediaItems(prev => prev.map(item => item.id === id ? { ...item, status } : item));
     } catch (err: any) {
       console.error('Error updating status:', err.message);
     }
@@ -135,28 +108,78 @@ const MediaPage: React.FC = () => {
         .from('media_items')
         .update({ rating })
         .eq('id', id);
-      
       if (error) throw error;
-      
-      setMediaItems(prev => prev.map(item => 
-        item.id === id ? { ...item, rating } : item
-      ));
+      setMediaItems(prev => prev.map(item => item.id === id ? { ...item, rating } : item));
     } catch (err: any) {
       console.error('Error updating rating:', err.message);
     }
   };
 
-  const handleToggleOpen = (id: string, isOpen: boolean) => {
+  const setIsOpen = useCallback((id: string, isOpen: boolean) => {
     setOpenCards(prev => ({ ...prev, [id]: isOpen }));
+  }, []);
+
+  const onSortEnd = async (result: any) => {
+    if (!result.destination) return;
+    const reorderedItems = arrayMove(mediaItems, result.source.index, result.destination.index);
+    setMediaItems(reorderedItems);
+    setCustomOrder(reorderedItems);
+    try {
+      await Promise.all(reorderedItems.map((item, index) =>
+        supabase.from('media_items').update({ order: index }).match({ id: item.id })
+      ));
+    } catch (error) {
+      console.error('Error updating order on backend:', error);
+    }
   };
 
-  const handleToggleDropdown = (id: string) => {
-    setDropdownOpen(prev => ({ ...prev, [id]: !prev[id] }));
+  const handleSortChange = (option: string) => {
+    setSortOption(option);
+    let sortedMediaItems;
+    switch (option) {
+      case 'Date Added':
+        sortedMediaItems = [...mediaItems].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        break;
+      case 'Date Modified':
+        sortedMediaItems = [...mediaItems].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+        break;
+      case 'Title':
+        sortedMediaItems = [...mediaItems].sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'Added By':
+        sortedMediaItems = [...mediaItems].sort((a, b) => (a.added_by || '').localeCompare(b.added_by || ''));
+        break;
+      case 'Status':
+        const statusOrder = ['consuming', 'to consume', 'consumed'];
+        sortedMediaItems = [...mediaItems].sort((a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status));
+        break;
+      case 'Medium':
+        const mediumOrder = ['Youtube', 'Movie', 'TV Show'];
+        sortedMediaItems = [...mediaItems].sort((a, b) => mediumOrder.indexOf(a.medium) - mediumOrder.indexOf(b.medium));
+        break;
+      case 'Custom Order':
+      default:
+        sortedMediaItems = [...customOrder];
+        break;
+    }
+    setMediaItems(sortedMediaItems);
+    setIsDropdownOpen(false);
   };
 
-  const handleImageUpload = (newImageUrl: string) => {
-    setImageUrl(newImageUrl);
-    setImageUploadModalOpen(false);
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sortDropdownRef.current && !(sortDropdownRef.current as any).contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const toggleDropdown = () => {
+    setIsDropdownOpen(!isDropdownOpen);
   };
 
   if (userLoading || loading) {
@@ -192,73 +215,146 @@ const MediaPage: React.FC = () => {
     );
   }
 
-  // Before the return statement, log the imageUrl for debugging
-  if (imageUrl) {
-    console.log('Watchlist image URL:', imageUrl);
-  }
-
   return (
-    <div className="min-h-screen flex flex-col items-center bg-[#232323] p-4">
-      <div className="w-full max-w-3xl">
-        {imageUrl && (
-          <div className="flex justify-center mb-4">
-            <img
-              src={watchlist.image}
-              alt={watchlist?.name || 'Watchlist'}
-              className="w-48 h-48 object-cover rounded-lg"
-              onError={(e) => {
-                e.currentTarget.src = '/default-watchlist.jpg';
-              }}
-            />
+    <div className="container mx-auto top-24 p-4 dark:bg-gray-800 dark:text-white relative w-full">
+      <div className="flex justify-between items-start mb-4 w-full">
+        <div className="flex items-start space-x-4">
+          <div className="relative w-48 h-48 mb-4">
+            {watchlist.image ? (
+              <img
+                src={watchlist.image}
+                alt="Watchlist"
+                className="w-full h-full object-cover rounded-lg transition-opacity duration-300"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/default-watchlist.jpg';
+                }}
+                loading="lazy"
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-300 rounded-lg flex items-center justify-center">
+                <span className="text-gray-500">No Image</span>
+              </div>
+            )}
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100">
+              <button
+                onClick={() => setIsImageUploadModalOpen(true)}
+                className="text-white flex flex-col items-center"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6 mb-1">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                </svg>
+                <span>Edit watchlist</span>
+              </button>
+            </div>
           </div>
-        )}
-        <h1 className="text-4xl font-bold text-[#e6e6e6] mb-2">{watchlist.name}</h1>
-        <p className="text-lg text-gray-400 mb-4">{watchlist.description}</p>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {(watchlist.tags || []).map((tag: string, idx: number) => (
-            <span key={idx} className="bg-[#3b3b3b] text-gray-300 px-2 py-1 rounded-full text-sm">{tag}</span>
-          ))}
+          <div className="flex flex-col justify-start h-48">
+            <p className="text-sm text-gray-400 text-left">{watchlist.is_public ? 'Public watchlist' : 'Private watchlist'}</p>
+            <h1 className="watchlist-title text-5xl font-bold text-white text-left cursor-pointer" onClick={() => setIsImageUploadModalOpen(true)}>
+              {watchlist.name}
+            </h1>
+            <p className="watchlist-description text-lg text-gray-300 text-left mb-7 flex-grow">
+              {watchlist.description}
+            </p>
+            {/* Add shared users/avatars here if needed */}
+            <span className="text-sm text-gray-400">
+              {/* Owner, shared users, and media count can be added here if available */}
+              {mediaItems.length} media
+            </span>
+          </div>
         </div>
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-          {mediaItems.length > 0 ? (
-            mediaItems.map((item: MediaItem) => {
-              const commonProps = {
-                item,
-                onDelete: () => handleDelete(item.id),
-                onNotesChange: handleNotesChange,
-                onStatusChange: handleStatusChange,
-                onRatingChange: handleRatingChange,
-                isOpen: openCards[item.id] || false,
-                setIsOpen: handleToggleOpen,
-                isDropdownOpen: dropdownOpen[item.id] || false,
-                toggleDropdown: () => handleToggleDropdown(item.id),
-              };
-
-              return item.medium === 'YouTube' ? (
-                <YouTubeCard key={item.id} {...commonProps} />
-              ) : (
-                <MovieCard key={item.id} {...commonProps} />
-              );
-            })
-          ) : (
-            <div className="col-span-full text-gray-400">No media items in this watchlist yet.</div>
+        <div className="flex justify-end w-full sm:w-48 md:w-60 lg:w-96 xl:w-1/4">
+          <SearchBar onSearchClick={() => setIsModalOpen(true)} />
+        </div>
+      </div>
+      <div className="flex justify-end items-center mb-4 w-full" style={{ marginTop: '-65px' }}>
+        <div className="relative inline-block text-left" ref={sortDropdownRef}>
+          <button
+            onClick={toggleDropdown}
+            className="ml-4 bg-[#3b3b3b] text-white px-3 py-2 rounded focus:outline-none"
+            style={{ width: '160px' }}
+          >
+            {sortOption}
+            <svg
+              className={`w-5 h-5 inline ml-2 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : 'rotate-0'}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+          {isDropdownOpen && (
+            <div className="dropdown-menu-sort slide-out-down absolute z-10 ml-4 mt-2 w-full bg-gray-700 text-white text-xl rounded-md shadow-lg"
+                 style={{ width: '160px' }}
+            >
+              <ul className="py-1 text-sm">
+                {['Custom Order', 'Status', 'Medium', 'Date Added', 'Date Modified', 'Title', 'Added By'].map((option) => (
+                  <li
+                    key={option}
+                    className="cursor-pointer px-4 py-2 hover:bg-gray-600"
+                    onClick={() => handleSortChange(option)}
+                  >
+                    {option}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
-        <button
-          onClick={() => setImageUploadModalOpen(true)}
-          className="mt-4 bg-blue-600 text-white py-2 px-4 rounded"
-        >
-          Edit Watchlist
-        </button>
       </div>
-      {imageUploadModalOpen && (
+      <DragDropContext onDragEnd={onSortEnd}>
+        <Droppable droppableId={`droppable-${watchlistId}`}>
+          {(provided) => (
+            <div ref={provided.innerRef} {...provided.droppableProps}>
+              {mediaItems.map((item, index) => (
+                item.medium === 'YouTube' ? (
+                  <YouTubeCard
+                    key={item.id}
+                    item={item}
+                    onDelete={() => handleDelete(item.id)}
+                    onNotesChange={handleNotesChange}
+                    onStatusChange={handleStatusChange}
+                    onRatingChange={handleRatingChange}
+                    isOpen={openCards[item.id] || false}
+                    setIsOpen={setIsOpen}
+                    isDropdownOpen={false}
+                    toggleDropdown={() => {}}
+                  />
+                ) : (
+                  <MovieCard
+                    key={item.id}
+                    item={item}
+                    onDelete={() => handleDelete(item.id)}
+                    onNotesChange={handleNotesChange}
+                    onStatusChange={handleStatusChange}
+                    onRatingChange={handleRatingChange}
+                    isOpen={openCards[item.id] || false}
+                    setIsOpen={setIsOpen}
+                    isDropdownOpen={false}
+                    toggleDropdown={() => {}}
+                  />
+                )
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
+      {isModalOpen && (
+        <SearchModal
+          isOpen={isModalOpen}
+          onSelect={() => {}}
+          onClose={() => setIsModalOpen(false)}
+          medium={watchlist?.medium || 'movies'}
+          inputRef={inputRef}
+        />
+      )}
+      {isImageUploadModalOpen && (
         <ImageUploadModal
-          watchlistId={watchlistId}
-          onClose={() => setImageUploadModalOpen(false)}
-          watchlistName={watchlist.name}
-          watchlistDescription={watchlist.description}
-          watchlistImage={watchlist.image}
-          onImageUpload={handleImageUpload}
+          isOpen={isImageUploadModalOpen}
+          onClose={() => setIsImageUploadModalOpen(false)}
+          onUpload={() => {}}
         />
       )}
     </div>
