@@ -42,18 +42,16 @@ const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ user, visible, on
       return;
     }
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/watchlists`, {
+      const response = await fetch('/api/watchlists', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          watchlistName,
+          name: watchlistName,
           description,
-          tags,
           isPublic,
           userId: user.id,
-          username: user.username,
         }),
       });
       if (!response.ok) {
@@ -62,7 +60,7 @@ const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ user, visible, on
       }
       const newWatchlist = await response.json();
       setWatchlists([...watchlists, newWatchlist]);
-      router.push(`/list/${user.username}/${encodeURIComponent(watchlistName)}/${newWatchlist.id}`);
+      router.push(`/watchlist/${newWatchlist.id}`);
       setToast({
         text: `Watchlist '${watchlistName}' created successfully!`,
         type: 'success',
@@ -117,7 +115,7 @@ const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ user, visible, on
   };
 
   return (
-    <Modal visible={visible} onClose={resetModal} width="40rem" style={{ backgroundColor: theme.palette.background, color: theme.palette.foreground }}>
+    <Modal visible={visible} onClose={resetModal} width="40rem">
       <div className="modal-header">
         <Modal.Title>Create A New Watchlist</Modal.Title>
         <div className="toggle-wrapper">
@@ -131,45 +129,62 @@ const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ user, visible, on
             {errorMessage}
           </Note>
         )}
-        <Input
-          width="100%"
-          label="Watchlist Name"
-          placeholder="Enter Watchlist Name"
-          value={watchlistName}
-          onChange={(e) => setWatchlistName(e.target.value)}
-          mb={1}
-        />
-        <Input
-          width="100%"
-          label="Description"
-          placeholder="Enter Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          mb={1}
-        />
-        <AutoComplete
-          label="Tags"
-          width="100%"
-          options={options}
-          placeholder="Enter tag and press enter"
-          onSearch={handleTagInput}
-          clearable
-          disableFreeSolo
-          value={tagInput}
-          onChange={setTagInput}
-          onKeyPress={handleKeyPress}
-          mb={1}
-        />
+        <div style={{ marginBottom: '0.5rem' }}>
+          <label htmlFor="watchlist-name" className="input-label">Watchlist Name</label>
+          <Input
+            id="watchlist-name"
+            width="100%"
+            placeholder="Enter Watchlist Name"
+            value={watchlistName}
+            onChange={(e) => setWatchlistName(e.target.value)}
+            onPointerEnterCapture={() => {}}
+            onPointerLeaveCapture={() => {}}
+            crossOrigin="anonymous"
+          />
+        </div>
+        <div style={{ marginBottom: '0.5rem' }}>
+          <label htmlFor="watchlist-description" className="input-label">Description</label>
+          <Input
+            id="watchlist-description"
+            width="100%"
+            placeholder="Enter Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            onPointerEnterCapture={() => {}}
+            onPointerLeaveCapture={() => {}}
+            crossOrigin="anonymous"
+          />
+        </div>
+        <div style={{ marginBottom: '0.5rem' }}>
+          <label htmlFor="watchlist-tags" className="input-label">Tags</label>
+          <AutoComplete
+            id="watchlist-tags"
+            width="100%"
+            options={options}
+            placeholder="Enter tag and press enter"
+            onSearch={handleTagInput}
+            clearable
+            disableFreeSolo
+            value={tagInput}
+            onChange={setTagInput}
+            onKeyPress={handleKeyPress}
+            onPointerEnterCapture={() => {}}
+            onPointerLeaveCapture={() => {}}
+            crossOrigin="anonymous"
+          />
+        </div>
         <div className="flex flex-wrap mt-2">
           {tags.map((tag, index) => (
             <div key={index} className="modal-tag flex items-center mr-2 mb-2">
               {tag}
               <Button
                 auto
-                size="mini"
                 type="abort"
                 onClick={() => removeTag(index)}
                 className="tag-button"
+                onPointerEnterCapture={() => {}}
+                onPointerLeaveCapture={() => {}}
+                placeholder=""
               >
                 &times;
               </Button>
@@ -177,8 +192,8 @@ const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ user, visible, on
           ))}
         </div>
       </Modal.Content>
-      <Modal.Action onClick={resetModal} type="abort">Cancel</Modal.Action>
-      <Modal.Action onClick={createWatchlist}>Create</Modal.Action>
+      <Modal.Action onClick={resetModal} type="abort" onPointerEnterCapture={() => {}} onPointerLeaveCapture={() => {}} placeholder="">Cancel</Modal.Action>
+      <Modal.Action onClick={createWatchlist} onPointerEnterCapture={() => {}} onPointerLeaveCapture={() => {}} placeholder="">Create</Modal.Action>
       <style jsx>{`
         .modal-header {
           display: flex;
@@ -195,6 +210,12 @@ const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ user, visible, on
           font-size: 14px;
           color: ${theme.palette.accents_6};
           margin-top: 0;
+        }
+        .input-label {
+          display: block;
+          margin-bottom: 0.25rem;
+          color: ${theme.palette.accents_6};
+          font-size: 1rem;
         }
       `}</style>
     </Modal>

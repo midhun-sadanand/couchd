@@ -203,15 +203,6 @@ const Page = () => {
       </div>
       {!user && (
         <div className="flex justify-center mt-8">
-          <button
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-            onClick={() => {
-              setShowAuth(true);
-              console.log('setShowAuth(true) called, showAuth:', true);
-            }}
-          >
-            Sign In / Register
-          </button>
           <AuthModal open={showAuth} onClose={() => {
             setShowAuth(false);
             console.log('setShowAuth(false) called, showAuth:', false);

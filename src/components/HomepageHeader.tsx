@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import Clock from './Clock';
 import Logo from './Logo';
 import { useUser } from '@/utils/auth';
+import HeaderTabs from './HeaderTabs';
+import { useHeaderTabs } from './useHeaderTabs';
 
 type Props = {
   toggleAuth: () => void;
@@ -12,6 +14,21 @@ const HomepageHeader: React.FC<Props> = ({ toggleAuth }) => {
   const [translateY, setTranslateY] = useState(0);
   const [lastScrollTop, setLastScrollTop] = useState(0);
   const { user, loading } = useUser();
+
+  const tabs = [
+    {
+      label: 'Sign In',
+      id: 'signin',
+      onClick: toggleAuth
+    },
+    {
+      label: 'Register',
+      id: 'register',
+      onClick: toggleAuth
+    }
+  ];
+
+  const { tabProps } = useHeaderTabs(tabs);
 
   const handleScroll = () => {
     const currentScroll = window.scrollY || document.documentElement.scrollTop;
@@ -46,12 +63,9 @@ const HomepageHeader: React.FC<Props> = ({ toggleAuth }) => {
         <Clock />
         <nav className="flex items-center">
           {!loading && !user && (
-            <button
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-              onClick={toggleAuth}
-            >
-              Sign In / Register
-            </button>
+            <div className="text-[#888888]">
+              <HeaderTabs {...tabProps} />
+            </div>
           )}
         </nav>
       </motion.div>
