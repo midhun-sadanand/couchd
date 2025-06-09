@@ -47,7 +47,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ onSelect, onClose, inputRef }
         if (!query && !selectedDirector && !selectedActor && !selectedChannel && !selectedPlaylist) return;
     
         // Reset results at the beginning of a new search
-        setResults([]);
+      setResults([]);
         previousResults.current = [];
     
         if (fetchController.current) {
@@ -163,7 +163,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ onSelect, onClose, inputRef }
             if (err.name !== 'AbortError') {
                 console.error('Failed to fetch results:', err);
             }
-        } finally {
+    } finally {
             setIsFetching(false);
             setSearchPerformed(true);
         }
@@ -365,7 +365,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ onSelect, onClose, inputRef }
     };
 
     const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
+    if (e.key === 'Enter') {
             e.preventDefault();
             fetchResults();
         }
@@ -582,7 +582,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ onSelect, onClose, inputRef }
         return (medium === 'movies' && filter === 'title' || medium === 'TV shows' && filter === 'title' || (medium === 'youtube' && youtubeType === 'video')) && results.length > 0;
     };
 
-    return (
+  return (
         <div className={`search-modal fixed inset-0 flex items-center justify-center z-50 bg-[#0a0a0a] bg-opacity-75 ${showModal ? 'show' : 'hide'}`} onClick={() => {
             setShowModal(false);
             setResults([]);
@@ -592,8 +592,8 @@ const SearchModal: React.FC<SearchModalProps> = ({ onSelect, onClose, inputRef }
             <div className="bg-[#0a0a0d] rounded-lg shadow-lg w-11/12 max-w-2xl" onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}>
                 <form onSubmit={handleFormSubmit} className="flex mb-4 items-center">
                     <div className={`flex flex-grow items-center p-2 bg-[#0a0a0a] border border-[#393939] rounded relative ${showFilterOptions ? 'expanded' : ''}`}>
-                        <input
-                            type="text"
+                <input
+                  type="text"
                             placeholder={
                                 selectedChannel
                                     ? `Search ${channelName}'s videos...`
@@ -605,9 +605,9 @@ const SearchModal: React.FC<SearchModalProps> = ({ onSelect, onClose, inputRef }
                                                 ? `Searching ${medium === 'movies' ? 'movies' : 'TV shows'} with ${actorName}...`
                                                 : ""
                             }
-                            value={query}
+                  value={query}
                             onChange={handleInputChange}
-                            onKeyPress={handleKeyPress}
+                  onKeyPress={handleKeyPress}
                             className="flex-grow focus:outline-none bg-transparent text-white text-base cursor-thick"
                             ref={inputRef}
                             style={{ caretColor: 'white' }}
@@ -648,16 +648,16 @@ const SearchModal: React.FC<SearchModalProps> = ({ onSelect, onClose, inputRef }
                                             ))}
                                         </div>
                                     )}
-                                </div>
+              </div>
                                 <span className="text-[#757575] ml-2"> by </span>
                                 <div className="relative">
-                                    <button
+              <button
                                         type="button"
                                         className={`bg-[#3b3b3b] hover:bg-[#292929] px-2 py-1 rounded text-white ml-2 h-full ${showFilterOptions ? 'filter-expanded' : ''}`}
                                         onClick={handleFilterButtonClick}
                                     >
                                         {medium === 'youtube' ? youtubeType.charAt(0).toUpperCase() + youtubeType.slice(1) : filter.charAt(0).toUpperCase() + filter.slice(1)}
-                                    </button>
+              </button>
                                     {showFilterOptions && (
                                         <div className={`dropdown-menu ${showFilterOptions ? 'slide-out-right' : ''}`}>
                                             {medium === 'youtube' ? (
@@ -697,8 +697,8 @@ const SearchModal: React.FC<SearchModalProps> = ({ onSelect, onClose, inputRef }
                                             )}
                                         </div>
                                     )}
-                                </div>
-                            </div>
+            </div>
+          </div>
                         )}
                         {shouldShowSortByDropdown() && (
                             <div className="relative ml-2">
@@ -728,10 +728,10 @@ const SearchModal: React.FC<SearchModalProps> = ({ onSelect, onClose, inputRef }
                                                 </div>
                                             )
                                         ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
+            </div>
+          )}
+            </div>
+          )}
                         {selectedChannel && (
                             <button type="button" onClick={handleExitChannelSearch} className="text-gray-400 hover:text-white ml-2">&times;</button>
                         )}
@@ -760,7 +760,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ onSelect, onClose, inputRef }
                                 <div
                                     key={`${medium === 'youtube' ? item.id.videoId || item.id.playlistId : item.id}-${index}`}
                                     className="cursor-pointer hover:bg-gray-800 p-2 flex items-center text-white"
-                                    onClick={() => {
+                  onClick={() => {
                                         if (medium === 'youtube' && youtubeType === 'channel') {
                                             handleChannelSelect(item.snippet.channelId, item.snippet.channelTitle);
                                         } else if (medium === 'youtube' && youtubeType === 'playlist') {
@@ -783,7 +783,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ onSelect, onClose, inputRef }
                                                 release_date: item.release_date
                                             };
                                             onSelect(movieData, medium);
-                                            onClose();
+                    onClose();
                                         }
                                     }}
                                 >
@@ -816,22 +816,22 @@ const SearchModal: React.FC<SearchModalProps> = ({ onSelect, onClose, inputRef }
                                                 )}
                                                 {medium !== 'TV shows' && item.director && (
                                                     <div className="text-sm text-gray-400 text-left pl-5">Director: {item.director}</div>
-                                                )}
-                                            </div>
+                    )}
+                  </div>
                                         </>
                                     )}
-                                </div>
+                </div>
                             ))
                         ) : searchPerformed && (
                             <div className="flex items-center justify-center h-20 text-white">
                                 No results found
-                            </div>
-                        )
-                    )}
-                </div>
             </div>
+                        )
+          )}
         </div>
-    );      
+      </div>
+    </div>
+  );
 };
 
 export default SearchModal;

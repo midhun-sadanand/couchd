@@ -1,77 +1,133 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 
 interface RatingProps {
   rating: number;
   onRatingChange: (rating: number) => void;
 }
 
+const NUM_CIRCLES = 5;
+const CIRCLE_SIZE = 24;
+const CIRCLE_GAP = 8;
+
 const Rating: React.FC<RatingProps> = ({ rating, onRatingChange }) => {
-  const [hoverRating, setHoverRating] = useState(0);
-  const [currentRating, setCurrentRating] = useState(rating);
+  const [displayRating, setDisplayRating] = useState(rating);
+  const [dragging, setDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setCurrentRating(rating);
+    setDisplayRating(rating);
   }, [rating]);
 
-  const handleMouseEnter = (value: number) => {
-    setHoverRating(value);
-  };
-
-  const handleMouseLeave = () => {
-    setHoverRating(0);
-  };
-
-  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>, value: number) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const halfValue = x < rect.width / 2 ? value - 0.5 : value;
-    setHoverRating(halfValue);
-  };
-
-  const handleRatingClick = (newRating: number) => {
-    setCurrentRating(newRating);
-    onRatingChange(newRating);
-  };
-
-  const getFillColor = (index: number) => {
-    if (hoverRating >= index) {
-      return 'text-gray-800';
-    } else if (!hoverRating && currentRating >= index) {
-      return 'text-gray-800';
-    } else if (hoverRating >= index - 0.5 && hoverRating < index) {
-      return 'text-gray-800 fill-half';
-    } else if (currentRating >= index - 0.5 && currentRating < index) {
-      return 'text-gray-800 fill-half';
-    } else {
-      return 'text-gray-300';
+  // Helper to get rating from mouse position (continuous, no gaps)
+  const getRatingFromPosition = (clientX: number) => {
+    if (!containerRef.current) return displayRating;
+    const rect = containerRef.current.getBoundingClientRect();
+    let x = clientX - rect.left;
+    x = Math.max(0, Math.min(x, rect.width));
+    const percent = x / rect.width;
+    // Snap to the nearest lower integer if in the gap between circles
+    const raw = percent * NUM_CIRCLES;
+    const circleIndex = Math.floor(raw);
+    const circleStart = (circleIndex / NUM_CIRCLES) * rect.width;
+    const circleEnd = ((circleIndex + 1) / NUM_CIRCLES) * rect.width;
+    const gapPx = CIRCLE_GAP;
+    // If in the gap, snap to the left circle's integer (circleIndex + 1)
+    if (x > circleEnd - gapPx && x < circleEnd) {
+      return circleIndex + 1.0;
     }
+    // Otherwise, allow continuous value
+    return Math.round(raw * 10) / 10;
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setDragging(true);
+    setDisplayRating(getRatingFromPosition(e.clientX));
+  };
+
+  const handlePointerMove = (e: PointerEvent) => {
+    if (!dragging) return;
+    setDisplayRating(getRatingFromPosition(e.clientX));
+  };
+
+  const handlePointerUp = () => {
+    setDragging(false);
+    onRatingChange(Math.round(displayRating * 10) / 10);
+  };
+
+  useEffect(() => {
+    if (dragging) {
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
+      return () => {
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
+      };
+    }
+  });
+
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>, value: number) => {
+    e.stopPropagation();
+    setDisplayRating(value);
+    onRatingChange(value);
   };
 
   return (
-    <div className="flex items-center">
-      {[1, 2, 3, 4, 5].map((value) => (
-        <div
-          key={value}
-          onMouseMove={(e) => handleMouseMove(e, value)}
-          onMouseEnter={() => handleMouseEnter(value)}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => handleRatingClick(hoverRating || value)}
-          className="relative w-6 h-6 cursor-pointer"
-        >
-          <svg
-            className="w-full h-full"
-            fill="currentColor"
-            viewBox="0 0 24 24"
+    <div
+      className="flex items-center select-none"
+      ref={containerRef}
+      style={{ gap: CIRCLE_GAP, width: NUM_CIRCLES * (CIRCLE_SIZE + CIRCLE_GAP) - CIRCLE_GAP }}
+      onPointerDown={handlePointerDown}
+      onClick={e => e.stopPropagation()}
+      role="slider"
+      aria-valuenow={displayRating}
+      aria-valuemin={0}
+      aria-valuemax={NUM_CIRCLES}
+      tabIndex={0}
+    >
+      {[...Array(NUM_CIRCLES)].map((_, i) => {
+        const value = i + 1;
+        const fill = Math.max(0, Math.min(1, displayRating - i));
+        return (
+          <div
+            key={i}
+            className="relative cursor-pointer"
+            style={{ width: CIRCLE_SIZE, height: CIRCLE_SIZE }}
           >
-            <circle cx="12" cy="12" r="10" className="text-gray-300" fill="currentColor" />
-            <circle cx="12" cy="12" r="10" className={`absolute ${getFillColor(value)}`} fill="currentColor" />
-            {(hoverRating >= value - 0.5 && hoverRating < value) || (currentRating >= value - 0.5 && currentRating < value) ? (
-              <circle cx="12" cy="12" r="10" className="text-gray-300 half-circle" fill="currentColor" />
-            ) : null}
-          </svg>
-        </div>
-      ))}
-      <span className="ml-2 text-gray-400">{currentRating.toFixed(1)}</span>
+            <svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} viewBox={`0 0 ${CIRCLE_SIZE} ${CIRCLE_SIZE}`}> 
+              <circle
+                cx={CIRCLE_SIZE / 2}
+                cy={CIRCLE_SIZE / 2}
+                r={CIRCLE_SIZE / 2 - 2}
+                fill="#232323"
+                stroke="#fbbf24"
+                strokeWidth={1}
+              />
+              <defs>
+                <clipPath id={`clip-${i}`}> 
+                  <rect
+                    x="0"
+                    y="0"
+                    width={CIRCLE_SIZE * fill}
+                    height={CIRCLE_SIZE}
+                  />
+                </clipPath>
+              </defs>
+              <circle
+                cx={CIRCLE_SIZE / 2}
+                cy={CIRCLE_SIZE / 2}
+                r={CIRCLE_SIZE / 2 - 2}
+                fill="#fbbf24"
+                stroke="#fbbf24"
+                strokeWidth={1}
+                clipPath={`url(#clip-${i})`}
+              />
+            </svg>
+          </div>
+        );
+      })}
+      <span className="ml-2 text-gray-400" style={{ minWidth: 32, textAlign: 'right' }}>{displayRating.toFixed(1)}</span>
     </div>
   );
 };

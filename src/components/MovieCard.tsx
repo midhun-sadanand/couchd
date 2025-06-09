@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Star, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { MediaItem, StatusType } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -56,6 +56,24 @@ export default function MovieCard({
   const [localRating, setLocalRating] = useState<number>(typeof rating === 'number' ? rating : 0);
   const [localStatus, setLocalStatus] = useState<StatusType>(status as StatusType);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (!(event.target as HTMLElement).closest(`#status-dropdown-${id}`)) {
+        setStatusDropdownOpen(false);
+      }
+    }
+    if (statusDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [statusDropdownOpen, id]);
 
   // Defensive event handlers
   const handleNotesChange = (notes: string) => {
@@ -79,8 +97,6 @@ export default function MovieCard({
     'to consume',
     'consuming',
     'consumed',
-    'dropped',
-    'on hold',
   ];
 
   // Defensive: only call onDelete if id exists
@@ -100,12 +116,14 @@ export default function MovieCard({
 
   const statusColorClass = (status: StatusType) => {
     switch (status) {
-      case 'to consume': return 'bg-[#B4B4B4]';
-      case 'consuming': return 'bg-[#909090]';
-      case 'consumed': return 'bg-[#636363]';
+      case 'to consume': return 'bg-[#34d399]'; // green
+      case 'consuming': return 'bg-[#fbbf24]'; // yellow
+      case 'consumed': return 'bg-[#f87171]'; // red
       default: return 'bg-gray-500';
     }
   };
+
+  const statusTextColor = (status: StatusType) => 'text-[#232323]';
 
   // Defensive: only call toggleDropdown if defined
   const handleToggleDropdown = () => {
@@ -118,8 +136,11 @@ export default function MovieCard({
   };
 
   return (
-    <div className="bg-[#232323] rounded-lg shadow-lg overflow-hidden border border-[#333]">
-      <div className="p-4">
+    <div
+      className="bg-[#232323] hover:bg-[#242424] transition-all duration-500 ease-in-out rounded-lg shadow-lg overflow-hidden border border-[#333] cursor-pointer ml-0"
+      onClick={handleToggle}
+    >
+      <div className="p-4 relative">
         <div className="flex justify-between items-start">
           <div className="flex space-x-4 w-2/3">
             {image && (
@@ -140,45 +161,48 @@ export default function MovieCard({
               )}
               {length && <p className="text-xs text-gray-500">Length: {length}</p>}
               {creator && <p className="text-xs text-gray-500">Director: {creator}</p>}
-              <div className="flex items-center space-x-2 mt-2">
-                <span className="text-xs text-gray-500">Added by <span className="underline">{added_by}</span></span>
-                <span className="text-xs text-gray-500">{formatDate(created_at)}</span>
+              <div className="flex items-center mt-2">
+                <span className="text-xs text-gray-500">Added by <span className="underline">{added_by}</span> on {formatDate(created_at)}</span>
               </div>
             </div>
           </div>
           <div className="flex flex-col items-end space-y-2">
-            <button
-              onClick={handleToggleDropdown}
-              className={`px-3 py-1 ${statusColorClass(localStatus)} rounded text-white text-xs font-semibold`}
+            <div
+              className="relative"
+              id={`status-dropdown-${id}`}
             >
-              {localStatus}
-              {isDropdownOpen ? <ChevronUp className="inline ml-1" size={16} /> : <ChevronDown className="inline ml-1" size={16} />}
-            </button>
-            {isDropdownOpen && (
-              <div className="absolute right-0 mt-8 w-40 bg-[#3b3b3b] rounded-md shadow-lg z-10">
-                {statusOptions.map((option) => (
-                  <button
-                    key={option}
-                    onClick={() => handleStatusChange(option)}
-                    className="block w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-[#4b4b4b]"
+              <button
+                className={`px-3 py-1 ${statusColorClass(localStatus)} rounded text-[#232323] text-xs font-semibold focus:outline-none w-[100px]`}
+                type="button"
+                onClick={e => { e.stopPropagation(); setStatusDropdownOpen(v => !v); }}
+              >
+                {localStatus}
+              </button>
+              <AnimatePresence>
+                {statusDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.18 }}
+                    className="absolute right-0 mt-2 w-[100px] bg-[#3b3b3b] rounded-md shadow-lg z-10"
+                    style={{ right: 0 }}
                   >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            )}
-            <button
-              onClick={handleDelete}
-              className="p-1 text-red-500 hover:text-red-700"
-            >
-              <Trash2 size={20} />
-            </button>
-            <button
-              onClick={handleToggle}
-              className="p-1 text-gray-400 hover:text-gray-200"
-            >
-              {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-            </button>
+                    {statusOptions.map((option, idx) => (
+                      <button
+                        key={option}
+                        onClick={e => { e.stopPropagation(); handleStatusChange(option); setStatusDropdownOpen(false); }}
+                        className={`block w-full text-left px-4 py-2 text-xs font-semibold hover:bg-[#4b4b4b] ${
+                          option === 'to consume' ? 'text-[#34d399]' : option === 'consuming' ? 'text-[#fbbf24]' : option === 'consumed' ? 'text-[#f87171]' : 'text-[#232323]'
+                        } ${idx === 0 ? 'first:rounded-t-md' : ''} ${idx === statusOptions.length - 1 ? 'last:rounded-b-md' : ''}`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
         <AnimatePresence>
@@ -188,7 +212,7 @@ export default function MovieCard({
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="mt-4 space-y-4"
+              className="mt-4 space-y-4 relative"
             >
               {synopsis && (
                 <div>
@@ -196,13 +220,20 @@ export default function MovieCard({
                   <p className="text-sm text-gray-400">{synopsis}</p>
                 </div>
               )}
-              <div>
+              <div onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}>
                 <h4 className="text-sm font-medium text-gray-300">Notes</h4>
                 <NotesInput initialNotes={localNotes} onChange={handleNotesChange} />
               </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-300">Rating</h4>
-                <Rating rating={localRating} onRatingChange={handleRatingChange} />
+              <div className="mt-2 flex flex-row justify-between items-center w-full">
+                <div className="mb-2">
+                  <Rating rating={localRating} onRatingChange={handleRatingChange} />
+                </div>
+                <button
+                  onClick={e => { e.stopPropagation(); handleDelete(); }}
+                  className="p-1 text-gray-400 hover:text-red-500 transition-colors duration-150 opacity-80 hover:opacity-100"
+                >
+                  <Trash2 size={20} />
+                </button>
               </div>
               {url && (
                 <div>

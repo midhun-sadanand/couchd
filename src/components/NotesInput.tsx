@@ -17,9 +17,9 @@ const NotesInput: React.FC<NotesInputProps> = ({ initialNotes, onChange }) => {
   };
 
   return (
-    <div className="mt-2">
+    <div className="">
       <textarea
-        className="notes w-full p-2 bg-gray-200 text-gray-800 rounded"
+        className="notes w-full p-2 bg-gray-500 text-gray-800 rounded"
         rows={4}
         value={notes}
         onChange={handleChange}

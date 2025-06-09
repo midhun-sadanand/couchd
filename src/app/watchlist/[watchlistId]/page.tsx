@@ -9,8 +9,10 @@ import YouTubeCard from '@/components/YouTubeCard';
 import ImageUploadModal from '@/components/ImageUploadModal';
 import SearchBar from '@/components/SearchBar';
 import SearchModal from '@/components/SearchModal';
-import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
+import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import { arrayMoveImmutable as arrayMove } from 'array-move';
+import { supabase as clientSupabase } from '@/lib/supabase';
+import Rating from '@/components/Rating';
 
 const MediaPage: React.FC = () => {
   const { watchlistId } = useParams();
@@ -51,8 +53,9 @@ const MediaPage: React.FC = () => {
           .eq('watchlist_id', watchlistId)
           .order('created_at', { ascending: false });
         if (miError) throw miError;
-        setMediaItems(mi || []);
-        setCustomOrder(mi || []);
+        const ordered = (mi || []).slice().sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+        setMediaItems(ordered);
+        setCustomOrder(ordered);
       } catch (err: any) {
         setError(err.message || 'Failed to load data');
       } finally {
@@ -97,6 +100,7 @@ const MediaPage: React.FC = () => {
         .eq('id', id);
       if (error) throw error;
       setMediaItems(prev => prev.map(item => item.id === id ? { ...item, status } : item));
+      await updateMediaItemCounters(watchlistId as string);
     } catch (err: any) {
       console.error('Error updating status:', err.message);
     }
@@ -104,12 +108,13 @@ const MediaPage: React.FC = () => {
 
   const handleRatingChange = async (id: string, rating: number) => {
     try {
+      const floatRating = Math.round(Number(rating) * 10) / 10;
       const { error } = await supabase
         .from('media_items')
-        .update({ rating })
+        .update({ rating: floatRating })
         .eq('id', id);
       if (error) throw error;
-      setMediaItems(prev => prev.map(item => item.id === id ? { ...item, rating } : item));
+      setMediaItems(prev => prev.map(item => item.id === id ? { ...item, rating: floatRating } : item));
     } catch (err: any) {
       console.error('Error updating rating:', err.message);
     }
@@ -150,7 +155,7 @@ const MediaPage: React.FC = () => {
         sortedMediaItems = [...mediaItems].sort((a, b) => (a.added_by || '').localeCompare(b.added_by || ''));
         break;
       case 'Status':
-        const statusOrder = ['consuming', 'to consume', 'consumed'];
+        const statusOrder = ['to consume', 'consuming', 'consumed'];
         sortedMediaItems = [...mediaItems].sort((a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status));
         break;
       case 'Medium':
@@ -181,6 +186,33 @@ const MediaPage: React.FC = () => {
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
   };
+
+  // Add a client-side version of updateMediaItemCounters
+  async function updateMediaItemCounters(watchlistIdParam: string | string[] | undefined) {
+    const id = Array.isArray(watchlistIdParam) ? watchlistIdParam[0] : watchlistIdParam;
+    if (!id) return;
+    const { data: items, error } = await clientSupabase
+      .from('media_items')
+      .select('status')
+      .eq('watchlist_id', id);
+    if (error) throw error;
+    // Count statuses in JS
+    let toConsume = 0, consuming = 0, consumed = 0;
+    (items || []).forEach((item: any) => {
+      if (item.status === 'to consume') toConsume++;
+      else if (item.status === 'consuming') consuming++;
+      else if (item.status === 'consumed') consumed++;
+    });
+    const { error: upErr } = await clientSupabase
+      .from('watchlists')
+      .update({
+        to_consume_count: toConsume,
+        consuming_count: consuming,
+        consumed_count: consumed,
+      })
+      .eq('id', id);
+    if (upErr) throw upErr;
+  }
 
   if (userLoading || loading) {
     return (
@@ -221,11 +253,11 @@ const MediaPage: React.FC = () => {
         <div className="flex items-start space-x-4">
           <div className="relative w-48 h-48 mb-4">
             {watchlist.image ? (
-              <img
-                src={watchlist.image}
+            <img
+              src={watchlist.image}
                 alt="Watchlist"
                 className="w-full h-full object-cover rounded-lg transition-opacity duration-300"
-                onError={(e) => {
+              onError={(e) => {
                   (e.target as HTMLImageElement).src = '/default-watchlist.jpg';
                 }}
                 loading="lazy"
@@ -304,37 +336,62 @@ const MediaPage: React.FC = () => {
         </div>
       </div>
       <DragDropContext onDragEnd={onSortEnd}>
-        <Droppable droppableId={`droppable-${watchlistId}`}>
+        <Droppable droppableId={`droppable-${watchlistId}`} isDropDisabled={false}>
           {(provided) => (
-            <div ref={provided.innerRef} {...provided.droppableProps}>
+            <div ref={provided.innerRef} {...provided.droppableProps} className="flex flex-col gap-4">
               {mediaItems.map((item, index) => (
-                item.medium === 'YouTube' ? (
-                  <YouTubeCard
-                    key={item.id}
-                    item={item}
-                    onDelete={() => handleDelete(item.id)}
-                    onNotesChange={handleNotesChange}
-                    onStatusChange={handleStatusChange}
-                    onRatingChange={handleRatingChange}
-                    isOpen={openCards[item.id] || false}
-                    setIsOpen={setIsOpen}
-                    isDropdownOpen={false}
-                    toggleDropdown={() => {}}
-                  />
-                ) : (
-                  <MovieCard
-                    key={item.id}
-                    item={item}
-                    onDelete={() => handleDelete(item.id)}
-                    onNotesChange={handleNotesChange}
-                    onStatusChange={handleStatusChange}
-                    onRatingChange={handleRatingChange}
-                    isOpen={openCards[item.id] || false}
-                    setIsOpen={setIsOpen}
-                    isDropdownOpen={false}
-                    toggleDropdown={() => {}}
-                  />
-                )
+                <Draggable key={item.id} draggableId={item.id} index={index}>
+                  {(draggableProvided) => (
+                    <div
+                      ref={draggableProvided.innerRef}
+                      {...draggableProvided.draggableProps}
+                      className="group flex items-stretch"
+                    >
+                      <div
+                        className="flex items-center pr-2 transition-all duration-200 select-none"
+                        style={{ alignSelf: 'stretch', minWidth: '24px', marginLeft: '-24px' }}
+                      >
+                        <div className="flex flex-col justify-center h-full">
+                          <div
+                            {...draggableProvided.dragHandleProps}
+                            className="grid grid-cols-2 gap-x-[2px] gap-y-[2px] opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 cursor-grab"
+                          >
+                            {[0,1,2,3,4,5].map(i => (
+                              <span key={i} className="block w-1 h-1 rounded-full bg-[#444]" />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex-1 rounded-lg transition-colors duration-200 group-hover:bg-[#262626]">
+                        {item.medium === 'YouTube' ? (
+                          <YouTubeCard
+                            item={item}
+                            onDelete={() => handleDelete(item.id)}
+                            onNotesChange={handleNotesChange}
+                            onStatusChange={handleStatusChange}
+                            onRatingChange={handleRatingChange}
+                            isOpen={openCards[item.id] || false}
+                            setIsOpen={setIsOpen}
+                            isDropdownOpen={false}
+                            toggleDropdown={() => {}}
+                          />
+                        ) : (
+                          <MovieCard
+                            item={item}
+                            onDelete={() => handleDelete(item.id)}
+                            onNotesChange={handleNotesChange}
+                            onStatusChange={handleStatusChange}
+                            onRatingChange={handleRatingChange}
+                            isOpen={openCards[item.id] || false}
+                            setIsOpen={setIsOpen}
+                            isDropdownOpen={false}
+                            toggleDropdown={() => {}}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </Draggable>
               ))}
               {provided.placeholder}
             </div>
@@ -343,10 +400,68 @@ const MediaPage: React.FC = () => {
       </DragDropContext>
       {isModalOpen && (
         <SearchModal
-          isOpen={isModalOpen}
-          onSelect={() => {}}
+          onSelect={async (item: any, type: string) => {
+            if (!user) return;
+            let newMedia;
+            let releaseDate = item.release_date || '';
+            if (!releaseDate) releaseDate = null;
+            let synopsis = '';
+            try {
+              if (type === 'youtube') {
+                const videoUrl = `https://www.youtube.com/watch?v=${item.id.videoId}`;
+                const imageUrl = item.snippet.thumbnails?.default?.url || '';
+                const { data, error } = await supabase.from('media_items').insert([
+                  {
+                    title: item.snippet.title,
+                    medium: 'YouTube',
+                    watchlist_id: watchlistId,
+                    image: imageUrl,
+                    url: videoUrl,
+                    release_date: item.snippet.publishedAt?.substring(0, 10) || null,
+                    creator: item.snippet.channelTitle,
+                    synopsis: '',
+                    added_by: user.username || 'Guest',
+                    status: 'to consume',
+                    order: mediaItems.length,
+                  },
+                ]).select();
+                if (error) throw error;
+                setMediaItems([...mediaItems, ...data]);
+                setCustomOrder([...mediaItems, ...data]);
+                await updateMediaItemCounters(watchlistId as string);
+              } else {
+                // Movies or TV shows
+                const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY || process.env.TMDB_API_KEY;
+                const detailsUrl = `https://api.themoviedb.org/3/${type === 'movies' ? 'movie' : 'tv'}/${item.id}?api_key=${apiKey}`;
+                const response = await fetch(detailsUrl);
+                const data = await response.json();
+                synopsis = data.overview || '';
+                const imageUrl = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '';
+                const { data: inserted, error } = await supabase.from('media_items').insert([
+                  {
+                    title: item.title || item.name,
+                    medium: type === 'movies' ? 'Movie' : 'TV Show',
+                    watchlist_id: watchlistId,
+                    image: imageUrl,
+                    release_date: releaseDate,
+                    creator: data.created_by && data.created_by.length > 0 ? data.created_by[0].name : (item.director || ''),
+                    synopsis,
+                    added_by: user.username || 'Guest',
+                    status: 'to consume',
+                    order: mediaItems.length,
+                  },
+                ]).select();
+                if (error) throw error;
+                setMediaItems([...mediaItems, ...inserted]);
+                setCustomOrder([...mediaItems, ...inserted]);
+                await updateMediaItemCounters(watchlistId as string);
+              }
+              setIsModalOpen(false);
+            } catch (err: any) {
+              console.error('Failed to add item:', err.message);
+            }
+          }}
           onClose={() => setIsModalOpen(false)}
-          medium={watchlist?.medium || 'movies'}
           inputRef={inputRef}
         />
       )}

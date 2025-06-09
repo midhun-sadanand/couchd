@@ -14,6 +14,7 @@ export interface MediaItem {
   rating?: number;
   owner_id?: string;
   owner_name?: string;
+  added_by?: string;
 }
 
 export interface WatchlistData {
