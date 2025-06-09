@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import EditNameModal from './EditWatchlistModal';
+import EditWatchlistModal from './EditWatchlistModal';
 import { useSupabaseClient } from '../utils/auth';
 
 interface WatchlistWidgetProps {
@@ -12,6 +12,7 @@ interface WatchlistWidgetProps {
   watchingCount: number;
   watchedCount: number;
   tags: string[];
+  image?: string;
   deleteWatchlist: (id: string) => void;
 }
 
@@ -24,6 +25,7 @@ const WatchlistWidget: React.FC<WatchlistWidgetProps> = ({
   watchingCount,
   watchedCount,
   tags,
+  image = '',
   deleteWatchlist
 }) => {
   const router = useRouter();
@@ -32,8 +34,10 @@ const WatchlistWidget: React.FC<WatchlistWidgetProps> = ({
   const descriptionRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<HTMLDivElement>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [isEditNameModalOpen, setEditNameModalOpen] = useState(false);
+  const [isEditModalOpen, setEditModalOpen] = useState(false);
   const [currentName, setCurrentName] = useState(listName);
+  const [currentDescription, setCurrentDescription] = useState(description);
+  const [currentTags, setCurrentTags] = useState(tags);
 
   // Ensure tags is always an array
   const tagArray = Array.isArray(tags) ? tags : [];
@@ -43,40 +47,18 @@ const WatchlistWidget: React.FC<WatchlistWidgetProps> = ({
       const titleElement = titleRef.current;
       const widgetElement = widgetRef.current;
       if (titleElement && widgetElement) {
-        const padding = 40;
-        const numberContainerWidth = 40;
-        const availableWidth = widgetElement.clientWidth - padding - numberContainerWidth;
-  
-        let fontSize = 2.5;
-        titleElement.style.fontSize = `${fontSize}rem`;
-        titleElement.style.whiteSpace = 'nowrap';
-        titleElement.style.overflow = 'hidden';
-        titleElement.style.textOverflow = 'ellipsis';
-  
-        if (titleElement.scrollWidth > availableWidth) {
-          while (titleElement.scrollWidth > availableWidth && fontSize > 1.25) {
-            fontSize -= 0.1;
-            titleElement.style.fontSize = `${fontSize}rem`;
-          }
-  
-          if (titleElement.scrollWidth > availableWidth) {
-            titleElement.style.whiteSpace = 'nowrap';
-            titleElement.style.overflow = 'hidden';
-            titleElement.style.textOverflow = 'ellipsis';
-          } else {
-            titleElement.style.whiteSpace = 'normal';
-            titleElement.style.wordWrap = 'break-word';
-          }
+        const widgetWidth = widgetElement.offsetWidth;
+        const titleWidth = titleElement.scrollWidth;
+        const fontSize = parseInt(window.getComputedStyle(titleElement).fontSize);
+        if (titleWidth > widgetWidth - 40) { // 40px for padding
+          const newFontSize = Math.floor((widgetWidth - 40) / (titleWidth / fontSize));
+          titleElement.style.fontSize = `${Math.max(newFontSize, 14)}px`;
         } else {
-          titleElement.style.whiteSpace = 'normal';
-          titleElement.style.overflow = 'visible';
-          titleElement.style.textOverflow = 'clip';
+          titleElement.style.fontSize = '16px';
         }
-  
-        titleElement.style.width = `${availableWidth}px`;
       }
     };
-  
+
     adjustFontSize();
     window.addEventListener('resize', adjustFontSize);
     return () => window.removeEventListener('resize', adjustFontSize);
@@ -124,39 +106,70 @@ const WatchlistWidget: React.FC<WatchlistWidgetProps> = ({
     setDropdownOpen(!dropdownOpen);
   };
 
-  const handleEditNameClick = () => {
+  const handleEditClick = () => {
     setDropdownOpen(false);
-    setEditNameModalOpen(true);
+    setEditModalOpen(true);
   };
 
-  const handleEditNameSubmit = (newName: string) => {
-    setCurrentName(newName);
+  const handleEditSubmit = async (newName: string, newDescription: string, newTags: string[]) => {
+    try {
+      // Update the watchlist in the database
+      const { error } = await supabase
+        .from('watchlists')
+        .update({
+          name: newName,
+          description: newDescription,
+          tags: newTags
+        })
+        .eq('id', watchlistId);
+
+      if (error) throw error;
+
+      // Update local state
+      setCurrentName(newName);
+      setCurrentDescription(newDescription);
+      setCurrentTags(newTags);
+      setEditModalOpen(false);
+    } catch (err: any) {
+      console.error('Error updating watchlist:', err);
+    }
   };
 
   return (
     <>
-      <div 
-        ref={widgetRef} 
-        onClick={handleClick} 
-        className="watchlist-widget min-w-[200px] text-[#e6e6e6] rounded-lg p-4 shadow-lg flex flex-col justify-between w-full cursor-pointer relative bg-[#232323] hover:bg-[#2a2a2a] transition-colors duration-200"
+      <div
+        ref={widgetRef}
+        className="relative bg-[#1c1c1c] rounded-lg p-6 w-full cursor-pointer hover:bg-[#282828] transition-colors duration-200"
+        onClick={handleClick}
       >
-        <div className="flex justify-between items-start mb-2">
-          <div className="flex flex-col" style={{ marginTop: '5px', marginRight: '40px' }}>
-            <div ref={titleRef} className="title-container font-bold" style={{ textAlign: 'left', overflowWrap: 'break-word' }}>{currentName}</div>
-            <div ref={descriptionRef} className="description text-gray-400" style={{ textAlign: 'left', marginTop: '2px' }}>{description}</div>
+        <div className="flex flex-col h-full">
+          <div
+            ref={titleRef}
+            className="text-xl font-bold text-white mb-2 font-['EinaBold']"
+          >
+            {currentName}
           </div>
-          <div className="number-container flex flex-col items-end" style={{ flexShrink: 0 }}>
-            <div className="text-red-500">{unwatchedCount}</div>
-            <div className="text-yellow-500">{watchingCount}</div>
-            <div className="text-green-500">{watchedCount}</div>
+          <div
+            ref={descriptionRef}
+            className="text-sm text-[#b3b3b3] mb-4 font-['EinaRegular']"
+          >
+            {currentDescription}
           </div>
-        </div>
-        <div className="flex flex-wrap">
-          {tagArray.map((tag, index) => (
-            <div key={index} className="text-sm px-2 py-1 rounded-full mr-2 mb-2 tag bg-[#3b3b3b] text-gray-300">
-              {tag}
-            </div>
-          ))}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {tagArray.map((tag, index) => (
+              <span
+                key={index}
+                className="px-2 py-1 text-xs bg-[#282828] text-[#b3b3b3] rounded-full font-['EinaRegular']"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+          <div className="flex justify-between text-sm text-[#b3b3b3] mt-auto font-['EinaRegular']">
+            <span>To Watch: {unwatchedCount}</span>
+            <span>Watching: {watchingCount}</span>
+            <span>Watched: {watchedCount}</span>
+          </div>
         </div>
         <div className="absolute bottom-4 right-4" onClick={handleDropdownClick}>
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6 text-gray-400 hover:text-white transition-colors duration-200">
@@ -165,21 +178,21 @@ const WatchlistWidget: React.FC<WatchlistWidgetProps> = ({
 
           {dropdownOpen && (
             <div className="dropdown-menu absolute right-0 mt-2 w-48 bg-[#2a2a2a] rounded-md shadow-lg py-1 z-20">
-              <button className="block px-4 py-2 text-sm text-gray-300 hover:bg-[#3b3b3b]" onClick={handleEditNameClick}>Edit Name</button>
-              <button className="block px-4 py-2 text-sm text-gray-300 hover:bg-[#3b3b3b]" onClick={() => {/* handle edit description */}}>Edit Description</button>
-              <button className="block px-4 py-2 text-sm text-gray-300 hover:bg-[#3b3b3b]" onClick={() => {/* handle edit tags */}}>Edit Tags</button>
+              <button className="block px-4 py-2 text-sm text-gray-300 hover:bg-[#3b3b3b]" onClick={handleEditClick}>Edit Watchlist</button>
               <button className="block px-4 py-2 text-sm text-red-500 hover:bg-[#3b3b3b]" onClick={() => deleteWatchlist(watchlistId)}>Remove Watchlist</button>
             </div>
           )}
         </div>
       </div>
-      <EditNameModal
-        isOpen={isEditNameModalOpen}
-        onClose={() => setEditNameModalOpen(false)}
+      <EditWatchlistModal
+        isOpen={isEditModalOpen}
+        onClose={() => setEditModalOpen(false)}
         currentName={currentName}
-        onSubmit={handleEditNameSubmit}
-        currentDescription={''}
-        currentTags={[]}
+        currentDescription={currentDescription}
+        currentTags={currentTags}
+        watchlistId={watchlistId}
+        currentImage={image}
+        onSubmit={handleEditSubmit}
       />
     </>
   );

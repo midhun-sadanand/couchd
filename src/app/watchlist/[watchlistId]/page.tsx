@@ -13,6 +13,21 @@ import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import { arrayMoveImmutable as arrayMove } from 'array-move';
 import { supabase as clientSupabase } from '@/lib/supabase';
 import Rating from '@/components/Rating';
+import EditWatchlistModal from '@/components/EditWatchlistModal';
+
+interface Watchlist {
+  id: string;
+  name: string;
+  description: string;
+  tags: string[];
+  // Add other watchlist properties as needed
+}
+
+interface ImageUploadModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onUpload: () => void;
+}
 
 const MediaPage: React.FC = () => {
   const { watchlistId } = useParams();
@@ -251,20 +266,51 @@ const MediaPage: React.FC = () => {
       else if (item.status === 'consuming') consuming++;
       else if (item.status === 'consumed') consumed++;
     });
-    const { error: upErr } = await clientSupabase
+    // Update the watchlist with the new counts
+    const { error: updateError } = await clientSupabase
       .from('watchlists')
       .update({
         to_consume_count: toConsume,
         consuming_count: consuming,
-        consumed_count: consumed,
+        consumed_count: consumed
       })
       .eq('id', id);
-    if (upErr) throw upErr;
+    if (updateError) throw updateError;
   }
 
   // When opening the modal, always fetch the latest shared users
   const handleOpenEditModal = () => {
-    fetchSharedUsers().then(() => setIsEditModalOpen(true));
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (newName: string, newDescription: string, newTags: string[], newImage?: string) => {
+    try {
+      // Update the watchlist in the database
+      const { error } = await supabase
+        .from('watchlists')
+        .update({
+          name: newName,
+          description: newDescription,
+          tags: newTags,
+          image: newImage
+        })
+        .eq('id', watchlistId);
+
+      if (error) throw error;
+
+      // Update local state
+      setWatchlist((prev: Watchlist | null) => ({
+        ...prev,
+        name: newName,
+        description: newDescription,
+        tags: newTags,
+        image: newImage
+      }));
+
+      setIsEditModalOpen(false);
+    } catch (err: any) {
+      console.error('Error updating watchlist:', err);
+    }
   };
 
   if (userLoading || loading) {
@@ -515,23 +561,29 @@ const MediaPage: React.FC = () => {
       )}
       {isImageUploadModalOpen && (
         <ImageUploadModal
-          isOpen={isImageUploadModalOpen}
+          watchlistId={watchlistId as string}
           onClose={() => setIsImageUploadModalOpen(false)}
-          onUpload={() => {}}
+          sharedUsers={sharedUsers}
+          friends={friends}
+          onImageUpload={(imageUrl) => {
+            setImageUrl(imageUrl);
+            setIsImageUploadModalOpen(false);
+          }}
+          watchlistName={watchlist?.name || ''}
+          watchlistDescription={watchlist?.description || ''}
+          watchlistImage={watchlist?.image || ''}
         />
       )}
       {isEditModalOpen && (
         <EditWatchlistModal
-          watchlist={watchlist}
+          isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
-          onSave={(updates) => {
-            // After saving, re-fetch shared users to ensure modal is up-to-date
-            fetchSharedUsers();
-            setIsEditModalOpen(false);
-          }}
-          friends={friends}
-          sharedUsers={sharedUsers}
-          refreshWatchlist={fetchSharedUsers}
+          currentName={watchlist?.name || ''}
+          currentDescription={watchlist?.description || ''}
+          currentTags={watchlist?.tags || []}
+          watchlistId={watchlistId as string}
+          currentImage={watchlist?.image || ''}
+          onSubmit={handleEditSubmit}
         />
       )}
     </div>

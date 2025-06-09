@@ -6,7 +6,8 @@ const nextConfig: NextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true
-  }
+  },
+  transpilePackages: ['@hello-pangea/dnd']
 };
 
 export default nextConfig;

@@ -133,7 +133,8 @@ const WatchlistList: React.FC<WatchlistListProps> = ({ userId, isFriendSidebarOp
               user_id,
               profiles!inner (
                 username
-              )
+              ),
+              image
             `)
             .in('id', watchlistIds);
 
@@ -310,6 +311,7 @@ const WatchlistList: React.FC<WatchlistListProps> = ({ userId, isFriendSidebarOp
               watchingCount={list.consuming_count}
               watchedCount={list.consumed_count}
               tags={list.tags || []}
+              image={list.image || ''}
               deleteWatchlist={() => {}} // Implement as needed
             />
           ))
