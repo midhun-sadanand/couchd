@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSupabase } from '../utils/auth'; // Import the useSupabase hook
 import ShareWatchlist from './ShareWatchlist';
 
@@ -33,7 +33,8 @@ const EditWatchlistModal: React.FC<EditWatchlistModalProps> = ({
 }) => {
   const [newName, setNewName] = useState(currentName);
   const [newDescription, setNewDescription] = useState(currentDescription);
-  const [newTags, setNewTags] = useState(Array.isArray(currentTags) ? currentTags.join(', ') : '');
+  const [newTags, setNewTags] = useState<string[]>(Array.isArray(currentTags) ? currentTags : []);
+  const [tagInput, setTagInput] = useState('');
   const [friends, setFriends] = useState<User[]>([]);
   const [sharedUsers, setSharedUsers] = useState<User[]>([]);
   const [pendingShares, setPendingShares] = useState<string[]>([]);
@@ -43,14 +44,40 @@ const EditWatchlistModal: React.FC<EditWatchlistModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const { client: supabase } = useSupabase();
+  const [showShareModal, setShowShareModal] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
 
   // Fetch friends and shared users when the modal opens
   useEffect(() => {
     if (isOpen) {
       fetchFriends();
       fetchSharedUsers();
+      setModalVisible(true);
+    } else {
+      setModalVisible(false);
     }
   }, [isOpen, watchlistId]);
+
+  // Close modal on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  // Close modal on backdrop click
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+      onClose();
+    }
+  };
 
   const fetchFriends = async () => {
     try {
@@ -207,19 +234,13 @@ const EditWatchlistModal: React.FC<EditWatchlistModalProps> = ({
         publicUrl = signedUrl;
       }
 
-      // Parse tags
-      const parsedTags = newTags
-        .split(',')
-        .map(tag => tag.trim())
-        .filter(tag => tag.length > 0);
-
       // Update the watchlist in the backend
       const { error: updateError } = await supabase
         .from('watchlists')
         .update({ 
           name: newName, 
           description: newDescription, 
-          tags: parsedTags,
+          tags: newTags,
           image: publicUrl
         })
         .eq('id', watchlistId);
@@ -229,7 +250,7 @@ const EditWatchlistModal: React.FC<EditWatchlistModalProps> = ({
       }
 
       // Optimistically update the UI
-      onSubmit(newName, newDescription, parsedTags, publicUrl);
+      onSubmit(newName, newDescription, newTags, publicUrl);
       onClose();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An unexpected error occurred');
@@ -240,11 +261,41 @@ const EditWatchlistModal: React.FC<EditWatchlistModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
+  // Handle Edit Modal fade in/out
+  useEffect(() => {
+    if (isOpen) {
+      setModalVisible(true);
+    } else {
+      // Wait for fade-out before removing from DOM
+      const timeout = setTimeout(() => setModalVisible(false), 300);
+      return () => clearTimeout(timeout);
+    }
+  }, [isOpen]);
+
+  // Handle Share Modal slide in/out
+  useEffect(() => {
+    if (showShareModal) {
+      setShareModalVisible(true);
+    } else {
+      // Wait for slide-down before removing from DOM
+      const timeout = setTimeout(() => setShareModalVisible(false), 300);
+      return () => clearTimeout(timeout);
+    }
+  }, [showShareModal]);
+
+  if (!isOpen && !modalVisible) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 z-50">
-      <div className="bg-[#262626] rounded-lg p-4 w-200 transform transition-transform duration-300">
+    <div
+      className={`fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 z-50 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      onMouseDown={handleBackdropClick}
+    >
+      <div
+        ref={modalRef}
+        className={`bg-[#262626] rounded-lg p-4 w-200 transform transition-all duration-300 relative ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+        onMouseDown={e => e.stopPropagation()}
+        style={{ transitionProperty: 'opacity, transform', transitionDuration: '300ms' }}
+      >
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl text-[#f6f6f6]">Edit watchlist</h2>
           <button onClick={onClose} className="text-[#f6f6f6]">
@@ -301,24 +352,44 @@ const EditWatchlistModal: React.FC<EditWatchlistModalProps> = ({
               style={{ height: '6.40rem' }}
               disabled={loading}
             />
-            <input
-              type="text"
-              value={newTags}
-              onChange={(e) => setNewTags(e.target.value)}
-              className="w-full p-2 mb-2 border border-[#535353] rounded bg-[#3e3d3d] text-[#f6f6f6] focus:outline-none"
-              placeholder="Tags (comma-separated)"
-              disabled={loading}
-            />
+            <div className="w-full mb-2 flex flex-wrap gap-2">
+              {newTags.slice(0, 5).map((tag, idx) => (
+                <span key={idx} className="px-2 py-0.5 bg-[#333333] text-[#b3b3b3] rounded-md flex items-center text-xs transition-colors duration-200 hover:bg-[#444444]">
+                  {tag}
+                  <button
+                    type="button"
+                    className="ml-1 text-gray-400 hover:text-red-400 focus:outline-none"
+                    onClick={() => setNewTags(newTags.filter((_, i) => i !== idx))}
+                    disabled={loading}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              <input
+                type="text"
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={e => {
+                  if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+                    e.preventDefault();
+                    if (!newTags.includes(tagInput.trim())) {
+                      setNewTags([...newTags, tagInput.trim()]);
+                    }
+                    setTagInput('');
+                  } else if (e.key === 'Backspace' && !tagInput && newTags.length > 0) {
+                    setNewTags(newTags.slice(0, -1));
+                  }
+                }}
+                className="bg-transparent focus:outline-none text-[#f6f6f6] px-2 py-1 min-w-[60px]"
+                placeholder="Add tag"
+                disabled={loading}
+              />
+            </div>
           </div>
         </div>
 
         <div className="mt-4">
-          <ShareWatchlist
-            friends={friends}
-            sharedUsers={sharedUsers}
-            onShareToggle={handleShareToggle}
-            pendingShares={pendingShares}
-          />
         </div>
 
         {loading && (
@@ -335,14 +406,42 @@ const EditWatchlistModal: React.FC<EditWatchlistModalProps> = ({
           </div>
         )}
 
-        <div className="flex items-center justify-end mt-4">
-          <button
-            onClick={handleSubmit}
-            className="save-button text-white py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={loading}
-          >
-            {loading ? 'Saving...' : 'Save'}
-          </button>
+        <div className="relative mt-6">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setShowShareModal(v => !v)}
+              className="text-white hover:text-white transition-colors focus:outline-none"
+              style={{ background: 'none', border: 'none', padding: 0, lineHeight: 0 }}
+              disabled={loading}
+              aria-label="Share Watchlist"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
+              </svg>
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="save-button text-white py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading}
+            >
+              {loading ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+          {(shareModalVisible) && (
+            <div className="absolute left-0 right-0 bottom-0 z-50 w-full flex justify-center">
+              <div
+                style={{ minWidth: '432px', maxWidth: '480px', width: '100%', transition: 'transform 300ms cubic-bezier(0.4,0,0.2,1), opacity 300ms cubic-bezier(0.4,0,0.2,1)' }}
+                className={`$${showShareModal ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'} transition-transform transition-opacity duration-300`}
+              >
+                <ShareWatchlist
+                  pendingShares={pendingShares}
+                  onShareToggle={handleShareToggle}
+                  friends={friends}
+                  sharedUsers={sharedUsers}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
