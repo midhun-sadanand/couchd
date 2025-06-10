@@ -1,85 +1,49 @@
+// ProfileHeader.tsx
 "use client";
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Bell } from '@geist-ui/icons';
-import { useCachedProfileData } from '@/hooks/useCachedProfileData';
-import { useSupabaseClient } from '@/utils/auth';
-import WatchlistButton from './WatchlistButton';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import Clock from './Clock';
+import Logo from './Logo';
 
-const ProfileHeader = () => {
-  const router = useRouter();
-  const { userProfile } = useCachedProfileData();
-  const supabase = useSupabaseClient();
-  if (!supabase) return null;
+const ProfileHeader: React.FC = () => {
+  const [translateY, setTranslateY] = useState(0);
+  const [lastScrollTop, setLastScrollTop] = useState(0);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-  };
-
-  const goToWatchlists = () => {
-    if (userProfile && userProfile.username) {
-      router.push(`/profile/${userProfile.username}/lists`);
+  const handleScroll = () => {
+    const currentScroll = window.scrollY || document.documentElement.scrollTop;
+    if (currentScroll > lastScrollTop) {
+      setTranslateY(-100);
+    } else {
+      setTranslateY(0);
     }
+    setLastScrollTop(currentScroll);
   };
 
-  const goToProfile = () => {
-    if (userProfile && userProfile.username) {
-      router.push(`/profile/${userProfile.username}`);
-    }
-  };
-
-  const handleSearchClick = (query: string) => {
-    router.push(`/search?query=${encodeURIComponent(query)}`);
-  };
-
-  const [hovered, setHovered] = useState({ home: false, grid: false, bell: false });
+  useEffect(() => {
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [lastScrollTop]);
 
   return (
-    <header className="text-white p-4 shadow-md bg-[#171717] fixed top-0 left-0 w-full z-50 mb-16">
-      <div className="mx-auto flex justify-between items-center" style={{ maxWidth: '85%' }}>
-        <div className="my-1 mr-6">
-          <h1 className="font-eina text-2xl text-left">couchd</h1>
-          <h2 className="italic text-left">conscious consumption</h2>
+    <header className="bg-transparent text-white pl-6 pt-3 pb-3 md:p-3 lg:py-3 lg:px-14 fixed top-0 left-0 w-full z-50" style={{height: '3.5rem', minHeight: '3.5rem'}}>
+      <motion.div
+        animate={{ y: translateY }}
+        transition={{ duration: .6, ease: 'easeInOut', delay:.04}}
+        className="w-full mx-auto flex items-center relative"
+      >
+        <div className="flex items-center md:ml-2">
+          <div className="mr-2 md:mr-3"><Logo scale={.15} color="gray"/></div>
+          <h1 className="font-eina-bold font-bold text-xl my-1 mr-2 md:text-xl lg:text-2xl text-left text-[#888888]">couchd</h1>
         </div>
-        <div className="flex items-center space-x-4">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth="1.8"
-            stroke="currentColor"
-            className="size-6 cursor-pointer transition-colors duration-300"
-            style={{ color: hovered.home ? '#ffffff' : '#a1a1a1', width: '28px', height: '28px'}}
-            onMouseEnter={() => setHovered({ ...hovered, home: true })}
-            onMouseLeave={() => setHovered({ ...hovered, home: false })}
-            onClick={goToProfile}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-          </svg>
-          <WatchlistButton
-            onClick={goToWatchlists}
-            hovered={hovered}
-            setHovered={setHovered}
-          />
-          <Bell
-            size={28}
-            color={hovered.bell ? '#ffffff' : '#a1a1a1'}
-            className="cursor-pointer transition-colors duration-300"
-            onMouseEnter={() => setHovered({ ...hovered, bell: true })}
-            onMouseLeave={() => setHovered({ ...hovered, bell: false })}
-          />
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Sign Out
-          </button>
+        <div style={{position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)'}}>
+          <Clock />
         </div>
-      </div>
+      </motion.div>
     </header>
   );
 };
 
-export default ProfileHeader; 
+export default ProfileHeader;

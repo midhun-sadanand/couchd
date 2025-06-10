@@ -50,6 +50,8 @@ body, html, #root {
 }
 
 
+
+
 /* Header specific styles */
 header {
   background-color: transparent;
@@ -66,7 +68,7 @@ header {
 
 @media (min-width: 768px) {
   header {
-    padding: 0.75rem;
+    padding: 0.5rem;
   }
 }
 
@@ -1654,5 +1656,12 @@ main {
 .font-eina-bold {
   font-family: 'EinaBold', 'EinaRegular', sans-serif !important;
   font-weight: 700 !important;
+}
+
+header.profile-header {
+  padding: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  background: transparent !important;
 }
 
