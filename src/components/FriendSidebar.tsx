@@ -249,6 +249,13 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
         setError('No receiver found.');
         return;
       }
+
+      // Check if trying to send request to self
+      if (receiverId === userId) {
+        setError('You cannot send a friend request to yourself.');
+        return;
+      }
+
       // Check for existing pending friend request
       const { data: existing, error: existingError } = await supabase
         .from('friend_requests')
