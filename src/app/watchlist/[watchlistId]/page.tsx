@@ -172,12 +172,19 @@ const MediaPage: React.FC = () => {
   const handleRatingChange = async (id: string, rating: number) => {
     try {
       const floatRating = Math.round(Number(rating) * 10) / 10;
+      // Optimistically update the UI
+      setMediaItems(prev => {
+        const updated = prev.map(item => item.id === id ? { ...item, rating: floatRating } : item);
+        if (sortOption === 'Rating') {
+          return [...updated].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+        }
+        return updated;
+      });
       const { error } = await supabase
         .from('media_items')
         .update({ rating: floatRating })
         .eq('id', id);
       if (error) throw error;
-      setMediaItems(prev => prev.map(item => item.id === id ? { ...item, rating: floatRating } : item));
     } catch (err: any) {
       console.error('Error updating rating:', err.message);
     }
@@ -192,12 +199,14 @@ const MediaPage: React.FC = () => {
     const reorderedItems = arrayMove(mediaItems, result.source.index, result.destination.index);
     setMediaItems(reorderedItems);
     setCustomOrder(reorderedItems);
-    try {
-      await Promise.all(reorderedItems.map((item, index) =>
-        supabase.from('media_items').update({ order: index }).match({ id: item.id })
-      ));
-    } catch (error) {
-      console.error('Error updating order on backend:', error);
+    if (sortOption === 'Custom Order') {
+      try {
+        await Promise.all(reorderedItems.map((item, index) =>
+          supabase.from('media_items').update({ order: index }).match({ id: item.id })
+        ));
+      } catch (error) {
+        console.error('Error updating order on backend:', error);
+      }
     }
   };
 
@@ -216,6 +225,9 @@ const MediaPage: React.FC = () => {
         break;
       case 'Added By':
         sortedMediaItems = [...mediaItems].sort((a, b) => (a.added_by || '').localeCompare(b.added_by || ''));
+        break;
+      case 'Rating':
+        sortedMediaItems = [...mediaItems].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
         break;
       case 'Status':
         const statusOrder = ['to consume', 'consuming', 'consumed'];
@@ -415,7 +427,7 @@ const MediaPage: React.FC = () => {
                  style={{ width: '160px' }}
             >
               <ul className="py-1 text-sm">
-                {['Custom Order', 'Status', 'Medium', 'Date Added', 'Date Modified', 'Title', 'Added By'].map((option) => (
+                {['Custom Order', 'Rating', 'Status', 'Medium', 'Date Added', 'Date Modified', 'Title', 'Added By'].map((option) => (
                   <li
                     key={option}
                     className="cursor-pointer px-4 py-2 hover:bg-gray-600"
