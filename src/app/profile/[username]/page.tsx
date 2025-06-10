@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useUser } from '@/utils/auth';
+import { useUser, useSupabaseClient } from '@/utils/auth';
 import { useCachedProfileData } from '@/hooks/useCachedProfileData';
 import { useWatchlists } from '@/hooks/useWatchlists';
 import { useSharedUsers } from '@/hooks/useSharedUsers';
@@ -12,12 +12,14 @@ import FriendSidebar from '@/components/FriendSidebar';
 import ProfileTab from '@/components/ProfileTab';
 import { Grid, Users, User, Sidebar } from '@geist-ui/icons';
 import WatchlistList from '@/components/WatchlistList';
+import EditProfileModal from '@/components/EditProfileModal';
 
 interface User {
   id: string;
   username: string;
   imageUrl?: string;
   avatar_url: string | null;
+  bio?: string;
 }
 
 interface Watchlist {
@@ -72,6 +74,7 @@ const ProfilePage = () => {
   const params = useParams();
   const username = params.username as string;
   const { user: supabaseUser, loading: isUserLoading } = useUser();
+  const supabase = useSupabaseClient();
 
   const { userProfile, friendsProfiles, friendRequests } = useCachedProfileData() as unknown as CachedProfileData;
   const [searchResults, setSearchResults] = useState<User[]>([]);
@@ -80,10 +83,165 @@ const ProfilePage = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [friendsSidebarOpen, setFriendsSidebarOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string>('/default-avatar.png');
+  const [bio, setBio] = useState('');
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [currentUsername, setCurrentUsername] = useState('');
 
   const { data: watchlistData, isLoading: isWatchlistsLoading, error: watchlistsError } = useWatchlists(supabaseUser?.id);
   const { watchlists, ownerships, ownerIds } = watchlistData || {};
   const { sharedUsers: sharedUsersData, error: sharedUsersError } = useSharedUsers(ownerIds?.[0] || '');
+
+  // Set avatarUrl, bio, and username when userProfile is available
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (userProfile) {
+        console.log('Full User Profile:', JSON.stringify(userProfile, null, 2));
+        console.log('Avatar URL type:', typeof userProfile.avatar_url);
+        console.log('Avatar URL value:', userProfile.avatar_url);
+        
+        let newAvatarUrl = '/default-avatar.png';
+        if (userProfile.avatar_url) {
+          try {
+            // Check if it's a storage path or a full URL
+            if (userProfile.avatar_url.startsWith('http')) {
+              console.log('Using full URL directly');
+              newAvatarUrl = userProfile.avatar_url;
+            } else {
+              console.log('Creating signed URL for storage path');
+              const { data: { signedUrl }, error: urlError } = await supabase.storage
+                .from('images')
+                .createSignedUrl(userProfile.avatar_url, 31536000);
+              
+              console.log('Signed URL response:', { signedUrl, urlError });
+              if (!urlError && signedUrl) {
+                newAvatarUrl = signedUrl;
+              }
+            }
+          } catch (error) {
+            console.error('Error handling avatar URL:', error);
+          }
+        } else {
+          console.log('No avatar_url in userProfile');
+        }
+        console.log('Final avatar URL being set:', newAvatarUrl);
+        setAvatarUrl(newAvatarUrl);
+        setBio(userProfile.bio || '');
+        setCurrentUsername(userProfile.username || '');
+      }
+    };
+    fetchProfileData();
+  }, [userProfile, supabase]);
+
+  // Fetch latest profile data when modal opens
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (editModalOpen && userProfile) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('avatar_url, bio, username')
+          .eq('id', userProfile.id)
+          .single();
+        if (!error && data) {
+          let newAvatarUrl = '/default-avatar.png';
+          if (data.avatar_url) {
+            const filePath = data.avatar_url.split('/').pop()?.split('?')[0];
+            if (filePath) {
+              const { data: { signedUrl }, error: urlError } = await supabase.storage
+                .from('images')
+                .createSignedUrl(filePath, 31536000); // 1 year expiry
+              
+              if (!urlError && signedUrl) {
+                newAvatarUrl = signedUrl;
+              }
+            }
+          }
+          setAvatarUrl(newAvatarUrl);
+          setBio(data.bio || '');
+          setCurrentUsername(data.username || '');
+        }
+      }
+    };
+    fetchProfile();
+  }, [editModalOpen, userProfile?.id, supabase]);
+
+  const handleProfileSave = async (avatarFile: File | null, newBio: string, newUsername: string) => {
+    try {
+      let newAvatarUrl = avatarUrl;
+      let storagePath = userProfile.avatar_url; // Keep existing path if no new file
+
+      if (avatarFile) {
+        const fileExt = avatarFile.name.split('.').pop();
+        storagePath = `${userProfile.id}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage.from('images').upload(storagePath, avatarFile, { upsert: true });
+        if (uploadError) throw uploadError;
+        
+        const { data: { signedUrl }, error: urlError } = await supabase.storage
+          .from('images')
+          .createSignedUrl(storagePath, 31536000);
+        
+        if (urlError) throw urlError;
+        newAvatarUrl = signedUrl;
+      }
+
+      // Update the profile in the database with the storage path, not the signed URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ 
+          avatar_url: storagePath, // Store the storage path, not the signed URL
+          bio: newBio,
+          username: newUsername 
+        })
+        .eq('id', userProfile.id);
+
+      if (updateError) throw updateError;
+
+      // Update local state with the signed URL for display
+      if (userProfile) {
+        userProfile.avatar_url = storagePath; // Store the path in the userProfile
+      }
+
+      // Update component state with the signed URL for display
+      setAvatarUrl(newAvatarUrl);
+      setBio(newBio);
+      setCurrentUsername(newUsername);
+      setEditModalOpen(false);
+
+      // Only refresh the page if username changed
+      if (newUsername !== userProfile.username) {
+        router.push(`/profile/${newUsername}`);
+      }
+    } catch (err: any) {
+      console.error('Error updating profile:', err);
+    }
+  };
+
+  // Add a function to refresh profile data
+  const refreshProfileData = async () => {
+    if (userProfile) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('avatar_url, bio, username')
+        .eq('id', userProfile.id)
+        .single();
+      if (!error && data) {
+        const newAvatarUrl = data.avatar_url && data.avatar_url.trim() !== '' 
+          ? data.avatar_url 
+          : '/default-avatar.png';
+        setAvatarUrl(newAvatarUrl);
+        setBio(data.bio || '');
+        setCurrentUsername(data.username || '');
+      }
+    }
+  };
+
+  // Refresh data when modal opens
+  useEffect(() => {
+    if (editModalOpen) {
+      refreshProfileData();
+    }
+  }, [editModalOpen]);
 
   const sendFriendRequest = async (receiverId: string, receiverUsername: string) => {
     try {
@@ -275,13 +433,20 @@ const ProfilePage = () => {
       <div className="flex-grow flex mt-32">
         <LibrarySidebar 
           watchlists={watchlistsWithOwners} 
-          username={username} 
+          username={currentUsername} 
           sidebarOpen={sidebarOpen} 
           toggleSidebar={toggleSidebar} 
         />
         <div className={`flex-grow transition-all duration-300`} style={{ marginLeft: sidebarWidth, marginRight: friendSidebarWidth }}>
           <div className="flex-grow w-full mx-auto p-4">
-            {activeTab === 'profile' && <ProfileTab userProfile={userProfile} watchlistCount={watchlistCount} mediaCount={mediaCount} />}
+            {activeTab === 'profile' && (
+              <ProfileTab 
+                userProfile={userProfile} 
+                watchlistCount={watchlistCount} 
+                mediaCount={mediaCount} 
+                onEditProfile={() => setEditModalOpen(true)}
+              />
+            )}
             {activeTab === 'watchlists' && (
               <WatchlistList 
                 isFriendSidebarOpen={friendsSidebarOpen} 
@@ -307,6 +472,14 @@ const ProfilePage = () => {
           userId={supabaseUser?.id || ''}
         />
       </div>
+      <EditProfileModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleProfileSave}
+        initialAvatarUrl={avatarUrl}
+        initialBio={bio}
+        initialUsername={currentUsername}
+      />
     </div>
   );
 };
