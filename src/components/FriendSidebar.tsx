@@ -121,6 +121,7 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
     if (!supabase) return;
 
     try {
+      console.log('Updating friend request status:', { requestId, status });
       await supabase
         .from('friend_requests')
         .update({ status })
@@ -133,8 +134,13 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
           return;
         }
 
+        console.log('Creating friend relationships:', {
+          sender_id: request.sender_id,
+          receiver_id: userId
+        });
+
         // Create bidirectional friend relationship using user_ids directly
-        await Promise.all([
+        const [firstInsert, secondInsert] = await Promise.all([
           supabase
             .from('friends')
             .insert([{
@@ -150,6 +156,12 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
               created_at: new Date().toISOString()
             }])
         ]);
+
+        console.log('First friend relationship created:', firstInsert);
+        console.log('Second friend relationship created:', secondInsert);
+
+        if (firstInsert.error) console.error('Error creating first friendship:', firstInsert.error);
+        if (secondInsert.error) console.error('Error creating second friendship:', secondInsert.error);
 
         setRequests(prev => prev.filter(req => req.id !== requestId));
       } else {
@@ -201,11 +213,11 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
 
     try {
       const { data, error } = await supabase
-        .from('friends')
+        .from('friend_requests')
         .select('*')
-        .eq('user_id', userId)
-        .eq('friend_id', friendId)
-        .eq('status', 'accepted');
+        .eq('sender_id', userId)
+        .eq('status', 'accepted')
+        .eq('receiver_id', friendId);
 
       if (error) throw error;
       return !!data.length;
