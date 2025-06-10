@@ -6,11 +6,12 @@ import { useUser } from '@/utils/auth';
 import HeaderTabs from './HeaderTabs';
 import { useHeaderTabs } from './useHeaderTabs';
 
-type Props = {
-  toggleAuth: () => void;
-};
+interface Props {
+  onSignIn: () => void;
+  onSignUp: () => void;
+}
 
-const HomepageHeader: React.FC<Props> = ({ toggleAuth }) => {
+const HomepageHeader: React.FC<Props> = ({ onSignIn, onSignUp }) => {
   const [translateY, setTranslateY] = useState(0);
   const [lastScrollTop, setLastScrollTop] = useState(0);
   const { user, loading } = useUser();
@@ -19,12 +20,12 @@ const HomepageHeader: React.FC<Props> = ({ toggleAuth }) => {
     {
       label: 'Sign In',
       id: 'signin',
-      onClick: toggleAuth
+      onClick: onSignIn
     },
     {
       label: 'Register',
       id: 'register',
-      onClick: toggleAuth
+      onClick: onSignUp
     }
   ];
 
