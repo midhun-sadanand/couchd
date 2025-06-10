@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     // Fetch user by id from Supabase profiles table
-    const { data: user, error } = await supabase.from('profiles').select('*').eq('id', params.userId).single();
+    const { data: user, error } = await supabase.from('profiles').select('id, username, avatar_url, bio').eq('id', params.userId).single();
     if (error) throw error;
     return NextResponse.json(user);
   } catch (err: any) {

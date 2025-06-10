@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
   try {
     const { userIds } = await req.json();
     // Fetch users by ids from Supabase profiles table
-    const { data: users, error } = await supabase.from('profiles').select('*').in('id', userIds);
+    const { data: users, error } = await supabase.from('profiles').select('id, username, avatar_url, bio').in('id', userIds);
     if (error) throw error;
     return NextResponse.json(users);
   } catch (err: any) {

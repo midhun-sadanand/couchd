@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@/utils/auth';
 import { useSupabase } from '../utils/auth';
 
@@ -15,7 +15,7 @@ interface CachedProfileData {
   error: Error | null;
 }
 
-export function useCachedProfileData(): CachedProfileData {
+export function useCachedProfileData(): CachedProfileData & { refetchProfile: () => Promise<void> } {
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [friendsProfiles, setFriendsProfiles] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -23,79 +23,78 @@ export function useCachedProfileData(): CachedProfileData {
   const { user } = useUser();
   const { client: supabase, isLoading: supabaseLoading } = useSupabase();
 
+  const fetchOrCreateProfile = useCallback(async () => {
+    try {
+      // Try to fetch existing profile using the Supabase user ID
+      console.log('Attempting to fetch profile with ID:', user.id);
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url, bio')
+        .eq('id', user.id)
+        .single();
+
+      // Log the raw response for debugging
+      console.log('Raw Supabase Response:', {
+        data: existingProfile,
+        error: fetchError ? {
+          code: fetchError.code,
+          message: fetchError.message,
+          details: fetchError.details,
+          hint: fetchError.hint
+        } : null
+      });
+
+      if (fetchError) {
+        if (fetchError.code === 'PGRST116') {
+          // Profile doesn't exist, create it
+          console.log('Profile not found, creating new profile');
+          const { data: newProfile, error: insertError } = await supabase
+            .from('profiles')
+            .insert([{
+              id: user.id,
+              username: user.username || `user_${user.id.slice(0, 8)}`,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }])
+            .select('id, username, avatar_url, bio')
+            .single();
+
+          console.log('Profile creation result:', {
+            hasNewProfile: !!newProfile,
+            newProfile,
+            error: insertError ? {
+              code: insertError.code,
+              message: insertError.message,
+              details: insertError.details,
+              hint: insertError.hint
+            } : null
+          });
+
+          if (insertError) throw insertError;
+          setUserProfile(newProfile);
+        } else {
+          throw fetchError;
+        }
+      } else {
+        setUserProfile(existingProfile);
+      }
+    } catch (err) {
+      console.error('Error in fetchOrCreateProfile:', {
+        error: err,
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined
+      });
+      setError(err instanceof Error ? err : new Error('Failed to fetch/create profile'));
+    }
+  }, [supabase, user]);
+
   useEffect(() => {
     if (!user || supabaseLoading || !supabase) {
       setUserProfile(null);
       return;
     }
-
-    const fetchOrCreateProfile = async () => {
-      try {
-        // Try to fetch existing profile using the Supabase user ID
-        console.log('Attempting to fetch profile with ID:', user.id);
-        const { data: existingProfile, error: fetchError } = await supabase
-          .from('profiles')
-          .select('id, username')
-          .eq('id', user.id)
-          .single();
-
-        // Log the raw response for debugging
-        console.log('Raw Supabase Response:', {
-          data: existingProfile,
-          error: fetchError ? {
-            code: fetchError.code,
-            message: fetchError.message,
-            details: fetchError.details,
-            hint: fetchError.hint
-          } : null
-        });
-
-        if (fetchError) {
-          if (fetchError.code === 'PGRST116') {
-            // Profile doesn't exist, create it
-            console.log('Profile not found, creating new profile');
-            const { data: newProfile, error: insertError } = await supabase
-              .from('profiles')
-              .insert([{
-                id: user.id,
-                username: user.username || `user_${user.id.slice(0, 8)}`,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              }])
-              .select('id, username')
-              .single();
-
-            console.log('Profile creation result:', {
-              hasNewProfile: !!newProfile,
-              newProfile,
-              error: insertError ? {
-                code: insertError.code,
-                message: insertError.message,
-                details: insertError.details,
-                hint: insertError.hint
-              } : null
-            });
-
-            if (insertError) throw insertError;
-            setUserProfile(newProfile);
-          } else {
-            throw fetchError;
-          }
-        } else {
-          setUserProfile(existingProfile);
-        }
-      } catch (err) {
-        console.error('Error in fetchOrCreateProfile:', {
-          error: err,
-          message: err instanceof Error ? err.message : 'Unknown error',
-          stack: err instanceof Error ? err.stack : undefined
-        });
-        setError(err instanceof Error ? err : new Error('Failed to fetch/create profile'));
-      }
-    };
-
     fetchOrCreateProfile();
-  }, [user, supabase, supabaseLoading]);
+  }, [user, supabase, supabaseLoading, fetchOrCreateProfile]);
 
   useEffect(() => {
     if (supabaseLoading || !supabase || !userProfile) {
@@ -121,7 +120,7 @@ export function useCachedProfileData(): CachedProfileData {
           const friendIds = friends.map(f => f.friend_id);
           const { data: profiles, error: profilesError } = await supabase
             .from('profiles')
-            .select('id, username')
+            .select('id, username, avatar_url, bio')
             .in('id', friendIds);
 
           if (profilesError) throw profilesError;
@@ -144,7 +143,8 @@ export function useCachedProfileData(): CachedProfileData {
     userProfile,
     friendsProfiles,
     isLoading: isLoading || supabaseLoading,
-    error
+    error,
+    refetchProfile: fetchOrCreateProfile
   };
 }
 

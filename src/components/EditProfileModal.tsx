@@ -25,6 +25,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Debug log to check what is being passed from the database
+  console.log('EditProfileModal initialBio:', initialBio);
   // Update state when initial values change
   useEffect(() => {
     setAvatarUrl(initialAvatarUrl && initialAvatarUrl.trim() !== '' ? initialAvatarUrl : '/default_pfp.png');

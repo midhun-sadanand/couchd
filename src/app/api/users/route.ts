@@ -4,7 +4,7 @@ import { supabase } from '@/lib/server';
 export async function GET() {
   try {
     // Fetch all users from Supabase profiles table
-    const { data: users, error } = await supabase.from('profiles').select('*');
+    const { data: users, error } = await supabase.from('profiles').select('id, username, avatar_url, bio');
     if (error) throw error;
     return NextResponse.json(users);
   } catch (err: any) {
