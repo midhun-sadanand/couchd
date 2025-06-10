@@ -33,6 +33,10 @@ export default function AuthModal({ open, onClose, view = 'sign_in' }: AuthModal
                 colors: {
                   brand: '#404040',
                   brandAccent: '#525252',
+                  inputText: '#fff',
+                  inputLabelText: '#fff',
+                  messageText: '#fff',
+                  defaultButtonText: '#fff',
                 },
                 fonts: {
                   bodyFontFamily: 'Inter, system-ui, sans-serif',
@@ -58,23 +62,28 @@ export default function AuthModal({ open, onClose, view = 'sign_in' }: AuthModal
                 fontFamily: 'Inter, system-ui, sans-serif',
                 fontSize: '14px',
                 fontWeight: '500',
+                color: '#fff',
               },
               input: {
                 borderRadius: '8px',
                 fontFamily: 'Inter, system-ui, sans-serif',
                 fontSize: '14px',
+                color: '#fff',
               },
               label: {
                 fontFamily: 'Inter, system-ui, sans-serif',
                 fontSize: '14px',
+                color: '#fff',
               },
               message: {
                 fontFamily: 'Inter, system-ui, sans-serif',
                 fontSize: '14px',
+                color: '#fff',
               },
               anchor: {
                 fontFamily: 'Inter, system-ui, sans-serif',
                 fontSize: '14px',
+                color: '#fff',
               },
             },
           }}

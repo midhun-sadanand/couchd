@@ -27,7 +27,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
   // Update state when initial values change
   useEffect(() => {
-    setAvatarUrl(initialAvatarUrl);
+    setAvatarUrl(initialAvatarUrl && initialAvatarUrl.trim() !== '' ? initialAvatarUrl : '/default_pfp.png');
     setBio(initialBio);
     setUsername(initialUsername);
   }, [initialAvatarUrl, initialBio, initialUsername]);
@@ -91,9 +91,10 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
               onClick={handleImageClick}
             >
               <img
-                src={avatarUrl}
+                src={avatarUrl || '/default_pfp.png'}
                 alt="Profile"
                 className="w-full h-full object-cover"
+                onError={() => setAvatarUrl('/default_pfp.png')}
               />
               <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                 <span className="text-white text-sm">Change Photo</span>

@@ -17,6 +17,8 @@ interface ProfileTabProps {
   onEditProfile: () => void;
 }
 
+const DEFAULT_AVATAR = '/default_pfp.png';
+
 const ProfileTab: React.FC<ProfileTabProps> = ({ 
   userProfile, 
   watchlistCount, 
@@ -25,31 +27,33 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
 }) => {
   const { user: currentUser } = useUser();
   const supabase = useSupabaseClient();
-  const [avatarUrl, setAvatarUrl] = useState<string>('/default-avatar.png');
+  const [avatarUrl, setAvatarUrl] = useState<string>(DEFAULT_AVATAR);
   const isCurrentUser = currentUser?.id === userProfile.id;
 
   useEffect(() => {
     const fetchAvatarUrl = async () => {
-      if (userProfile.avatar_url) {
-        try {
-          // Check if it's a storage path or a full URL
-          if (userProfile.avatar_url.startsWith('http')) {
-            setAvatarUrl(userProfile.avatar_url);
+      if (!userProfile.avatar_url || userProfile.avatar_url.trim() === '') {
+        setAvatarUrl(DEFAULT_AVATAR);
+        return;
+      }
+      try {
+        // Check if it's a storage path or a full URL
+        if (userProfile.avatar_url.startsWith('http')) {
+          setAvatarUrl(userProfile.avatar_url);
+        } else {
+          const { data: { signedUrl }, error: urlError } = await supabase.storage
+            .from('images')
+            .createSignedUrl(userProfile.avatar_url, 31536000);
+          if (!urlError && signedUrl) {
+            setAvatarUrl(signedUrl);
           } else {
-            const { data: { signedUrl }, error: urlError } = await supabase.storage
-              .from('images')
-              .createSignedUrl(userProfile.avatar_url, 31536000);
-            
-            if (!urlError && signedUrl) {
-              setAvatarUrl(signedUrl);
-            }
+            setAvatarUrl(DEFAULT_AVATAR);
           }
-        } catch (error) {
-          console.error('Error fetching avatar URL:', error);
         }
+      } catch (error) {
+        setAvatarUrl(DEFAULT_AVATAR);
       }
     };
-
     fetchAvatarUrl();
   }, [userProfile.avatar_url, supabase]);
 
@@ -64,7 +68,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
             src={avatarUrl}
             alt={userProfile.username}
             className="w-20 h-20 object-cover rounded-full mr-4"
-            onError={() => setAvatarUrl('/default-avatar.png')}
+            onError={() => setAvatarUrl(DEFAULT_AVATAR)}
           />
           {isCurrentUser && (
             <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 rounded-full flex items-center justify-center transition-opacity mr-4">
