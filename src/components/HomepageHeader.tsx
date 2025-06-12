@@ -49,20 +49,20 @@ const HomepageHeader: React.FC<Props> = ({ onSignIn, onSignUp }) => {
   }, [lastScrollTop]);
 
   return (
-    <header className="bg-transparent text-white pl-6 pt-3 pb-3 md:p-3 lg:py-3 lg:px-14 fixed top-0 left-0 w-full z-50">
+    <header className="bg-transparent text-white fixed top-1 left-1 w-full z-50" style={{height: '3.5rem', minHeight: '3.5rem', paddingLeft: 0, paddingRight: 0}}>
       <motion.div 
         animate={{ y: translateY }}
         transition={{ duration: .6, ease: 'easeInOut', delay:.04}}
-        className="w-full mx-auto flex justify-between items-center"
+        className="w-full flex items-center relative"
       >
-        <div>
-          <div className="flex items-center md:ml-2">
-            <div className="mr-2 md:mr-3"><Logo scale={.15} color="gray"/></div>
-            <h1 className="font-eina-bold font-bold text-xl my-1 mr-2 md:text-xl lg:text-2xl text-left text-[#888888]">couchd</h1>
-          </div>
+        <div className="flex items-center cursor-pointer select-none" style={{marginLeft: '0.75rem'}}>
+          <div className="mr-2"><Logo scale={.15} color="gray"/></div>
+          <h1 className="font-eina-bold font-bold text-xl my-1 mr-2 text-left text-[#888888]">couchd</h1>
         </div>
-        <Clock />
-        <nav className="flex items-center">
+        <div style={{position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)'}}>
+          <Clock />
+        </div>
+        <nav className="flex items-center absolute" style={{right: '1.5rem', top: '50%', transform: 'translateY(-50%)'}}>
           {!loading && !user && (
             <div className="text-[#888888]">
               <HeaderTabs {...tabProps} />

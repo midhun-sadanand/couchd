@@ -297,107 +297,117 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
   if (!userId) return <div>Loading...</div>;
 
   return (
-    <div 
-      className={`fixed top-24 right-0 h-full w-60 bg-[#232323] text-white p-4 z-40 transition-transform duration-300 ${
-        sidebarOpen ? 'translate-x-0' : 'translate-x-full'
-      }`}
-      style={{ right: sidebarOpen ? '0' : '-240px' }}
-    >
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl">Friends</h2>
-        <button onClick={closeSidebar} className="text-white">
-          <X />
-        </button>
-      </div>
-      {/* Friends List */}
-      <ul className="mb-4">
-        {friends.length > 0 ? (
-          friends.map(friend => (
-            <li key={friend.id} className="mb-2 flex items-center">
-              <span className="font-bold">{friend.username}</span>
-            </li>
-          ))
-        ) : (
-          <li className="text-gray-400">No friends yet.</li>
-        )}
-      </ul>
-      <div className="relative mb-4">
-        <input
-          type="text"
-          placeholder="Enter friend's name"
-          value={friendName}
-          onChange={searchFriends}
-          className="border p-2 w-full text-black bg-white rounded"
+    <>
+      {/* Subtle clickable edge when sidebar is closed */}
+      {!sidebarOpen && (
+        <div
+          className="fixed top-14 right-0 h-[calc(100vh-2rem)] w-2 bg-[#181818] hover:bg-[#232323] cursor-pointer z-50 rounded-l-lg transition-colors duration-200"
+          style={{ margin: '8px 0 16px 0' }}
+          onClick={closeSidebar}
         />
-        {error && (
-          <div className="text-red-500 text-sm mt-1">{error}</div>
-        )}
-        <button 
-          onClick={sendFriendRequest} 
-          className="mt-2 btn bg-blue-500 hover:bg-blue-700 text-white w-full rounded"
-        >
-          Send Request
-        </button>
-        {showDropdown && searchResultsState.length > 0 && (
-          <div className="absolute mt-1 w-full bg-white shadow-lg z-10 rounded">
-            <ul>
-              {searchResultsState.map(friend => (
-                <li 
-                  key={friend.id} 
-                  className="p-2 hover:bg-gray-200 cursor-pointer text-black"
-                  onClick={() => handleSelectFriend(friend.id)}
-                >
-                  {friend.username}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-
-      <div className="relative mb-4">
-        <div className="flex justify-between items-center">
-          <button 
-            onClick={() => setShowDropdown(!showDropdown)} 
-            className="btn flex"
-          >
-            <span className="border-2 rounded-full py-3 px-5 mx-2">
-              {requests.length}
-            </span>
-            <span className="p-2">Incoming Requests</span>
+      )}
+      <div 
+        className={`fixed top-14 right-0 h-[calc(100vh-2rem)] w-60 bg-[#181818] text-white p-4 z-40 transition-transform duration-300 rounded-lg m-2 shadow-lg mb-4 ${
+          sidebarOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+        style={{ right: sidebarOpen ? '0' : '-240px' }}
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl">Friends</h2>
+          <button onClick={closeSidebar} className="text-white">
+            <X />
           </button>
         </div>
-        {showDropdown && requests.length > 0 && (
-          <div className="absolute bg-white shadow-md mt-2 rounded z-10 w-full">
-            <ul>
-              {requests.map(request => (
-                <li key={request.id} className="p-2 border-b border-gray-200 text-black">
-                  <div className="flex flex-col">
-                    <span className="mr-2">
-                      Request from {request.sender?.username || "Unknown"}
-                    </span>
-                    <div className="flex gap-2 mt-2">
-                      <button 
-                        onClick={() => handleResponse(request.id, 'accepted')} 
-                        className="btn bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded"
-                      >
-                        Accept
-                      </button>
-                      <button 
-                        onClick={() => handleResponse(request.id, 'rejected')} 
-                        className="btn bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+        {/* Friends List */}
+        <ul className="mb-4">
+          {friends.length > 0 ? (
+            friends.map(friend => (
+              <li key={friend.id} className="mb-2 flex items-center">
+                <span className="font-bold">{friend.username}</span>
+              </li>
+            ))
+          ) : (
+            <li className="text-gray-400">No friends yet.</li>
+          )}
+        </ul>
+        <div className="relative mb-4">
+          <input
+            type="text"
+            placeholder="Enter friend's name"
+            value={friendName}
+            onChange={searchFriends}
+            className="border p-2 w-full text-black bg-white rounded"
+          />
+          {error && (
+            <div className="text-red-500 text-sm mt-1">{error}</div>
+          )}
+          <button 
+            onClick={sendFriendRequest} 
+            className="mt-2 btn bg-blue-500 hover:bg-blue-700 text-white w-full rounded"
+          >
+            Send Request
+          </button>
+          {showDropdown && searchResultsState.length > 0 && (
+            <div className="absolute mt-1 w-full bg-white shadow-lg z-10 rounded">
+              <ul>
+                {searchResultsState.map(friend => (
+                  <li 
+                    key={friend.id} 
+                    className="p-2 hover:bg-gray-200 cursor-pointer text-black"
+                    onClick={() => handleSelectFriend(friend.id)}
+                  >
+                    {friend.username}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="relative mb-4">
+          <div className="flex justify-between items-center">
+            <button 
+              onClick={() => setShowDropdown(!showDropdown)} 
+              className="btn flex"
+            >
+              <span className="border-2 rounded-full py-3 px-5 mx-2">
+                {requests.length}
+              </span>
+              <span className="p-2">Incoming Requests</span>
+            </button>
           </div>
-        )}
+          {showDropdown && requests.length > 0 && (
+            <div className="absolute bg-white shadow-md mt-2 rounded z-10 w-full">
+              <ul>
+                {requests.map(request => (
+                  <li key={request.id} className="p-2 border-b border-gray-200 text-black">
+                    <div className="flex flex-col">
+                      <span className="mr-2">
+                        Request from {request.sender?.username || "Unknown"}
+                      </span>
+                      <div className="flex gap-2 mt-2">
+                        <button 
+                          onClick={() => handleResponse(request.id, 'accepted')} 
+                          className="btn bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded"
+                        >
+                          Accept
+                        </button>
+                        <button 
+                          onClick={() => handleResponse(request.id, 'rejected')} 
+                          className="btn bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

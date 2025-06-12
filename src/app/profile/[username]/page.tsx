@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser, useSupabaseClient } from '@/utils/auth';
 import { useCachedProfileData } from '@/hooks/useCachedProfileData';
@@ -13,6 +13,7 @@ import ProfileTab from '@/components/ProfileTab';
 import { Grid, Users, User, Sidebar } from '@geist-ui/icons';
 import WatchlistList from '@/components/WatchlistList';
 import EditProfileModal from '@/components/EditProfileModal';
+import { ProfileUIContext } from '@/components/Layout';
 
 interface User {
   id: string;
@@ -77,6 +78,16 @@ const ProfilePage = () => {
   const { user: supabaseUser, loading: isUserLoading } = useUser();
   const supabase = useSupabaseClient();
 
+  // Use context for sidebar/tab state
+  const {
+    sidebarOpen,
+    setSidebarOpen,
+    friendsSidebarOpen,
+    setFriendsSidebarOpen,
+    activeTab,
+    setActiveTab,
+  } = useContext(ProfileUIContext);
+
   const { userProfile, friendsProfiles, friendRequests, refetchProfile } = useCachedProfileData() as unknown as CachedProfileData;
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [friendRequestsState, setFriendRequests] = useState<FriendRequest[]>([]);
@@ -84,6 +95,8 @@ const ProfilePage = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [friendsSidebarOpen, setFriendsSidebarOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string>('/default-avatar.png');
+  const [bio, setBio] = useState('');
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [modalProfile, setModalProfile] = useState({ avatar_url: '', bio: '', username: '' });
 
@@ -264,15 +277,6 @@ const ProfilePage = () => {
     router.push(`/profile/${userProfile.username}/lists`);
   };
 
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-    setHovered({ ...hovered, sidebar: false });
-  };
-
-  const toggleFriendsSidebar = () => {
-    setFriendsSidebarOpen(!friendsSidebarOpen);
-  };
-
   // Merge watchlists with sharedUsersData to get the owner names
   const watchlistsWithOwners: WatchlistWithOwner[] = watchlists?.map(watchlist => {
     const ownership = ownerships?.find(own => own.watchlist_id === watchlist.id);
@@ -285,79 +289,16 @@ const ProfilePage = () => {
     };
   }) || [];
 
-  const sidebarWidth = sidebarOpen ? '240px' : '0';
-  const friendSidebarWidth = friendsSidebarOpen ? '240px' : '0';
-
   return (
     <div className="w-screen h-screen flex flex-col bg-[#232323]">
-      <nav className={`bg-[#121212] p-2 flex justify-between transition-all duration-300 fixed top-24 left-0 w-full z-40 rounded-lg`} style={{ marginLeft: sidebarWidth, marginRight: friendSidebarWidth }}>
-        <div className="flex space-x-4">
-          {!sidebarOpen && (
-            <div className="relative group">
-              <Sidebar
-                size={28}
-                className="cursor-pointer transition-colors duration-300"
-                color={hovered.sidebar ? '#f6f6f6' : '#777777'}
-                onMouseEnter={() => setHovered({ ...hovered, sidebar: true })}
-                onMouseLeave={() => setHovered({ ...hovered, sidebar: false })}
-                onClick={toggleSidebar}
-              />
-              {activeTab === 'sidebar' && (
-                <div className="absolute bottom-[-4px] left-0 right-0 h-0.5 w-2/3 mx-auto bg-[#777777] group-hover:bg-[#f6f6f6]" />
-              )}
-            </div>
-          )}
-          <div className="relative group">
-            <User
-              size={28}
-              className="cursor-pointer transition-colors duration-300"
-              color={hovered.profile ? '#f6f6f6' : '#777777'}
-              onMouseEnter={() => setHovered({ ...hovered, profile: true })}
-              onMouseLeave={() => setHovered({ ...hovered, profile: false })}
-              onClick={() => setActiveTab('profile')}
-            />
-            {activeTab === 'profile' && (
-              <div className="absolute bottom-[-4px] left-0 right-0 h-0.5 w-2/3 mx-auto bg-[#777777] group-hover:bg-[#f6f6f6]" />
-            )}
-          </div>
-          <div className="relative group">
-            <Grid
-              size={28}
-              className="cursor-pointer transition-colors duration-300"
-              color={hovered.watchlists ? '#f6f6f6' : '#777777'}
-              onMouseEnter={() => setHovered({ ...hovered, watchlists: true })}
-              onMouseLeave={() => setHovered({ ...hovered, watchlists: false })}
-              onClick={() => setActiveTab('watchlists')}
-            />
-            {activeTab === 'watchlists' && (
-              <div className="absolute bottom-[-4px] left-0 right-0 h-0.5 w-2/3 mx-auto bg-[#777777] group-hover:bg-[#f6f6f6]" />
-            )}
-          </div>
-        </div>
-        <div className="flex items-center space-x-4 fixed right-3">
-          <div className="relative group">
-            <Users
-              size={28}
-              color={hovered.friends ? '#f6f6f6' : '#777777'}
-              className="cursor-pointer transition-colors duration-300"
-              onMouseEnter={() => setHovered({ ...hovered, friends: true })}
-              onMouseLeave={() => setHovered({ ...hovered, friends: false })}
-              onClick={toggleFriendsSidebar}
-            />
-            {friendsSidebarOpen && (
-              <div className="absolute bottom-[-4px] left-0 right-0 h-0.5 w-2/3 mx-auto bg-[#777777] group-hover:bg-[#f6f6f6]" />
-            )}
-          </div>
-        </div>
-      </nav>
       <div className="flex-grow flex mt-32">
         <LibrarySidebar 
           watchlists={watchlistsWithOwners} 
           username={userProfile.username} 
           sidebarOpen={sidebarOpen} 
-          toggleSidebar={toggleSidebar} 
+          toggleSidebar={() => setSidebarOpen(!sidebarOpen)} 
         />
-        <div className={`flex-grow transition-all duration-300`} style={{ marginLeft: sidebarWidth, marginRight: friendSidebarWidth }}>
+        <div className={`flex-grow transition-all duration-300`} style={{ marginLeft: sidebarOpen ? '240px' : '0', marginRight: friendsSidebarOpen ? '240px' : '0' }}>
           <div className="flex-grow w-full mx-auto p-4">
             {activeTab === 'profile' && (
               <ProfileTab 
@@ -387,7 +328,7 @@ const ProfilePage = () => {
           handleRejectRequest={handleRejectRequest}
           handleSearch={handleSearch}
           searchResults={searchResults}
-          closeSidebar={toggleFriendsSidebar}
+          closeSidebar={() => setFriendsSidebarOpen(!friendsSidebarOpen)}
           sidebarOpen={friendsSidebarOpen}
           userId={supabaseUser?.id || ''}
         />
