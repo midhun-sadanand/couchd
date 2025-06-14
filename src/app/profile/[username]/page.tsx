@@ -92,9 +92,6 @@ const ProfilePage = () => {
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [friendRequestsState, setFriendRequests] = useState<FriendRequest[]>([]);
   const [hovered, setHovered] = useState({ sidebar: false, profile: false, watchlists: false, friends: false });
-  const [activeTab, setActiveTab] = useState('profile');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [friendsSidebarOpen, setFriendsSidebarOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string>('/default-avatar.png');
   const [bio, setBio] = useState('');
   const [editModalOpen, setEditModalOpen] = useState(false);

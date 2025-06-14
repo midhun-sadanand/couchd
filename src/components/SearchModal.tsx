@@ -82,18 +82,39 @@ const SearchModal: React.FC<SearchModalProps> = ({ onSelect, onClose, inputRef }
                 await handleFetchCast();
             }
         } else {
-            const API_KEY = process.env.REACT_APP_YOUTUBE_API_KEY;
+            const keyList = process.env.NEXT_PUBLIC_YOUTUBE_API_KEYS!.split(',');
+            const API_KEY  = keyList[Math.floor(Math.random() * keyList.length)];
+            const BASE_API  = 'https://www.googleapis.com/youtube/v3';
             const maxResults = 10;
-            const order = sortOption === 'relevance' ? 'relevance' : 'date';
+            const order      = sortOption === 'relevance' ? 'relevance' : 'date';
+          
             if (selectedChannel) {
-                url = `https://yt.lemnoslife.com/noKey/search?part=snippet&channelId=${selectedChannel}&type=video&maxResults=${maxResults}&order=${order}`;
-            } else if (selectedPlaylist) {
-                url = `https://yt.lemnoslife.com/noKey/playlistItems?part=snippet&playlistId=${selectedPlaylist}&maxResults=${maxResults}`;
-            } else {
-                url = `https://yt.lemnoslife.com/noKey/search?part=snippet&q=${encodeURIComponent(query)}&type=${youtubeType}&maxResults=${maxResults}&order=${order}`;
+              // search within a channel
+              url = `${BASE_API}/search?part=snippet`
+                  + `&channelId=${selectedChannel}`
+                  + `&type=video`
+                  + `&maxResults=${maxResults}`
+                  + `&order=${order}`
+                  + `&key=${API_KEY}`;
             }
-        }
-    
+            else if (selectedPlaylist) {
+              // fetch a playlist’s items
+              url = `${BASE_API}/playlistItems?part=snippet`
+                  + `&playlistId=${selectedPlaylist}`
+                  + `&maxResults=${maxResults}`
+                  + `&key=${API_KEY}`;
+            }
+            else {
+              // generic search
+              url = `${BASE_API}/search?part=snippet`
+                  + `&q=${encodeURIComponent(query)}`
+                  + `&type=${youtubeType}`
+                  + `&maxResults=${maxResults}`
+                  + `&order=${order}`
+                  + `&key=${API_KEY}`;
+            }
+          }
+          
         try {
             if (url) {
                 const response = await fetch(url, { signal });
