@@ -82,38 +82,50 @@ const SearchModal: React.FC<SearchModalProps> = ({ onSelect, onClose, inputRef }
                 await handleFetchCast();
             }
         } else {
-            const keyList = process.env.NEXT_PUBLIC_YOUTUBE_API_KEYS!.split(',');
-            const API_KEY  = keyList[Math.floor(Math.random() * keyList.length)];
-            const BASE_API  = 'https://www.googleapis.com/youtube/v3';
+            // safely grab your comma-list or fall back to a single key
+            const rawKeys = process.env.NEXT_PUBLIC_YOUTUBE_API_KEYS
+                         || process.env.NEXT_PUBLIC_YOUTUBE_API_KEY  
+                         || ''; 
+            const keyList = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
+            const API_KEY = keyList.length
+              ? keyList[Math.floor(Math.random() * keyList.length)]
+              : ''; // or throw an error / show a warning
+          
+            const BASE_API   = 'https://www.googleapis.com/youtube/v3';
             const maxResults = 10;
             const order      = sortOption === 'relevance' ? 'relevance' : 'date';
           
+            if (!API_KEY) {
+              console.warn('No YouTube API key defined!');
+            } else if (API_KEY) {
+                console.log('API_KEY', API_KEY);
+            }
+          
             if (selectedChannel) {
-              // search within a channel
-              url = `${BASE_API}/search?part=snippet`
-                  + `&channelId=${selectedChannel}`
-                  + `&type=video`
-                  + `&maxResults=${maxResults}`
-                  + `&order=${order}`
-                  + `&key=${API_KEY}`;
+              url = `${BASE_API}/search?part=snippet` +
+                    `&channelId=${selectedChannel}` +
+                    `&type=video` +
+                    `&maxResults=${maxResults}` +
+                    `&order=${order}` +
+                    `&key=${API_KEY}`;
             }
             else if (selectedPlaylist) {
-              // fetch a playlist’s items
-              url = `${BASE_API}/playlistItems?part=snippet`
-                  + `&playlistId=${selectedPlaylist}`
-                  + `&maxResults=${maxResults}`
-                  + `&key=${API_KEY}`;
+              url = `${BASE_API}/playlistItems?part=snippet` +
+                    `&playlistId=${selectedPlaylist}` +
+                    `&maxResults=${maxResults}` +
+                    `&key=${API_KEY}`;
             }
             else {
-              // generic search
-              url = `${BASE_API}/search?part=snippet`
-                  + `&q=${encodeURIComponent(query)}`
-                  + `&type=${youtubeType}`
-                  + `&maxResults=${maxResults}`
-                  + `&order=${order}`
-                  + `&key=${API_KEY}`;
+              url = `${BASE_API}/search?part=snippet` +
+                    `&q=${encodeURIComponent(query)}` +
+                    `&type=${youtubeType}` +
+                    `&maxResults=${maxResults}` +
+                    `&order=${order}` +
+                    `&key=${API_KEY}`;
             }
           }
+          console.log(url);
+          
           
         try {
             if (url) {
