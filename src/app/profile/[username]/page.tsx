@@ -14,6 +14,7 @@ import { Grid, Users, User, Sidebar } from '@geist-ui/icons';
 import WatchlistList from '@/components/WatchlistList';
 import EditProfileModal from '@/components/EditProfileModal';
 import { ProfileUIContext } from '@/components/Layout';
+import { useSearchParams } from 'next/navigation';
 
 interface User {
   id: string;
@@ -87,6 +88,12 @@ const ProfilePage = () => {
     activeTab,
     setActiveTab,
   } = useContext(ProfileUIContext);
+
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) setActiveTab(tab);
+  }, [searchParams, setActiveTab]);
 
   const { userProfile, friendsProfiles, friendRequests, refetchProfile } = useCachedProfileData() as unknown as CachedProfileData;
   const [searchResults, setSearchResults] = useState<User[]>([]);

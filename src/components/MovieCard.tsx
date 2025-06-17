@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Rating from './Rating';
 import NotesInput from './NotesInput';
 import ReactDOM from 'react-dom';
+import { ExternalLink } from '@geist-ui/icons';
+import { useRouter } from 'next/navigation';
 
 interface MovieCardProps {
   item: MediaItem;
@@ -31,6 +33,7 @@ export default function MovieCard({
   isDropdownOpen,
   toggleDropdown,
 }: MovieCardProps) {
+  const router = useRouter();
   // Defensive guard: if item is missing, don't render
   if (!item) return null;
 
@@ -148,6 +151,11 @@ export default function MovieCard({
     e.currentTarget.src = '/default-movie.jpg';
   };
 
+  const handleProfileRedirect = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    router.push(`/profile/${added_by}?mediaId=${id}&tab=profile`);
+  };
+
   // Modal for delete confirmation
   const deleteModal = showDeleteConfirm ? (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -257,12 +265,20 @@ export default function MovieCard({
                   <div className="mb-2">
                     <Rating rating={localRating} onRatingChange={handleRatingChange} />
                   </div>
-                  <button
-                    onClick={e => { e.stopPropagation(); handleDelete(); }}
-                    className="p-1 text-gray-400 hover:text-red-500 transition-colors duration-150 opacity-80 hover:opacity-100"
-                  >
-                    <Trash2 size={20} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleProfileRedirect}
+                      className="p-1 text-gray-400 hover:text-gray-300 transition-colors duration-150 opacity-80 hover:opacity-100"
+                    >
+                      <ExternalLink size={20} />
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); handleDelete(); }}
+                      className="p-1 text-gray-400 hover:text-red-500 transition-colors duration-150 opacity-80 hover:opacity-100"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
                 </div>
                 {url && (
                   <div>

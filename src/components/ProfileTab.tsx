@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import MediaFeed from './MediaFeed';
 import { useUser } from '@/utils/auth';
 import ProfileSearchBar from './ProfileSearchBar';
 import { MediaItem } from '@/types';
 import { useSupabase } from '@/utils/auth';
+import { useSearchParams } from 'next/navigation';
+import { ProfileUIContext } from './Layout';
 
 interface UserProfile {
   id: string;
@@ -38,6 +40,34 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
   const [userWatchlistIds, setUserWatchlistIds] = useState<string[]>([]);
   const supabase = useSupabase().client;
   const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(null);
+  const searchParams = useSearchParams();
+  const { setActiveTab } = useContext(ProfileUIContext);
+
+  // Handle URL parameters
+  useEffect(() => {
+    const mediaId = searchParams.get('mediaId');
+    const tab = searchParams.get('tab');
+    
+    // Set the active tab if specified
+    if (tab === 'profile') {
+      setActiveTab('profile');
+    }
+
+    // Fetch and set the media item if specified
+    if (mediaId && userWatchlistIds.length > 0) {
+      const fetchMediaItem = async () => {
+        const { data, error } = await supabase
+          .from('media_items')
+          .select('*')
+          .eq('id', mediaId)
+          .single();
+        if (!error && data) {
+          setSelectedMedia(data);
+        }
+      };
+      fetchMediaItem();
+    }
+  }, [searchParams, userWatchlistIds, supabase, setActiveTab]);
 
   // Fetch all watchlist IDs for the user
   useEffect(() => {

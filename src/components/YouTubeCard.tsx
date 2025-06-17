@@ -8,6 +8,8 @@ import VideoPlayer from './VideoPlayer';
 import Rating from './Rating';
 import NotesInput from './NotesInput';
 import ReactDOM from 'react-dom';
+import { ExternalLink } from '@geist-ui/icons';
+import { useRouter } from 'next/navigation';
 
 interface YouTubeCardProps {
   item: MediaItem;
@@ -32,6 +34,7 @@ export default function YouTubeCard({
   isDropdownOpen,
   toggleDropdown,
 }: YouTubeCardProps) {
+  const router = useRouter();
   // Defensive guard: if item is missing, don't render
   if (!item) return null;
 
@@ -186,6 +189,11 @@ export default function YouTubeCard({
     setShowDeleteConfirm(false);
   };
 
+  const handleProfileRedirect = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    router.push(`/profile/${added_by}?mediaId=${id}&tab=profile`);
+  };
+
   // Modal for delete confirmation
   const deleteModal = showDeleteConfirm ? (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -293,25 +301,21 @@ export default function YouTubeCard({
                   <div className="mb-2">
                     <Rating rating={localRating} onRatingChange={handleRatingChange} />
                   </div>
-                  <button
-                    onClick={e => { e.stopPropagation(); handleDelete(); }}
-                    className="p-1 text-gray-400 hover:text-red-500 transition-colors duration-150 opacity-80 hover:opacity-100"
-                  >
-                    <Trash2 size={20} />
-                  </button>
-                </div>
-                {url && (
-                  <div>
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300 text-sm"
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleProfileRedirect}
+                      className="p-1 text-gray-400 hover:text-gray-300 transition-colors duration-150 opacity-80 hover:opacity-100"
                     >
-                      View Details
-                    </a>
+                      <ExternalLink size={20} />
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); handleDelete(); }}
+                      className="p-1 text-gray-400 hover:text-red-500 transition-colors duration-150 opacity-80 hover:opacity-100"
+                    >
+                      <Trash2 size={20} />
+                    </button>
                   </div>
-                )}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
