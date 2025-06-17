@@ -84,7 +84,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
         />
       )}
       <div
-        className={`fixed top-14 left-0 bg-[#181818] px-3 m-2 shadow-lg flex flex-col mb-4 border border-[#232323] transition-transform duration-300 z-50 ${sidebarOpen ? 'translate-x-[12px]' : '-translate-x-40'}`}
+        className={`fixed top-14 left-0 bg-[#181818] px-3 shadow-lg flex flex-col mb-4 border border-[#232323] transition-transform duration-300 z-50 ${sidebarOpen ? 'translate-x-[12px]' : '-translate-x-40'}`}
         style={{
           width: COLLAPSED_WIDTH,
           minWidth: COLLAPSED_WIDTH,

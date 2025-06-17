@@ -295,7 +295,7 @@ const ProfilePage = () => {
           sidebarOpen={sidebarOpen} 
           toggleSidebar={() => setSidebarOpen(!sidebarOpen)} 
         />
-        <div className={`flex-grow transition-all duration-300`} style={{ marginLeft: sidebarOpen ? '104px' : '0', marginRight: friendsSidebarOpen ? '240px' : '0' }}>
+        <div className={`flex-grow transition-all duration-300`} style={{ marginLeft: sidebarOpen ? '80px' : '0', marginRight: friendsSidebarOpen ? '240px' : '0' }}>
           <div className="flex-grow w-full mx-auto p-4">
             {activeTab === 'profile' && (
               <ProfileTab 

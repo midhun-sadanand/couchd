@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X } from '@geist-ui/icons';
+import { X, ChevronDown, ChevronUp } from '@geist-ui/icons';
 import { useSupabaseClient } from '../utils/auth';
 import type { SupabaseClient } from '@supabase/supabase-js';
+
+const SIDEBAR_WIDTH = 240; // w-60
+const SIDEBAR_MARGIN = 16;
+const SIDEBAR_RADIUS = 16;
+const SIDEBAR_HEIGHT = 'calc(100vh - 5.5rem)';
 
 interface Friend {
   id: string;
@@ -48,6 +53,8 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
   const [error, setError] = useState<string | null>(null);
   const supabase = useSupabaseClient();
   const [friends, setFriends] = useState<any[]>([]);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [showRequests, setShowRequests] = useState(true);
 
   // Fetch friend requests
   useEffect(() => {
@@ -116,6 +123,12 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
     };
     fetchFriends();
   }, [userId, supabase]);
+
+  useEffect(() => {
+    if (friendsProfiles.length > 0 && friendsProfiles[0].avatar_url) {
+      setAvatarUrl(friendsProfiles[0].avatar_url);
+    }
+  }, [friendsProfiles]);
 
   const handleResponse = async (requestId: string, status: 'accepted' | 'rejected') => {
     if (!supabase) return;
@@ -296,115 +309,122 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
 
   if (!userId) return <div>Loading...</div>;
 
+  // Always render the sidebar and the subtle edge bar
   return (
     <>
       {/* Subtle clickable edge when sidebar is closed */}
       {!sidebarOpen && (
         <div
-          className="fixed top-14 right-0 h-[calc(100vh-2rem)] w-2 bg-[#181818] hover:bg-[#232323] cursor-pointer z-50 rounded-l-lg transition-colors duration-200"
-          style={{ margin: '8px 0 16px 0' }}
+          className="fixed top-14 right-0 w-2 bg-[#181818] cursor-pointer z-50 rounded-l-lg"
+          style={{
+            margin: `${SIDEBAR_MARGIN}px 0 ${SIDEBAR_MARGIN}px 0`,
+            height: SIDEBAR_HEIGHT,
+            transition: 'background 0.2s',
+          }}
           onClick={closeSidebar}
         />
       )}
-      <div 
-        className={`fixed top-14 right-0 h-[calc(100vh-2rem)] w-60 bg-[#181818] text-white p-4 z-40 transition-transform duration-300 rounded-lg m-2 shadow-lg mb-4 ${
-          sidebarOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-        style={{ right: sidebarOpen ? '0' : '-240px' }}
+      <div
+        className={`fixed top-14 right-0 bg-[#181818] px-3 m-2 shadow-lg flex flex-col mb-4 border border-[#232323] z-50 transition-transform duration-300 ${sidebarOpen ? 'translate-x-[-10px]' : 'translate-x-full'}`}
+        style={{
+          width: SIDEBAR_WIDTH,
+          minWidth: SIDEBAR_WIDTH,
+          borderRadius: `${SIDEBAR_RADIUS}px`,
+          margin: `${SIDEBAR_MARGIN}px 0 ${SIDEBAR_MARGIN}px 0`,
+          height: SIDEBAR_HEIGHT,
+          bottom: 'auto',
+          boxSizing: 'border-box',
+          pointerEvents: sidebarOpen ? 'auto' : 'none',
+          cursor: sidebarOpen ? 'pointer' : 'default',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-start',
+        }}
+        onClick={e => {
+          if ((e.target as HTMLElement).closest('.friend-card')) return;
+          closeSidebar();
+        }}
       >
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl">Friends</h2>
-          <button onClick={closeSidebar} className="text-white">
-            <X />
+        {/* Header */}
+        <div className="flex items-center justify-between mt-2 mb-4 select-none" style={{ minHeight: 32 }}>
+          <h2 className="text-xl text-white font-semibold">Friends</h2>
+          <button onClick={e => { e.stopPropagation(); closeSidebar(); }} className="text-white hover:bg-[#232323] rounded p-1 transition-colors">
+            <X size={22} />
           </button>
         </div>
         {/* Friends List */}
-        <ul className="mb-4">
-          {friends.length > 0 ? (
-            friends.map(friend => (
-              <li key={friend.id} className="mb-2 flex items-center">
-                <span className="font-bold">{friend.username}</span>
-              </li>
-            ))
-          ) : (
-            <li className="text-gray-400">No friends yet.</li>
-          )}
-        </ul>
-        <div className="relative mb-4">
-          <input
-            type="text"
-            placeholder="Enter friend's name"
-            value={friendName}
-            onChange={searchFriends}
-            className="border p-2 w-full text-black bg-white rounded"
-          />
-          {error && (
-            <div className="text-red-500 text-sm mt-1">{error}</div>
-          )}
-          <button 
-            onClick={sendFriendRequest} 
-            className="mt-2 btn bg-blue-500 hover:bg-blue-700 text-white w-full rounded"
-          >
-            Send Request
-          </button>
-          {showDropdown && searchResultsState.length > 0 && (
-            <div className="absolute mt-1 w-full bg-white shadow-lg z-10 rounded">
-              <ul>
-                {searchResultsState.map(friend => (
-                  <li 
-                    key={friend.id} 
-                    className="p-2 hover:bg-gray-200 cursor-pointer text-black"
-                    onClick={() => handleSelectFriend(friend.id)}
-                  >
-                    {friend.username}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        <div className="relative mb-4">
-          <div className="flex justify-between items-center">
-            <button 
-              onClick={() => setShowDropdown(!showDropdown)} 
-              className="btn flex"
+        <div className="flex-1 overflow-y-auto">
+          <h3 className="text-base text-white font-semibold mb-2">Your Friends</h3>
+          <ul className="flex flex-col gap-2 mb-2">
+            {friendsProfiles.length > 0 ? (
+              friendsProfiles.map(friend => (
+                <li key={friend.id} className="flex items-center gap-3 bg-[#232323] rounded-lg px-3 py-2">
+                  <img
+                    src={friend.avatar_url || '/default-avatar.png'}
+                    alt={friend.username}
+                    className="w-9 h-9 rounded-full object-cover border border-[#444]"
+                    onError={e => (e.currentTarget.src = '/default-avatar.png')}
+                  />
+                  <span className="text-white font-medium truncate">{friend.username}</span>
+                </li>
+              ))
+            ) : (
+              <li className="text-gray-400">No friends yet.</li>
+            )}
+          </ul>
+          {/* Incoming Friend Requests Toggle */}
+          <hr className="w-48 border-t border-[#333] mb-2" style={{ margin: '0 auto', marginTop: 20, marginBottom: 0}} />
+          <div className="mb-2">
+            <button
+              className="flex items-center gap-2 text-white font-semibold text-base focus:outline-none w-full mt-2 px-2 py-2 rounded hover:bg-[#232323] transition-colors"
+              style={{ justifyContent: 'space-between' }}
+              onClick={e => { e.stopPropagation(); setShowRequests(v => !v); }}
             >
-              <span className="border-2 rounded-full py-3 px-5 mx-2">
-                {requests.length}
+              <span className="flex items-center gap-2">
+                Incoming Requests
+                <span className="text-xs text-gray-400 font-normal">({friendRequests.length})</span>
               </span>
-              <span className="p-2">Incoming Requests</span>
+              <span className={`transition-transform duration-300 ${showRequests ? '' : ''}`}>
+                {showRequests ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </span>
             </button>
-          </div>
-          {showDropdown && requests.length > 0 && (
-            <div className="absolute bg-white shadow-md mt-2 rounded z-10 w-full">
-              <ul>
-                {requests.map(request => (
-                  <li key={request.id} className="p-2 border-b border-gray-200 text-black">
-                    <div className="flex flex-col">
-                      <span className="mr-2">
-                        Request from {request.sender?.username || "Unknown"}
-                      </span>
-                      <div className="flex gap-2 mt-2">
-                        <button 
-                          onClick={() => handleResponse(request.id, 'accepted')} 
-                          className="btn bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded"
-                        >
-                          Accept
-                        </button>
-                        <button 
-                          onClick={() => handleResponse(request.id, 'rejected')} 
-                          className="btn bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
-                        >
-                          Reject
-                        </button>
+            {showRequests && (
+              <div className="flex flex-col gap-3 mt-2">
+                {friendRequests.length > 0 ? (
+                  friendRequests.map((req: any) => (
+                    <div key={req.id} className="friend-card flex items-center bg-[#222] rounded-lg shadow border border-[#232323] px-3 py-2 gap-3">
+                      <img
+                        src={req.sender?.avatar_url || '/default-avatar.png'}
+                        alt={req.sender?.username || 'Avatar'}
+                        className="w-12 h-12 rounded-full object-cover border border-[#444]"
+                        onError={e => (e.currentTarget.src = '/default-avatar.png')}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-white font-semibold truncate">{req.sender?.username || 'Unknown'}</div>
+                        {req.sender?.mutual_friends && req.sender.mutual_friends > 0 && (
+                          <div className="text-xs text-gray-400 truncate">{req.sender.mutual_friends} mutual friends</div>
+                        )}
                       </div>
+                      <button
+                        className="px-4 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors mr-2"
+                        onClick={e => { e.stopPropagation(); handleAcceptRequest(req.id); }}
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        className="px-4 py-1 rounded bg-[#363636] text-white font-semibold hover:bg-[#232323] transition-colors"
+                        onClick={e => { e.stopPropagation(); handleRejectRequest(req.id); }}
+                      >
+                        Delete
+                      </button>
                     </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+                  ))
+                ) : (
+                  <div className="text-gray-400 text-sm px-2 py-3 text-center">No pending requests</div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>

@@ -75,8 +75,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-[#232323] rounded-lg p-6 w-full max-w-md relative">
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+      <div className="bg-[#181818] border border-[#232323] rounded-2xl shadow-lg p-6 w-full max-w-md relative flex flex-col items-center">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-white"
@@ -84,12 +84,12 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
           <X size={24} />
         </button>
 
-        <h2 className="text-2xl font-bold mb-6 text-white">Edit Profile</h2>
+        <h2 className="text-2xl font-bold mb-4 text-white text-center">Edit Profile</h2>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="flex flex-col items-center space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5 w-full">
+          <div className="flex flex-col items-center">
             <div
-              className="w-32 h-32 rounded-full overflow-hidden cursor-pointer relative group border-2 border-gray-600"
+              className="w-20 h-20 rounded-full overflow-hidden cursor-pointer relative group border-2 border-[#444] shadow"
               onClick={handleImageClick}
             >
               <img
@@ -98,8 +98,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 className="w-full h-full object-cover"
                 onError={() => setAvatarUrl('/default_pfp.png')}
               />
-              <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                <span className="text-white text-sm">Change Photo</span>
+              <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                <span className="text-white text-xs">Change Photo</span>
               </div>
             </div>
             <input
@@ -111,9 +111,9 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
             />
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-1">
+              <label htmlFor="username" className="block text-xs font-medium text-gray-400 mb-1">
                 Username
               </label>
               <input
@@ -121,41 +121,41 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 id="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-[#232323] border border-[#333] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#444] focus:border-[#444] text-base"
                 required
               />
             </div>
 
             <div>
-              <label htmlFor="bio" className="block text-sm font-medium text-gray-300 mb-1">
+              <label htmlFor="bio" className="block text-xs font-medium text-gray-400 mb-1">
                 Bio
               </label>
               <textarea
                 id="bio"
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
-                rows={4}
-                className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={3}
+                className="w-full px-3 py-2 bg-[#232323] border border-[#333] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#444] focus:border-[#444] text-base"
               />
             </div>
           </div>
 
           {error && (
-            <div className="text-red-500 text-sm">{error}</div>
+            <div className="text-red-500 text-sm text-center">{error}</div>
           )}
 
-          <div className="flex justify-end space-x-4">
+          <div className="flex justify-end space-x-3 mt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-300 hover:text-white"
+              className="px-4 py-2 rounded-lg bg-[#363636] text-white hover:bg-[#232323] transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+              className="px-4 py-2 rounded-lg bg-[#363636] text-white hover:bg-[#232323] focus:outline-none focus:ring-2 focus:ring-[#444] focus:ring-offset-2 disabled:opacity-50 transition-colors"
             >
               {isLoading ? 'Saving...' : 'Save Changes'}
             </button>

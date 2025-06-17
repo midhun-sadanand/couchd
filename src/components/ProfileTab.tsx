@@ -120,9 +120,9 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
   const avatarUrl = userProfile.avatar_url || DEFAULT_AVATAR;
 
   return (
-    <div className="p-4 w-9/10 mx-auto">
-      <div className="flex items-center mb-4 justify-between">
-        <div className="flex items-center">
+    <div className="p-4 w-full mx-auto">
+      <div className="flex flex-row items-start mb-4 gap-4 w-full justify-between">
+        <div className="flex items-center flex-shrink min-w-0">
           <div
             className={`relative group ${isCurrentUser ? 'cursor-pointer' : ''}`}
             onClick={isCurrentUser ? onEditProfile : undefined}
@@ -130,7 +130,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
             <img
               src={avatarUrl}
               alt={userProfile.username}
-              className="w-20 h-20 object-cover rounded-full mr-4"
+              className="w-14 h-14 md:w-20 md:h-20 object-cover rounded-full mr-4 transition-all duration-200"
               onError={(e) => {
                 if (!e.currentTarget.src.endsWith(DEFAULT_AVATAR)) {
                   e.currentTarget.src = DEFAULT_AVATAR;
@@ -139,16 +139,16 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
             />
             {isCurrentUser && (
               <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 rounded-full flex items-center justify-center transition-opacity mr-4">
-                <span className="text-white text-sm">Edit Profile</span>
+                <span className="text-white text-xs md:text-sm">Edit Profile</span>
               </div>
             )}
           </div>
-          <div>
-            <h2 className="text-3xl text-left text-[#e6e6e6] font-bold">
+          <div className="min-w-0">
+            <h2 className="truncate text-2xl md:text-3xl text-left text-[#e6e6e6] font-bold transition-all duration-200">
               {userProfile.username}
             </h2>
             {userProfile.bio && (
-              <p className="text-gray-400 mt-2 text-left">{userProfile.bio}</p>
+              <p className="text-gray-400 mt-2 text-left text-xs md:text-base transition-all duration-200">{userProfile.bio}</p>
             )}
             <div className="flex space-x-4 mt-2">
               <div>
@@ -166,7 +166,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
             </div>
           </div>
         </div>
-        <div className="flex items-center">
+        <div className=" justify-end mt-5 min-w-0" style={{maxWidth: '350px'}}>
           <ProfileSearchBar
             value={searchInput}
             onChange={handleSearchInput}
