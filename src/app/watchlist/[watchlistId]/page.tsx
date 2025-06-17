@@ -387,7 +387,7 @@ const MediaPage: React.FC = () => {
           sidebarOpen={sidebarOpen}
           toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         />
-        <div className={`flex-grow transition-all duration-300`} style={{ marginLeft: sidebarOpen ? '240px' : '0', marginRight: friendsSidebarOpen ? '240px' : '0' }}>
+        <div className={`flex-grow transition-all duration-300`} style={{ marginLeft: sidebarOpen ? '104px' : '0', marginRight: friendsSidebarOpen ? '240px' : '0' }}>
           <div className="container mx-auto top-24 p-4 dark:bg-gray-800 dark:text-white relative w-full">
             <div className="flex justify-between items-start mb-4 w-full">
               <div className="flex items-start space-x-4">
