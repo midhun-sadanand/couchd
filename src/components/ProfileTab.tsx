@@ -171,7 +171,10 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
             value={searchInput}
             onChange={handleSearchInput}
             results={searchInput.trim() ? searchResults : recentItems}
-            onSelect={item => { setSelectedMedia(item); setSearchInput(item.title); }}
+            onSelect={item => { 
+              setSelectedMedia(item);
+              setTimeout(() => setSearchInput(''), 100); // Clear input after selection
+            }}
             isLoading={isSearching}
             showRecentOnFocus={true}
           />

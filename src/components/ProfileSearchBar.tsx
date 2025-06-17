@@ -9,9 +9,10 @@ interface ProfileSearchBarProps {
   onSelect: (item: MediaItem) => void;
   isLoading: boolean;
   showRecentOnFocus?: boolean;
+  clearOnSelect?: boolean;
 }
 
-const ProfileSearchBar: React.FC<ProfileSearchBarProps> = ({ value, onChange, results, onSelect, isLoading, showRecentOnFocus }) => {
+const ProfileSearchBar: React.FC<ProfileSearchBarProps> = ({ value, onChange, results, onSelect, isLoading, showRecentOnFocus, clearOnSelect = false }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   // Wrap both input and dropdown
@@ -70,7 +71,14 @@ const ProfileSearchBar: React.FC<ProfileSearchBarProps> = ({ value, onChange, re
                 <li
                   key={item.id}
                   className="px-4 py-2 cursor-pointer hover:bg-[#363636] flex flex-col"
-                  onClick={() => { onSelect(item); setDropdownOpen(false); setIsFocused(false); }}
+                  onClick={() => { 
+                    onSelect(item);
+                    if (clearOnSelect) {
+                      onChange('');
+                    }
+                    setDropdownOpen(false); 
+                    setIsFocused(false); 
+                  }}
                 >
                   <span className="font-semibold text-white">{item.title}</span>
                   <span className="text-xs text-gray-400">{item.medium}{item.creator ? ` • ${item.creator}` : ''}</span>
