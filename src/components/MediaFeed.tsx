@@ -41,26 +41,49 @@ const HEADER_HEIGHT = 48;
 const VERTICAL_PADDING = 24;
 const CONTAINER_PADDING = 24;
 const BOTTOM_PADDING = 24; // Minimum distance from bottom of any panel to container edge
+const STACK_BREAKPOINT = 1024;   // px – start stacking below this width
 
-const getDefaultLayout = (width: number) => {
+const getDefaultLayout = (width: number, height: number = 800) => {
   const innerWidth = width - CONTAINER_PADDING * 2;
-  if (width < 768) {
-    // Mobile: stacked
+  const innerHeight = height - CONTAINER_PADDING * 2;
+  if (width < STACK_BREAKPOINT) {
+    // Mobile: stacked, each panel takes full width, half height
     return {
-      notes: { x: CONTAINER_PADDING, y: CONTAINER_PADDING, width: innerWidth, height: 300 },
-      video: { x: CONTAINER_PADDING, y: 320 + CONTAINER_PADDING, width: innerWidth, height: innerWidth / VIDEO_ASPECT + HEADER_HEIGHT + VERTICAL_PADDING }
+      notes: { x: CONTAINER_PADDING, y: CONTAINER_PADDING, width: innerWidth, height: Math.max(innerHeight * 0.4, 260) },
+      video: { x: CONTAINER_PADDING, y: Math.max(innerHeight * 0.4, 260) + CONTAINER_PADDING + 20, width: innerWidth, height: Math.max(innerHeight * 0.5, 220) }
     };
   } else {
-    // Desktop: side by side
+    // Desktop: side by side, both panels larger
     return {
-      notes: { x: CONTAINER_PADDING, y: CONTAINER_PADDING, width: Math.max(innerWidth * 0.6, 300), height: 400 },
-      video: { x: CONTAINER_PADDING + Math.max(innerWidth * 0.6, 300) + 20, y: CONTAINER_PADDING, width: Math.max(innerWidth * 0.4 - 40, 320), height: Math.max((innerWidth * 0.4 - 40) / VIDEO_ASPECT + HEADER_HEIGHT + VERTICAL_PADDING, 200) }
+      notes: { x: CONTAINER_PADDING, y: CONTAINER_PADDING, width: Math.max(innerWidth * 0.65, 420), height: Math.max(innerHeight * 0.7, 340) },
+      video: { x: CONTAINER_PADDING + Math.max(innerWidth * 0.65, 420) + 24, y: CONTAINER_PADDING, width: Math.max(innerWidth * 0.35 - 24, 340), height: Math.max(innerHeight * 0.7, 220) }
     };
   }
 };
 
 function snapToGrid(value: number, grid: number) {
   return Math.round(value / grid) * grid;
+}
+
+// Helper to keep the dragged panel in view and expand container
+function ensurePanelInViewAndExpand(
+  panelRect: { x: number; y: number; w: number; h: number },
+  containerRef: React.RefObject<HTMLDivElement>,
+  setContainerSize: React.Dispatch<React.SetStateAction<{ width: number; height: number }>>
+) {
+  if (!containerRef.current) return;
+  const panelBottom = panelRect.y + panelRect.h;
+  const container = containerRef.current;
+  const containerHeight = container.scrollHeight;
+  // If the panel is within 60px of the bottom, expand container
+  if (panelBottom > containerHeight - 60) {
+    const newHeight = panelBottom + BOTTOM_PADDING;
+    setContainerSize(s => ({ ...s, height: newHeight }));
+    // Scroll to keep the panel in view
+    requestAnimationFrame(() => {
+      container.scrollTop = panelBottom - container.clientHeight + 80;
+    });
+  }
 }
 
 const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelectedMedia, username }) => {
@@ -77,20 +100,71 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 1200, height: 800 });
-  const [layout, setLayout] = useState(() => getDefaultLayout(1200));
+  const initialLayout = getDefaultLayout(1200, 800);
+  const [notesRect, setNotesRect] = useState({
+    x: initialLayout.notes.x,
+    y: initialLayout.notes.y,
+    w: initialLayout.notes.width,
+    h: initialLayout.notes.height
+  });
+  const [videoRect, setVideoRect] = useState({
+    x: initialLayout.video.x,
+    y: initialLayout.video.y,
+    w: initialLayout.video.width,
+    h: initialLayout.video.height
+  });
 
   // Responsive: update layout on resize
   useEffect(() => {
     function update() {
       if (!containerRef.current) return;
       const width = containerRef.current.clientWidth;
-      setContainerSize(s => ({ ...s, width }));
-      setLayout(getDefaultLayout(width));
+      const height = Math.max(700, window.innerHeight - 240);
+      setContainerSize(s => ({ ...s, width, height }));
+      // Responsive rearrangement
+      const layout = getDefaultLayout(width, height);
+      // If switching to mobile, stack vertically
+      if (width < STACK_BREAKPOINT) {
+        setNotesRect({
+          x: layout.notes.x,
+          y: layout.notes.y,
+          w: layout.notes.width,
+          h: layout.notes.height
+        });
+        setVideoRect({
+          x: layout.video.x,
+          y: layout.video.y,
+          w: layout.video.width,
+          h: layout.video.height
+        });
+      } else {
+        // Desktop: side by side
+        setNotesRect(r => ({
+          x: layout.notes.x,
+          y: layout.notes.y,
+          w: layout.notes.width,
+          h: layout.notes.height
+        }));
+        setVideoRect(r => ({
+          x: layout.video.x,
+          y: layout.video.y,
+          w: layout.video.width,
+          h: layout.video.height
+        }));
+      }
     }
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
+
+  // Always expand container height to fit panels
+  useEffect(() => {
+    const notesBottom = notesRect.y + notesRect.h;
+    const videoBottom = videoRect.y + videoRect.h;
+    const newHeight = Math.max(600, Math.max(notesBottom, videoBottom) + BOTTOM_PADDING);
+    setContainerSize(s => ({ ...s, height: newHeight }));
+  }, [notesRect, videoRect]);
 
   // Helper to update container height in real time and auto-scroll if near bottom
   const updateContainerHeightLive = (
@@ -177,21 +251,7 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
     setTimeout(() => setProfileNotesSaving(false), 500);
   };
 
-  // YouTube video player logic
-  const isYouTube = selectedMedia && selectedMedia.medium && selectedMedia.medium.toLowerCase().includes('youtube');
-  let youTubeId = '';
-  if (isYouTube && selectedMedia?.url) {
-    const match = selectedMedia.url.match(/[?&]v=([^&#]+)/);
-    youTubeId = match ? match[1] : '';
-  }
-
   // State for notes and video pane rects
-  const [notesRect, setNotesRect] = useState({ x: 24, y: 24, w: 400, h: 300 });
-  const [videoRect, setVideoRect] = useState({
-    x: 444, y: 24,
-    w: 320,
-    h: 320 / VIDEO_ASPECT + HEADER_HEIGHT + VERTICAL_PADDING
-  });
   const [containerH, setContainerH] = useState(600);
 
   // Minimize logic
@@ -207,107 +267,279 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
     setContainerH(Math.max(600, bottom + VERTICAL_PADDING));
   };
 
+  // Track if we're in mobile layout (dynamic breakpoint)
+  const MIN_NOTES_WIDTH = 360;
+  const MIN_VIDEO_WIDTH = 400;
+  const PANEL_GAP = 24;
+  const EXTRA_BUFFER = 20000 - (MIN_NOTES_WIDTH + MIN_VIDEO_WIDTH + PANEL_GAP);  
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    function updateMobile() {
+      if (!containerRef.current) return;
+      const availableWidth = containerRef.current.clientWidth - CONTAINER_PADDING * 2;
+      setIsMobile(availableWidth < STACK_BREAKPOINT);
+    }
+    updateMobile();
+    window.addEventListener('resize', updateMobile);
+    return () => window.removeEventListener('resize', updateMobile);
+  }, []);
+
+  // YouTube video player logic
+  const isYouTube = selectedMedia && selectedMedia.medium && selectedMedia.medium.toLowerCase().includes('youtube');
+  let youTubeId = '';
+  if (isYouTube && selectedMedia?.url) {
+    const match = selectedMedia.url.match(/[?&]v=([^&#]+)/);
+    youTubeId = match ? match[1] : '';
+  }
+
+  // Expand notes panel if no video is shown on desktop
+  useEffect(() => {
+    if (!isMobile && containerSize.width) {
+      const layout = getDefaultLayout(containerSize.width, containerSize.height);
+      if (youTubeId) {
+        // Video present: restore default layout
+        setNotesRect(r => ({ ...r, w: layout.notes.width, x: layout.notes.x }));
+      } else {
+        // No video: expand notes to full width
+        setNotesRect(r => ({ ...r, w: containerSize.width - CONTAINER_PADDING * 2, x: CONTAINER_PADDING }));
+      }
+    }
+  }, [youTubeId, isMobile, containerSize.width, containerSize.height]);
+
   return (
-    <div ref={containerRef} className="w-full bg-[#1a1a1a] rounded-lg p-6" style={{ minHeight: containerSize.height, position: 'relative' }}>
+    <div ref={containerRef} className="w-full bg-[#1a1a1a] rounded-lg p-6 min-h-screen" style={{ minHeight: containerSize.height, position: 'relative' }}>
       <div className="rnd-bounds absolute inset-0" style={{ pointerEvents: 'none', padding: CONTAINER_PADDING }} />
-      {/* Notes Pane */}
-      {!notesMin && (
-        <Rnd
-          bounds=".rnd-bounds"
-          position={{ x: notesRect.x, y: notesRect.y }}
-          size={{ width: notesRect.w, height: notesRect.h }}
-          onDrag={(e, d) => {
-            const nr = { ...notesRect, x: d.x, y: d.y };
-            setNotesRect(nr); syncContainer(nr, videoRect);
-          }}
-          onResize={(e, dir, ref, delta, pos) => {
-            const nr = {
-              x: pos.x,
-              y: pos.y,
-              w: ref.offsetWidth,
-              h: ref.offsetHeight
-            };
-            setNotesRect(nr); syncContainer(nr, videoRect);
-          }}
-          onDragStop={(e, d) => {
-            setNotesRect(r => ({ ...r, x: snapToGrid(d.x, GRID_SIZE), y: snapToGrid(d.y, GRID_SIZE) }));
-          }}
-          onResizeStop={(e, dir, ref, delta, pos) => {
-            setNotesRect(r => ({
-              ...r,
-              x: snapToGrid(pos.x, GRID_SIZE),
-              y: snapToGrid(pos.y, GRID_SIZE),
-              w: snapToGrid(ref.offsetWidth, GRID_SIZE),
-              h: snapToGrid(ref.offsetHeight, GRID_SIZE)
-            }));
-          }}
-          minWidth={300}
-          minHeight={200}
-          className="absolute"
-        >
-          <div className="h-full flex flex-col bg-[#232323] rounded-lg p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-2" style={{ height: HEADER_HEIGHT }}>
-              <h3 className="text-lg font-semibold text-white">{username}’s Notes</h3>
-              <button onClick={() => setNotesMin(true)}><Minimize2 size={18} className="text-gray-400" /></button>
-            </div>
-            <div className="flex-1 overflow-auto">
-              <NotesInput initialNotes={notes} onChange={setNotes} />
-            </div>
-            <div className="mt-4">
-              <h3 className="text-lg font-semibold text-white mb-2">Your Rating</h3>
-              <Rating rating={rating} onRatingChange={setRating} />
-            </div>
+      {/* HOME NOTES: Show when no media item is selected */}
+      {(!selectedMedia) ? (
+        <div className="w-full bg-[#232323] rounded-lg p-6 shadow-lg flex flex-col" style={{ height: 'calc(100vh - 12rem)' }}>
+          <div className="flex items-center justify-between mb-2" style={{ height: HEADER_HEIGHT }}>
+            <h3 className="text-lg font-semibold text-white">Your Notes</h3>
           </div>
-        </Rnd>
-      )}
-      {/* Video Pane */}
-      {!videoMin && youTubeId && (
-        <Rnd
-          bounds=".rnd-bounds"
-          position={{ x: videoRect.x, y: videoRect.y }}
-          size={{ width: videoRect.w, height: videoRect.h }}
-          onDrag={(e, d) => {
-            const vr = { ...videoRect, x: d.x, y: d.y };
-            setVideoRect(vr); syncContainer(notesRect, vr);
-          }}
-          onResize={(e, dir, ref, delta, pos) => {
-            const paneW = ref.offsetWidth;
-            const vidH = paneW / VIDEO_ASPECT;
-            const totalH = vidH + HEADER_HEIGHT + VERTICAL_PADDING;
-            const vr = { x: pos.x, y: pos.y, w: paneW, h: totalH };
-            setVideoRect(vr); syncContainer(notesRect, vr);
-          }}
-          onDragStop={(e, d) => {
-            setVideoRect(r => ({ ...r, x: snapToGrid(d.x, GRID_SIZE), y: snapToGrid(d.y, GRID_SIZE) }));
-          }}
-          onResizeStop={(e, dir, ref, delta, pos) => {
-            const paneW = snapToGrid(ref.offsetWidth, GRID_SIZE);
-            const vidH = paneW / VIDEO_ASPECT;
-            const totalH = snapToGrid(vidH + HEADER_HEIGHT + VERTICAL_PADDING, GRID_SIZE);
-            setVideoRect(r => ({
-              ...r,
-              x: snapToGrid(pos.x, GRID_SIZE),
-              y: snapToGrid(pos.y, GRID_SIZE),
-              w: paneW,
-              h: totalH
-            }));
-          }}
-          minWidth={320}
-          minHeight={HEADER_HEIGHT + VERTICAL_PADDING + 50}
-          className="absolute"
-        >
-          <div className="h-full flex flex-col bg-[#232323] rounded-lg p-4">
-            <div className="flex items-center justify-between mb-2" style={{ height: HEADER_HEIGHT }}>
-              <h3 className="text-white text-lg font-semibold">Video</h3>
-              <button onClick={() => setVideoMin(true)}><Minimize2 size={18} className="text-gray-400" /></button>
-            </div>
-            <div className="relative w-full" style={{ height: `calc(100% - ${HEADER_HEIGHT + VERTICAL_PADDING}px)` }}>
-              <div className="absolute inset-0" style={{ aspectRatio: '16/9', width: '100%', height: '100%' }}>
-                <iframe src={`https://www.youtube.com/embed/${youTubeId}`} className="w-full h-full" allowFullScreen />
-              </div>
-            </div>
+          <div className="flex-1 overflow-auto min-h-[120px]">
+            {profileNotesLoading ? (
+              <div className="text-gray-400 text-center py-8">Loading...</div>
+            ) : (
+              <NotesInput initialNotes={profileNotes} onChange={setProfileNotes} onBlur={saveProfileNotes} fullHeight />
+            )}
           </div>
-        </Rnd>
+        </div>
+      ) : (
+        <>
+          {/* Mobile: Video above Notes if YouTube, else default order */}
+          {isMobile ? (
+            <>
+              {/* Video Pane */}
+              {!videoMin && youTubeId && (
+                <Rnd
+                  bounds=".rnd-bounds"
+                  position={{ x: videoRect.x, y: videoRect.y }}
+                  size={{ width: videoRect.w, height: videoRect.h }}
+                  onDrag={(e, d) => {
+                    const vr = { ...videoRect, x: d.x, y: d.y };
+                    setVideoRect(vr); syncContainer(notesRect, vr);
+                    ensurePanelInViewAndExpand(vr, containerRef, setContainerSize);
+                  }}
+                  onResize={(e, dir, ref, delta, pos) => {
+                    const paneW = ref.offsetWidth;
+                    const vidH = paneW / VIDEO_ASPECT;
+                    const totalH = vidH + HEADER_HEIGHT + VERTICAL_PADDING;
+                    const vr = { x: pos.x, y: pos.y, w: paneW, h: totalH };
+                    setVideoRect(vr); syncContainer(notesRect, vr);
+                    ensurePanelInViewAndExpand(vr, containerRef, setContainerSize);
+                  }}
+                  onDragStop={(e, d) => {
+                    setVideoRect(r => ({ ...r, x: snapToGrid(d.x, GRID_SIZE), y: snapToGrid(d.y, GRID_SIZE) }));
+                  }}
+                  onResizeStop={(e, dir, ref, delta, pos) => {
+                    const paneW = snapToGrid(ref.offsetWidth, GRID_SIZE);
+                    const vidH = paneW / VIDEO_ASPECT;
+                    const totalH = snapToGrid(vidH + HEADER_HEIGHT + VERTICAL_PADDING, GRID_SIZE);
+                    setVideoRect(r => ({
+                      ...r,
+                      x: snapToGrid(pos.x, GRID_SIZE),
+                      y: snapToGrid(pos.y, GRID_SIZE),
+                      w: paneW,
+                      h: totalH
+                    }));
+                  }}
+                  minWidth={320}
+                  minHeight={HEADER_HEIGHT + VERTICAL_PADDING + 50}
+                  className="absolute"
+                >
+                  <div className="h-full flex flex-col bg-[#232323] rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2" style={{ height: HEADER_HEIGHT }}>
+                      <h3 className="text-white text-lg font-semibold">Video</h3>
+                      <button onClick={() => setVideoMin(true)}><Minimize2 size={18} className="text-gray-400" /></button>
+                    </div>
+                    <div className="relative w-full" style={{ height: `calc(100% - ${HEADER_HEIGHT + VERTICAL_PADDING}px)` }}>
+                      <div className="absolute inset-0" style={{ aspectRatio: '16/9', width: '100%', height: '100%' }}>
+                        <iframe src={`https://www.youtube.com/embed/${youTubeId}`} className="w-full h-full" allowFullScreen />
+                      </div>
+                    </div>
+                  </div>
+                </Rnd>
+              )}
+              {/* Notes Pane */}
+              {!notesMin && (
+                <Rnd
+                  bounds=".rnd-bounds"
+                  position={{ x: notesRect.x, y: notesRect.y }}
+                  size={{ width: notesRect.w, height: notesRect.h }}
+                  onDrag={(e, d) => {
+                    const nr = { ...notesRect, x: d.x, y: d.y };
+                    setNotesRect(nr); syncContainer(nr, videoRect);
+                    ensurePanelInViewAndExpand(nr, containerRef, setContainerSize);
+                  }}
+                  onResize={(e, dir, ref, delta, pos) => {
+                    const nr = {
+                      x: pos.x,
+                      y: pos.y,
+                      w: ref.offsetWidth,
+                      h: ref.offsetHeight
+                    };
+                    setNotesRect(nr); syncContainer(nr, videoRect);
+                    ensurePanelInViewAndExpand(nr, containerRef, setContainerSize);
+                  }}
+                  onDragStop={(e, d) => {
+                    setNotesRect(r => ({ ...r, x: snapToGrid(d.x, GRID_SIZE), y: snapToGrid(d.y, GRID_SIZE) }));
+                  }}
+                  onResizeStop={(e, dir, ref, delta, pos) => {
+                    setNotesRect(r => ({
+                      ...r,
+                      x: snapToGrid(pos.x, GRID_SIZE),
+                      y: snapToGrid(pos.y, GRID_SIZE),
+                      w: snapToGrid(ref.offsetWidth, GRID_SIZE),
+                      h: snapToGrid(ref.offsetHeight, GRID_SIZE)
+                    }));
+                  }}
+                  minWidth={300}
+                  minHeight={200}
+                  className="absolute"
+                >
+                  <div className="h-full flex flex-col bg-[#232323] rounded-lg p-6 shadow-lg">
+                    <div className="flex items-center justify-between mb-2" style={{ height: HEADER_HEIGHT }}>
+                      <h3 className="text-lg font-semibold text-white">{username}’s Notes</h3>
+                      <button onClick={() => setNotesMin(true)}><Minimize2 size={18} className="text-gray-400" /></button>
+                    </div>
+                    <div className="flex-1 overflow-auto">
+                      <NotesInput initialNotes={notes} onChange={setNotes} fullHeight />
+                    </div>
+                    <div className="mt-4">
+                      <h3 className="text-lg font-semibold text-white mb-2">Your Rating</h3>
+                      <Rating rating={rating} onRatingChange={setRating} />
+                    </div>
+                  </div>
+                </Rnd>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Default order: Notes above Video */}
+              {!notesMin && (
+                <Rnd
+                  bounds=".rnd-bounds"
+                  position={{ x: notesRect.x, y: notesRect.y }}
+                  size={{ width: notesRect.w, height: notesRect.h }}
+                  onDrag={(e, d) => {
+                    const nr = { ...notesRect, x: d.x, y: d.y };
+                    setNotesRect(nr); syncContainer(nr, videoRect);
+                    ensurePanelInViewAndExpand(nr, containerRef, setContainerSize);
+                  }}
+                  onResize={(e, dir, ref, delta, pos) => {
+                    const nr = {
+                      x: pos.x,
+                      y: pos.y,
+                      w: ref.offsetWidth,
+                      h: ref.offsetHeight
+                    };
+                    setNotesRect(nr); syncContainer(nr, videoRect);
+                    ensurePanelInViewAndExpand(nr, containerRef, setContainerSize);
+                  }}
+                  onDragStop={(e, d) => {
+                    setNotesRect(r => ({ ...r, x: snapToGrid(d.x, GRID_SIZE), y: snapToGrid(d.y, GRID_SIZE) }));
+                  }}
+                  onResizeStop={(e, dir, ref, delta, pos) => {
+                    setNotesRect(r => ({
+                      ...r,
+                      x: snapToGrid(pos.x, GRID_SIZE),
+                      y: snapToGrid(pos.y, GRID_SIZE),
+                      w: snapToGrid(ref.offsetWidth, GRID_SIZE),
+                      h: snapToGrid(ref.offsetHeight, GRID_SIZE)
+                    }));
+                  }}
+                  minWidth={300}
+                  minHeight={200}
+                  className="absolute"
+                >
+                  <div className="h-full flex flex-col bg-[#232323] rounded-lg p-6 shadow-lg">
+                    <div className="flex items-center justify-between mb-2" style={{ height: HEADER_HEIGHT }}>
+                      <h3 className="text-lg font-semibold text-white">{username}’s Notes</h3>
+                      <button onClick={() => setNotesMin(true)}><Minimize2 size={18} className="text-gray-400" /></button>
+                    </div>
+                    <div className="flex-1 overflow-auto">
+                      <NotesInput initialNotes={notes} onChange={setNotes} fullHeight />
+                    </div>
+                    <div className="mt-4">
+                      <h3 className="text-lg font-semibold text-white mb-2">Your Rating</h3>
+                      <Rating rating={rating} onRatingChange={setRating} />
+                    </div>
+                  </div>
+                </Rnd>
+              )}
+              {!videoMin && youTubeId && (
+                <Rnd
+                  bounds=".rnd-bounds"
+                  position={{ x: videoRect.x, y: videoRect.y }}
+                  size={{ width: videoRect.w, height: videoRect.h }}
+                  onDrag={(e, d) => {
+                    const vr = { ...videoRect, x: d.x, y: d.y };
+                    setVideoRect(vr); syncContainer(notesRect, vr);
+                    ensurePanelInViewAndExpand(vr, containerRef, setContainerSize);
+                  }}
+                  onResize={(e, dir, ref, delta, pos) => {
+                    const paneW = ref.offsetWidth;
+                    const vidH = paneW / VIDEO_ASPECT;
+                    const totalH = vidH + HEADER_HEIGHT + VERTICAL_PADDING;
+                    const vr = { x: pos.x, y: pos.y, w: paneW, h: totalH };
+                    setVideoRect(vr); syncContainer(notesRect, vr);
+                    ensurePanelInViewAndExpand(vr, containerRef, setContainerSize);
+                  }}
+                  onDragStop={(e, d) => {
+                    setVideoRect(r => ({ ...r, x: snapToGrid(d.x, GRID_SIZE), y: snapToGrid(d.y, GRID_SIZE) }));
+                  }}
+                  onResizeStop={(e, dir, ref, delta, pos) => {
+                    const paneW = snapToGrid(ref.offsetWidth, GRID_SIZE);
+                    const vidH = paneW / VIDEO_ASPECT;
+                    const totalH = snapToGrid(vidH + HEADER_HEIGHT + VERTICAL_PADDING, GRID_SIZE);
+                    setVideoRect(r => ({
+                      ...r,
+                      x: snapToGrid(pos.x, GRID_SIZE),
+                      y: snapToGrid(pos.y, GRID_SIZE),
+                      w: paneW,
+                      h: totalH
+                    }));
+                  }}
+                  minWidth={320}
+                  minHeight={HEADER_HEIGHT + VERTICAL_PADDING + 50}
+                  className="absolute"
+                >
+                  <div className="h-full flex flex-col bg-[#232323] rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2" style={{ height: HEADER_HEIGHT }}>
+                      <h3 className="text-white text-lg font-semibold">Video</h3>
+                      <button onClick={() => setVideoMin(true)}><Minimize2 size={18} className="text-gray-400" /></button>
+                    </div>
+                    <div className="relative w-full" style={{ height: `calc(100% - ${HEADER_HEIGHT + VERTICAL_PADDING}px)` }}>
+                      <div className="absolute inset-0" style={{ aspectRatio: '16/9', width: '100%', height: '100%' }}>
+                        <iframe src={`https://www.youtube.com/embed/${youTubeId}`} className="w-full h-full" allowFullScreen />
+                      </div>
+                    </div>
+                  </div>
+                </Rnd>
+              )}
+            </>
+          )}
+        </>
       )}
       {/* Floating Layout Button: show if either pane is minimized */}
       {(notesMin || videoMin) && (

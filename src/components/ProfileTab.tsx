@@ -35,13 +35,12 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
   const [searchInput, setSearchInput] = useState('');
   const [searchResults, setSearchResults] = useState<MediaItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
   const [recentItems, setRecentItems] = useState<MediaItem[]>([]);
   const [userWatchlistIds, setUserWatchlistIds] = useState<string[]>([]);
   const supabase = useSupabase().client;
   const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(null);
   const searchParams = useSearchParams();
-  const { setActiveTab } = useContext(ProfileUIContext);
+  const { setActiveTab, selectedMedia, setSelectedMedia } = useContext(ProfileUIContext);
 
   // Handle URL parameters
   useEffect(() => {
@@ -67,7 +66,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
       };
       fetchMediaItem();
     }
-  }, [searchParams, userWatchlistIds, supabase, setActiveTab]);
+  }, [searchParams, userWatchlistIds, supabase, setActiveTab, setSelectedMedia]);
 
   // Fetch all watchlist IDs for the user
   useEffect(() => {

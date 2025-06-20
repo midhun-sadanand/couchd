@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, createContext } from 'react';
+import React, { useState, createContext, useContext } from 'react';
 import { usePathname } from 'next/navigation';
 import HomepageHeader from './HomepageHeader';
 import ProfileHeader from './ProfileHeader';
 import { useSupabaseClient } from '@/utils/auth';
 import AuthModal from './AuthModal';
+import { MediaItem } from '@/types';
 
 type Props = {
   children: React.ReactNode;
@@ -19,6 +20,8 @@ export const ProfileUIContext = createContext({
   setFriendsSidebarOpen: (open: boolean) => {},
   activeTab: 'profile',
   setActiveTab: (tab: string) => {},
+  selectedMedia: null as MediaItem | null,
+  setSelectedMedia: (item: MediaItem | null) => {},
 });
 
 const Layout: React.FC<Props> = ({ children }) => {
@@ -30,6 +33,7 @@ const Layout: React.FC<Props> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [friendsSidebarOpen, setFriendsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
+  const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
 
   const supabase = useSupabaseClient();
 
@@ -70,6 +74,8 @@ const Layout: React.FC<Props> = ({ children }) => {
       setFriendsSidebarOpen,
       activeTab,
       setActiveTab,
+      selectedMedia,
+      setSelectedMedia,
     }}>
       <div className="flex flex-col min-h-screen">
         {getHeader()}

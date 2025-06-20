@@ -1,12 +1,13 @@
 // ProfileHeader.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { motion } from 'framer-motion';
 import Clock from './Clock';
 import Logo from './Logo';
 import { User, Grid, Users } from '@geist-ui/icons';
 import { usePathname, useRouter } from 'next/navigation';
+import { ProfileUIContext } from './Layout';
 
 interface ProfileHeaderProps {
   sidebarOpen: boolean;
@@ -29,6 +30,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   const [lastScrollTop, setLastScrollTop] = useState(0);
   const pathname = usePathname();
   const router = useRouter();
+  const { setSelectedMedia } = useContext(ProfileUIContext);
 
   const handleScroll = () => {
     const currentScroll = window.scrollY || document.documentElement.scrollTop;
@@ -46,6 +48,14 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       window.removeEventListener('scroll', handleScroll);
     };
   }, [lastScrollTop]);
+
+  const handleLogoClick = () => {
+    setActiveTab('profile');
+    setSelectedMedia(null);
+    if (pathname?.startsWith('/watchlist')) {
+      router.back();
+    }
+  };
 
   const handleProfileClick = () => {
     if (pathname?.startsWith('/watchlist')) {
@@ -74,7 +84,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         transition={{ duration: .6, ease: 'easeInOut', delay:.04}}
         className="w-full flex items-center relative"
       >
-        <div className="flex items-center cursor-pointer select-none" style={{marginLeft: '0.75rem'}} onClick={() => setSidebarOpen(!sidebarOpen)}>
+        <div className="flex items-center cursor-pointer select-none" style={{marginLeft: '0.75rem'}} onClick={handleLogoClick}>
           <div className="mr-2"><Logo scale={.15} color="gray"/></div>
           <h1 className="font-eina-bold font-bold text-xl my-1 mr-2 text-left text-[#888888]">couchd</h1>
         </div>

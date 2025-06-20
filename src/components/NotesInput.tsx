@@ -3,9 +3,11 @@ import React, { useState, useEffect } from 'react';
 interface NotesInputProps {
   initialNotes: string;
   onChange: (notes: string) => void;
+  onBlur?: () => void;
+  fullHeight?: boolean;
 }
 
-const NotesInput: React.FC<NotesInputProps> = ({ initialNotes, onChange }) => {
+const NotesInput: React.FC<NotesInputProps> = ({ initialNotes, onChange, onBlur, fullHeight }) => {
   const [notes, setNotes] = useState(initialNotes);
 
   // Update local state when initialNotes changes
@@ -20,13 +22,14 @@ const NotesInput: React.FC<NotesInputProps> = ({ initialNotes, onChange }) => {
   };
 
   return (
-    <div className="relative h-full flex-1">
+    <div className={fullHeight ? "relative h-full flex-1" : "relative"}>
       <textarea
-        className="notes w-full h-full p-2 bg-[#1a1a1a] text-white rounded border border-[#333] focus:border-[#444] focus:outline-none resize-none"
+        className={fullHeight ? "notes w-full h-full min-h-0 p-2 bg-[#1a1a1a] text-white rounded border border-[#333] focus:border-[#444] focus:outline-none resize-none" : "notes w-full p-2 bg-[#1a1a1a] text-white rounded border border-[#333] focus:border-[#444] focus:outline-none resize-none"}
         value={notes}
         onChange={handleChange}
+        onBlur={onBlur}
         placeholder="Add your notes here..."
-        style={{ minHeight: 0 }}
+        style={fullHeight ? { minHeight: 0, height: '100%' } : { minHeight: 0 }}
       />
     </div>
   );
