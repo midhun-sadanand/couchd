@@ -35,6 +35,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
   const signOut = useSignOut();
   const [popoverOpen, setPopoverOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
   const [avatarUrl, setAvatarUrl] = useState<string>('/default-avatar.png');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
@@ -61,7 +62,12 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
   // Close popover on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+      if (
+        popoverRef.current && 
+        !popoverRef.current.contains(e.target as Node) &&
+        profileRef.current &&
+        !profileRef.current.contains(e.target as Node)
+      ) {
         setPopoverOpen(false);
       }
     }
@@ -158,6 +164,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
         <div style={{ position: 'absolute', left: 0, right: 0, bottom: SIDEBAR_MARGIN, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <hr className="w-12 border-t border-[#333] mb-2" style={{ margin: '0 auto', marginBottom: 5 }} />
           <div
+            ref={profileRef}
             className="profile-popover flex flex-col items-center gap-2 cursor-pointer p-1 rounded-lg hover:bg-[#232323] transition-colors"
             onClick={e => { e.stopPropagation(); setPopoverOpen(v => !v); }}
           >
@@ -172,13 +179,13 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
           {popoverOpen && (
             <div
               ref={popoverRef}
-              className="absolute left-1/2 -translate-x-1/2 mb-20 bg-[#232323] rounded-lg p-4 z-50 min-w-[180px] flex flex-col items-center animate-fade-in-up shadow-lg"
-              style={{ transition: 'opacity 0.2s', bottom: '90px' }}
+              className="absolute left-1/2 -translate-x-1/2 z-50"
+              style={{ bottom: '72px' }}
               onClick={e => e.stopPropagation()}
             >
               <button
                 onClick={signOut}
-                className="w-full py-2 px-4 rounded-lg bg-[#363636] text-[#f87171] font-semibold hover:bg-[#232323] hover:text-red-400 transition-colors duration-200 focus:outline-none"
+                className="px-2 py-1 bg-[#232323] text-xs text-[#f6f6f6] rounded shadow-lg border border-[#333] whitespace-nowrap animate-fade-in-up hover:bg-[#333] transition-colors focus:outline-none"
               >
                 Sign Out
               </button>
