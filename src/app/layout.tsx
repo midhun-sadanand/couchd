@@ -20,9 +20,9 @@ export const metadata: Metadata = {
     siteName: "couchd",
     images: [
       {
-        url: "/favicon.svg",
-        width: 232,
-        height: 232,
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
         alt: "couchd | conscious media consumption",
       },
     ],
@@ -30,10 +30,10 @@ export const metadata: Metadata = {
     type: "website",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "couchd",
     description: "conscious media consumption",
-    images: ["/favicon.svg"],
+    images: ["/og-image.png"],
     creator: "@couchd",
   },
   robots: {
