@@ -1,0 +1,21 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        # work around peer-dep errors
+        - npm config set legacy-peer-deps true
+        # install exactly what's in your lockfile
+        - npm ci
+    build:
+      commands:
+        # produce your Next.js SSR build
+        - npm run build
+  artifacts:
+    # Amplify will look here for both static and SSR bundles
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
