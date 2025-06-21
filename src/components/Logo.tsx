@@ -1,5 +1,3 @@
-"use client";
-
 import React from 'react';
 
 const Logo = ({ scale, color }: { scale: number; color: string }) => {

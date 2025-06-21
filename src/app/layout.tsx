@@ -6,6 +6,7 @@ import Layout from "@/components/Layout";
 export const metadata: Metadata = {
   title: "Couchd",
   description: "Next.js 14 Couchd app",
+  icons: { icon: '/favicon.svg' },
 };
 
 export default function RootLayout({

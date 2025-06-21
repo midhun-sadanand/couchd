@@ -4,16 +4,25 @@ import { motion } from 'framer-motion';
 interface RatingProps {
   rating: number;
   onRatingChange: (rating: number) => void;
+  circleSize?: number;
+  circleGap?: number;
+  hideValue?: boolean;
 }
 
 const NUM_CIRCLES = 5;
-const CIRCLE_SIZE = 24;
-const CIRCLE_GAP = 8;
 
-const Rating: React.FC<RatingProps> = ({ rating, onRatingChange }) => {
+const Rating: React.FC<RatingProps> = ({ 
+  rating, 
+  onRatingChange, 
+  circleSize = 24, 
+  circleGap = 8,
+  hideValue = false
+}) => {
   const [displayRating, setDisplayRating] = useState(rating);
   const [dragging, setDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const CIRCLE_SIZE = circleSize;
+  const CIRCLE_GAP = circleGap;
 
   useEffect(() => {
     setDisplayRating(rating);
@@ -127,7 +136,9 @@ const Rating: React.FC<RatingProps> = ({ rating, onRatingChange }) => {
           </div>
         );
       })}
-      <span className="ml-2 text-gray-400" style={{ minWidth: 32, textAlign: 'right' }}>{displayRating.toFixed(1)}</span>
+      {!hideValue && (
+        <span className="ml-2 text-gray-400" style={{ minWidth: 32, textAlign: 'right' }}>{displayRating.toFixed(1)}</span>
+      )}
     </div>
   );
 };
