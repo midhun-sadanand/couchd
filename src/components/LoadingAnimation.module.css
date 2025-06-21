@@ -1,0 +1,52 @@
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.logoWrapper {
+  position: relative;
+  width: calc(232px * 0.5);
+  height: calc(232px * 0.5);
+}
+
+.bouncingBoxContainer {
+  position: absolute;
+  /* These values are estimates to fit the "TV screen" of the logo */
+  top: calc(60px * 0.5);
+  left: calc(40px * 0.5);
+  width: calc(155px * 0.5);
+  height: calc(75px * 0.5);
+  overflow: hidden;
+  border-radius: 10px; /* to match couchd logo's curves */
+}
+
+.bouncingBox {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  background-color: #888888; /* color matched with other elements on page */
+  animation: 
+    bounce-x 5.3s linear infinite,
+    bounce-y 3.8s linear infinite;
+}
+
+@keyframes bounce-x {
+  0% {
+    left: 0;
+  }
+  100% {
+    left: calc(100% - 15px); /* container width - box width */
+  }
+}
+
+@keyframes bounce-y {
+  0% {
+    top: 0;
+  }
+  100% {
+    top: calc(100% - 15px); /* container height - box height */
+  }
+} 
