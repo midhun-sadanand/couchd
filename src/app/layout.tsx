@@ -5,7 +5,7 @@ import Layout from "@/components/Layout";
 
 export const metadata: Metadata = {
   title: "couchd",
-  description: "Next.js 14 Couchd app",
+  description: "conscious media consumption",
   icons: {
     icon: [
       { url: '/favicon.svg', type: 'image/svg+xml' },
@@ -15,14 +15,14 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "couchd",
-    description: "Next.js 14 Couchd app",
-    url: "https://couchd.io/", // Replace with your actual domain
+    description: "conscious media consumption",
+    url: "https://couchd.io/",
     siteName: "couchd",
     images: [
       {
-        url: "../public/favicon.svg", // You'll need to create this image
-        width: 1200,
-        height: 630,
+        url: "/favicon.svg",
+        width: 232,
+        height: 232,
         alt: "couchd | conscious media consumption",
       },
     ],
@@ -30,11 +30,11 @@ export const metadata: Metadata = {
     type: "website",
   },
   twitter: {
-    card: "summary_large_image",
+    card: "summary",
     title: "couchd",
-    description: "Next.js 14 Couchd app",
-    images: ["../public/favicon.svg"], // Same image as Open Graph
-    creator: "@couchd", // Replace with your Twitter handle
+    description: "conscious media consumption",
+    images: ["/favicon.svg"],
+    creator: "@couchd",
   },
   robots: {
     index: true,
