@@ -320,7 +320,7 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
           </div>
           <div className="flex-1 overflow-auto min-h-[120px]">
             {profileNotesLoading ? (
-              <div className="text-gray-400 text-center py-8">Loading...</div>
+              <div className="text-gray-400 text-center py-8"></div>
             ) : (
               <NotesInput initialNotes={profileNotes} onChange={setProfileNotes} onBlur={saveProfileNotes} fullHeight />
             )}

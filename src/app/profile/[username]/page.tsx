@@ -261,7 +261,7 @@ const ProfilePage = () => {
   // Debug log for loading state
   console.log({ isUserLoading, supabaseUser, userProfile, isWatchlistsLoading });
   if (isUserLoading || !supabaseUser || !userProfile || isWatchlistsLoading) {
-    return <div>Loading...</div>;
+    return <div></div>;
   }
 
   if (watchlistsError) {
