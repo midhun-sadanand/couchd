@@ -136,7 +136,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
                 style={{ width: IMAGE_SIZE, height: IMAGE_SIZE, objectFit: 'cover', aspectRatio: '1/1' }}
                 onClick={e => {
                   e.stopPropagation();
-                  router.push(`/list/${username}/${encodeURIComponent(list.name)}/${list.id}`);
+                  router.push(`/watchlist/${list.id}`);
                 }}
               />
               {/* Tooltip/indicator for watchlist name */}

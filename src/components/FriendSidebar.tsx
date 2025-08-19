@@ -51,6 +51,7 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
   const [requests, setRequests] = useState<any[]>([]);
   const [searchResultsState, setSearchResultsState] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const supabase = useSupabaseClient();
   const [friends, setFriends] = useState<any[]>([]);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -191,6 +192,7 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
     const name = event.target.value;
     setFriendName(name);
     setError(null);
+    setSuccessMessage(null);
     
     if (name.length >= 3) {
       try {
@@ -225,15 +227,20 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
     if (!supabase) return false;
 
     try {
-      const { data, error } = await supabase
-        .from('friend_requests')
-        .select('*')
-        .eq('sender_id', userId)
-        .eq('status', 'accepted')
-        .eq('receiver_id', friendId);
+      // Check if they're already friends in the friends table (bidirectional check)
+      const { data: friendData, error: friendError } = await supabase
+        .from('friends')
+        .select('id')
+        .or(`and(user_id.eq.${userId},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${userId})`);
 
-      if (error) throw error;
-      return !!data.length;
+      if (friendError) {
+        console.error('Error checking friends table:', friendError);
+        return false;
+      }
+      
+      if (friendData && friendData.length > 0) return true;
+
+      return false;
     } catch (error) {
       console.error('Error checking friend status:', error);
       return false;
@@ -286,21 +293,35 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
         return;
       }
       // Check if already friends
-      const isAccepted = await checkAccepted(userId, receiverId);
-      if (isAccepted) {
-        setError('You are already friends with this user!');
-        return;
+      try {
+        const isAccepted = await checkAccepted(userId, receiverId);
+        if (isAccepted) {
+          setError('You are already friends with this user!');
+          return;
+        }
+      } catch (friendCheckError) {
+        console.error('Error checking friendship status:', friendCheckError);
+        // Continue with the request even if friend check fails
       }
-      await supabase
+      const { error: insertError } = await supabase
         .from('friend_requests')
         .insert([{
           sender_id: userId,
           receiver_id: receiverId,
           status: 'pending'
         }]);
+
+      if (insertError) {
+        console.error('Error inserting friend request:', insertError);
+        throw insertError;
+      }
       setFriendName('');
       setSelectedFriendId(null);
-      alert('Friend request sent!');
+      setSearchResultsState([]);
+      setShowDropdown(false);
+      setSuccessMessage('Friend request sent successfully!');
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('Error sending friend request:', error);
       setError('Failed to send friend request. Please try again.');
@@ -372,8 +393,66 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
               <li className="text-gray-400">No friends yet.</li>
             )}
           </ul>
-          {/* Incoming Friend Requests Toggle */}
+
+          {/* Add Friends Section */}
           <hr className="w-48 border-t border-[#333] mb-2" style={{ margin: '0 auto', marginTop: 20, marginBottom: 0}} />
+          <div className="mb-4">
+            <h3 className="text-base text-white font-semibold mb-2 mt-2">Add Friends</h3>
+            <div className="relative">
+              <input
+                type="text"
+                value={friendName}
+                onChange={searchFriends}
+                placeholder="Search by username..."
+                className="w-full px-3 py-2 bg-[#232323] border border-[#444] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-gray-500 transition-colors"
+                onClick={e => e.stopPropagation()}
+              />
+              
+              {/* Search Results Dropdown */}
+              {showDropdown && searchResultsState.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-[#222] border border-[#444] rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
+                  {searchResultsState.map(user => (
+                    <button
+                      key={user.id}
+                      className="w-full px-3 py-2 text-left text-white hover:bg-[#333] transition-colors flex items-center gap-2"
+                      onClick={e => { e.stopPropagation(); handleSelectFriend(user.id); }}
+                    >
+                      <div className="w-6 h-6 bg-[#444] rounded-full flex items-center justify-center text-xs text-gray-300">
+                        {user.username.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="truncate">{user.username}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Send Request Button */}
+            <button
+              onClick={e => { e.stopPropagation(); sendFriendRequest(); }}
+              disabled={!friendName.trim()}
+              className="w-full mt-2 px-3 py-2 bg-[#363636] text-white font-semibold rounded-lg hover:bg-[#444] disabled:bg-[#2a2a2a] disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+            >
+              Send Friend Request
+            </button>
+            
+            {/* Error Display */}
+            {error && (
+              <div className="mt-2 px-3 py-2 bg-red-900/30 border border-red-700/50 rounded-lg">
+                <p className="text-red-400 text-sm">{error}</p>
+              </div>
+            )}
+            
+            {/* Success Display */}
+            {successMessage && (
+              <div className="mt-2 px-3 py-2 bg-green-900/30 border border-green-700/50 rounded-lg">
+                <p className="text-green-400 text-sm">{successMessage}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Incoming Friend Requests Toggle */}
+          <hr className="w-48 border-t border-[#333] mb-2" style={{ margin: '0 auto', marginTop: 0, marginBottom: 0}} />
           <div className="mb-2">
             <button
               className="flex items-center gap-2 text-white font-semibold text-base focus:outline-none w-full mt-2 px-2 py-2 rounded hover:bg-[#232323] transition-colors"
