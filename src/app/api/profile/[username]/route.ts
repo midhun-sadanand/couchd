@@ -3,7 +3,6 @@ import { supabase } from '@/lib/server';
 
 // Enable ISR with 30 minute revalidation (profiles rarely change)
 export const revalidate = 1800;
-export const dynamic = 'force-cache';
 
 export async function GET(
   req: NextRequest,

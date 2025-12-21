@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 
 // Enable ISR with 10 minute revalidation
 export const revalidate = 600;
-export const dynamic = 'force-cache';
 
 export async function GET(req: Request) {
   const url = new URL(req.url);

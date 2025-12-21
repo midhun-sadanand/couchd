@@ -3,7 +3,6 @@ import { supabase } from '@/lib/server';
 
 // Enable ISR with 15 minute revalidation
 export const revalidate = 900;
-export const dynamic = 'force-cache';
 
 export async function GET() {
   try {
