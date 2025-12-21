@@ -73,6 +73,20 @@ const MediaPage: React.FC = () => {
     setActiveTab,
   } = useContext(ProfileUIContext);
 
+  // Handle Cmd+K keyboard shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Cmd+K (Mac) or Ctrl+K (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsModalOpen(true);
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const fetchSharedUsers = useCallback(async () => {
     if (!watchlist?.id || !supabase) return;
     const { data, error } = await supabase
