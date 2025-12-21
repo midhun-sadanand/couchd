@@ -39,6 +39,20 @@ const ProfileSearchBar: React.FC<ProfileSearchBarProps> = ({ value, onChange, re
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  // Handle Cmd+K (or Ctrl+K) keyboard shortcut
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Check for Cmd+K (Mac) or Ctrl+K (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        inputRef.current?.focus();
+        setIsFocused(true);
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <div ref={wrapperRef} className="relative w-full max-w-xs">
       <div className="search-bar flex items-center px-2 py-1 bg-[#333] rounded-md" style={{ cursor: 'text' }} onClick={() => inputRef.current?.focus()}>
@@ -60,7 +74,7 @@ const ProfileSearchBar: React.FC<ProfileSearchBarProps> = ({ value, onChange, re
         </kbd>
       </div>
       {dropdownOpen && (
-        <div className="absolute left-0 mt-1 w-full bg-[#232323] rounded-md shadow-lg z-50 border border-[#444] max-h-72 overflow-y-auto animate-fade-in-up">
+        <div className="absolute left-0 top-full w-full bg-[#232323] rounded-md shadow-lg z-50 border border-[#444] max-h-72 overflow-y-auto animate-slide-down" style={{ marginTop: '4px' }}>
           {isLoading ? (
             <div className="p-3 text-gray-400 text-center">Searching...</div>
           ) : results.length === 0 ? (

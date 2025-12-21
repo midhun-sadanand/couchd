@@ -28,9 +28,23 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 }) => {
   const [translateY, setTranslateY] = useState(0);
   const [lastScrollTop, setLastScrollTop] = useState(0);
+  const [iconSize, setIconSize] = useState(28);
   const pathname = usePathname();
   const router = useRouter();
   const { setSelectedMedia } = useContext(ProfileUIContext);
+
+  // Update icon size based on window width
+  useEffect(() => {
+    const updateIconSize = () => {
+      const width = window.innerWidth;
+      if (width < 640) setIconSize(22);
+      else if (width < 1024) setIconSize(24);
+      else setIconSize(28);
+    };
+    updateIconSize();
+    window.addEventListener('resize', updateIconSize);
+    return () => window.removeEventListener('resize', updateIconSize);
+  }, []);
 
   const handleScroll = () => {
     const currentScroll = window.scrollY || document.documentElement.scrollTop;
@@ -82,24 +96,24 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       <motion.div
         animate={{ y: translateY }}
         transition={{ duration: .6, ease: 'easeInOut', delay:.04}}
-        className="w-full flex items-center relative"
+        className="w-full flex items-center relative px-2"
       >
-        <div className="flex items-center cursor-pointer select-none" style={{marginLeft: '0.75rem'}} onClick={handleLogoClick}>
-          <div className="mr-2"><Logo scale={.15} color="gray"/></div>
-          <h1 className="font-eina-bold font-bold text-xl my-1 mr-2 text-left text-[#888888]">couchd</h1>
+        <div className="flex items-center cursor-pointer select-none" onClick={handleLogoClick}>
+          <div className="mr-1 sm:mr-2"><Logo scale={iconSize < 24 ? 0.12 : 0.15} color="gray"/></div>
+          <h1 className="font-eina-bold font-bold text-base sm:text-lg lg:text-xl my-1 mr-2 text-left text-[#888888]">couchd</h1>
         </div>
-        <div style={{position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)'}}>
+        <div className="hidden sm:block" style={{position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)'}}>
           <Clock />
         </div>
-        <div className="flex items-center space-x-6 absolute" style={{right: '1.5rem', top: '50%', transform: 'translateY(-50%)'}}>
-          <button onClick={handleProfileClick} className="focus:outline-none">
-            <User size={28} color={activeTab === 'profile' ? '#f6f6f6' : '#777777'} />
+        <div className="flex items-center space-x-3 sm:space-x-4 lg:space-x-6 absolute" style={{right: '1.5rem', top: '50%', transform: 'translateY(-50%)'}}>
+          <button onClick={handleProfileClick} className="focus:outline-none transition-transform hover:scale-110">
+            <User size={iconSize} color={activeTab === 'profile' ? '#f6f6f6' : '#777777'} />
           </button>
-          <button onClick={handleWidgetClick} className="focus:outline-none">
-            <Grid size={28} color={isWatchlistsPage && activeTab === 'watchlists' ? '#f6f6f6' : '#777777'} />
+          <button onClick={handleWidgetClick} className="focus:outline-none transition-transform hover:scale-110">
+            <Grid size={iconSize} color={isWatchlistsPage && activeTab === 'watchlists' ? '#f6f6f6' : '#777777'} />
           </button>
-          <button onClick={() => setFriendsSidebarOpen(!friendsSidebarOpen)} className="focus:outline-none">
-            <Users size={28} color={friendsSidebarOpen ? '#f6f6f6' : '#777777'} />
+          <button onClick={() => setFriendsSidebarOpen(!friendsSidebarOpen)} className="focus:outline-none transition-transform hover:scale-110">
+            <Users size={iconSize} color={friendsSidebarOpen ? '#f6f6f6' : '#777777'} />
           </button>
         </div>
       </motion.div>

@@ -326,6 +326,7 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({ isFriendSidebarOpen = fal
             watchingCount={list.consuming_count}
             watchedCount={list.consumed_count}
             tags={list.tags || []}
+            image={list.image || ''}
             deleteWatchlist={deleteWatchlist}
           />
         ))}

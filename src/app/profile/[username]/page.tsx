@@ -294,16 +294,23 @@ const ProfilePage = () => {
   }) || [];
 
   return (
-    <div className="w-screen h-screen flex flex-col bg-[#232323]">
-      <div className="flex-grow flex mt-8">
+    <div className="w-screen h-screen flex flex-col bg-[#232323] overflow-hidden">
+      <div className="flex-grow flex mt-8 relative">
         <LibrarySidebar 
           watchlists={watchlistsWithOwners} 
           username={userProfile.username} 
           sidebarOpen={sidebarOpen} 
           toggleSidebar={() => setSidebarOpen(!sidebarOpen)} 
         />
-        <div className={`flex-grow transition-all duration-300`} style={{ marginLeft: sidebarOpen ? '80px' : '0', marginRight: friendsSidebarOpen ? '240px' : '0' }}>
-          <div className="flex-grow w-full mx-auto p-4">
+        <div 
+          className="flex-grow transition-all duration-300 overflow-y-auto"
+          style={{ 
+            marginLeft: sidebarOpen ? 'clamp(60px, 80px, 5vw)' : '0', 
+            marginRight: friendsSidebarOpen ? 'clamp(200px, 240px, 15vw)' : '0',
+            maxWidth: '100%'
+          }}
+        >
+          <div className="w-full mx-auto px-2 sm:px-4 py-2 sm:py-4">
             {activeTab === 'profile' && (
               <ProfileTab 
                 userProfile={userProfile} 

@@ -1,54 +1,34 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useUser } from '@/utils/auth';
-import { useSupabase } from '../utils/auth';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useUser, useSupabaseClient } from '@/utils/auth';
 
 interface User {
   id: string;
   username: string;
-  // Add other user properties as needed
+  avatar_url?: string | null;
+  bio?: string;
 }
 
-interface CachedProfileData {
-  userProfile: User | null;
-  friendsProfiles: User[];
-  isLoading: boolean;
-  error: Error | null;
-}
-
-export function useCachedProfileData(): CachedProfileData & { refetchProfile: () => Promise<void> } {
-  const [userProfile, setUserProfile] = useState<User | null>(null);
-  const [friendsProfiles, setFriendsProfiles] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+// Hook to fetch/create user profile
+export function useUserProfile() {
   const { user } = useUser();
-  const { client: supabase, isLoading: supabaseLoading } = useSupabase();
+  const supabase = useSupabaseClient();
 
-  const fetchOrCreateProfile = useCallback(async () => {
-    try {
-      // Try to fetch existing profile using the Supabase user ID
-      console.log('Attempting to fetch profile with ID:', user.id);
+  return useQuery<User | null, Error>({
+    queryKey: ['userProfile', user?.id],
+    queryFn: async () => {
+      if (!user || !supabase) return null;
+
+      // Try to fetch existing profile
       const { data: existingProfile, error: fetchError } = await supabase
         .from('profiles')
         .select('id, username, avatar_url, bio')
         .eq('id', user.id)
         .single();
 
-      // Log the raw response for debugging
-      console.log('Raw Supabase Response:', {
-        data: existingProfile,
-        error: fetchError ? {
-          code: fetchError.code,
-          message: fetchError.message,
-          details: fetchError.details,
-          hint: fetchError.hint
-        } : null
-      });
-
       if (fetchError) {
         if (fetchError.code === 'PGRST116') {
           // Profile doesn't exist, create it
-          console.log('Profile not found, creating new profile');
-          const { data: newProfile, error: insertError } = await supabase
+          const { data: newProfile, error: insertError} = await supabase
             .from('profiles')
             .insert([{
               id: user.id,
@@ -59,108 +39,91 @@ export function useCachedProfileData(): CachedProfileData & { refetchProfile: ()
             .select('id, username, avatar_url, bio')
             .single();
 
-          console.log('Profile creation result:', {
-            hasNewProfile: !!newProfile,
-            newProfile,
-            error: insertError ? {
-              code: insertError.code,
-              message: insertError.message,
-              details: insertError.details,
-              hint: insertError.hint
-            } : null
-          });
-
           if (insertError) throw insertError;
-          setUserProfile(newProfile);
+          return newProfile;
         } else {
           throw fetchError;
         }
-      } else {
-        setUserProfile(existingProfile);
       }
-    } catch (err) {
-      console.error('Error in fetchOrCreateProfile:', {
-        error: err,
-        message: err instanceof Error ? err.message : 'Unknown error',
-        stack: err instanceof Error ? err.stack : undefined
-      });
-      setError(err instanceof Error ? err : new Error('Failed to fetch/create profile'));
-    }
-  }, [supabase, user]);
 
-  useEffect(() => {
-    if (!user || supabaseLoading || !supabase) {
-      setUserProfile(null);
-      return;
-    }
-    fetchOrCreateProfile();
-  }, [user, supabase, supabaseLoading, fetchOrCreateProfile]);
+      return existingProfile;
+    },
+    enabled: !!user && !!supabase,
+    staleTime: 30 * 60 * 1000, // 30 minutes - profiles rarely change
+    gcTime: 60 * 60 * 1000, // 1 hour
+    refetchOnMount: false,
+    refetchOnWindowFocus: false, // Profiles don't change often
+  });
+}
 
-  useEffect(() => {
-    if (supabaseLoading || !supabase || !userProfile) {
-      setIsLoading(true);
-      return;
-    }
+// Hook to fetch user's friends
+export function useFriendsProfiles(userId: string | undefined) {
+  const supabase = useSupabaseClient();
 
-    const fetchFriends = async () => {
-      try {
-        setIsLoading(true);
-        // Fetch friends using the user_id (Supabase ID)
-        const { data: friends, error: friendsError } = await supabase
-          .from('friends')
-          .select('friend_id')
-          .eq('user_id', userProfile.id);
+  return useQuery<User[], Error>({
+    queryKey: ['friendsProfiles', userId],
+    queryFn: async () => {
+      if (!userId || !supabase) return [];
 
-        if (friendsError) {
-          console.error('Error in fetchFriends:', friendsError);
-          throw friendsError;
-        }
+      // Fetch friend IDs
+      const { data: friends, error: friendsError } = await supabase
+        .from('friends')
+        .select('friend_id')
+        .eq('user_id', userId);
 
-        if (friends && friends.length > 0) {
-          const friendIds = friends.map(f => f.friend_id);
-          const { data: profiles, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, username, avatar_url, bio')
-            .in('id', friendIds);
+      if (friendsError) throw friendsError;
 
-          if (profilesError) throw profilesError;
-          setFriendsProfiles(profiles || []);
-        } else {
-          setFriendsProfiles([]);
-        }
-      } catch (err) {
-        console.error('Error in fetchFriends:', err);
-        setError(err instanceof Error ? err : new Error('Failed to fetch friends'));
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      if (!friends || friends.length === 0) return [];
 
-    fetchFriends();
-  }, [userProfile, supabase, supabaseLoading]);
+      // Fetch friend profiles
+      const friendIds = friends.map(f => f.friend_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url, bio')
+        .in('id', friendIds);
+
+      if (profilesError) throw profilesError;
+      return profiles || [];
+    },
+    enabled: !!userId && !!supabase,
+    staleTime: 15 * 60 * 1000, // 15 minutes
+    gcTime: 30 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: true,
+  });
+}
+
+// Combined hook for backward compatibility
+export function useCachedProfileData() {
+  const { user } = useUser();
+  const profileQuery = useUserProfile();
+  const friendsQuery = useFriendsProfiles(user?.id);
+  const queryClient = useQueryClient();
+
+  const refetchProfile = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['userProfile', user?.id] });
+    await queryClient.refetchQueries({ queryKey: ['userProfile', user?.id] });
+  };
 
   return {
-    userProfile,
-    friendsProfiles,
-    isLoading: isLoading || supabaseLoading,
-    error,
-    refetchProfile: fetchOrCreateProfile
+    userProfile: profileQuery.data || null,
+    friendsProfiles: friendsQuery.data || [],
+    isLoading: profileQuery.isLoading || friendsQuery.isLoading,
+    error: profileQuery.error || friendsQuery.error,
+    refetchProfile,
   };
 }
 
-// TEST: Debug function to check friends query by user_id
-export async function testFriendsQuery(supabase: any) {
-  const testUserId = 'user_2y3chLAkikqxoBkKkfZXEnMbesG';
-  const { data, error } = await supabase
-    .from('friends')
-    .select('*')
-    .eq('user_id', testUserId);
-  console.log('TEST friends query result:', { data, error });
+// Helper to invalidate profile cache
+export function useInvalidateProfile() {
+  const queryClient = useQueryClient();
+  return (userId?: string) => {
+    if (userId) {
+      queryClient.invalidateQueries({ queryKey: ['userProfile', userId] });
+      queryClient.invalidateQueries({ queryKey: ['friendsProfiles', userId] });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['friendsProfiles'] });
+    }
+  };
 }
-
-export function clearCachedProfileData(setUserProfile: any, setFriendsProfiles: any, setIsLoading: any, setError: any) {
-  setUserProfile(null);
-  setFriendsProfiles([]);
-  setIsLoading(true);
-  setError(null);
-} 

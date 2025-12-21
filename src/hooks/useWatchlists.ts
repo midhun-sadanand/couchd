@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useSupabase } from '@/utils/auth';
-import { useUser } from '@/utils/auth';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSupabaseClient } from '@/utils/auth';
 
 interface Watchlist {
   id: string;
@@ -25,72 +24,60 @@ interface WatchlistData {
 }
 
 export function useWatchlists(userId: string | undefined) {
-  const [data, setData] = useState<WatchlistData>({ watchlists: [], ownerships: [], ownerIds: [] });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const { client: supabase, isLoading: supabaseLoading } = useSupabase();
+  const supabase = useSupabaseClient();
 
-  useEffect(() => {
-    if (!userId || supabaseLoading || !supabase) {
-      setIsLoading(true);
-      return;
-    }
+  return useQuery<WatchlistData, Error>({
+    queryKey: ['watchlists', userId],
+    queryFn: async () => {
+      if (!userId || !supabase) {
+        return { watchlists: [], ownerships: [], ownerIds: [] };
+      }
 
-    const fetchWatchlists = async () => {
-      try {
-        setIsLoading(true);
-        // Fetch watchlists using the Supabase user ID
-        const { data: watchlists, error: watchlistsError } = await supabase
-          .from('watchlists')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false });
+      // Fetch watchlists
+      const { data: watchlists, error: watchlistsError } = await supabase
+        .from('watchlists')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
 
-        if (watchlistsError) {
-          console.error('Error fetching watchlists:', watchlistsError);
-          throw watchlistsError;
-        }
+      if (watchlistsError) {
+        throw watchlistsError;
+      }
 
-        // Fetch watchlist ownerships only if there are valid watchlist IDs
-        let ownerships: WatchlistOwnership[] = [];
-        if (watchlists && watchlists.length > 0) {
-          const validWatchlistIds = watchlists.map((w: Watchlist) => w.id).filter(Boolean);
-          if (validWatchlistIds.length > 0) {
-            const result = await supabase
-              .from('watchlist_ownership')
-              .select('user_id, watchlist_id')
-              .in('watchlist_id', validWatchlistIds);
-            if (result.error) {
-              console.error('Error fetching watchlist ownerships:', result.error);
-              throw result.error;
-            }
+      // Fetch ownerships if watchlists exist
+      let ownerships: WatchlistOwnership[] = [];
+      if (watchlists && watchlists.length > 0) {
+        const validWatchlistIds = watchlists.map((w: Watchlist) => w.id).filter(Boolean);
+        if (validWatchlistIds.length > 0) {
+          const result = await supabase
+            .from('watchlist_ownership')
+            .select('user_id, watchlist_id')
+            .in('watchlist_id', validWatchlistIds);
+          
+          if (!result.error) {
             ownerships = result.data || [];
           }
         }
-
-        const ownerIds = [...new Set(ownerships.map((o: WatchlistOwnership) => o.user_id))];
-
-        setData({
-          watchlists: watchlists || [],
-          ownerships: ownerships || [],
-          ownerIds
-        });
-      } catch (err) {
-        console.error('Error in fetchWatchlists:', err);
-        setError(err instanceof Error ? err : new Error('Failed to fetch watchlists'));
-      } finally {
-        setIsLoading(false);
       }
-    };
 
-    fetchWatchlists();
-  }, [userId, supabase, supabaseLoading]);
+      const ownerIds = [...new Set(ownerships.map((o: WatchlistOwnership) => o.user_id))];
 
-  return { data, isLoading, error };
+      return {
+        watchlists: watchlists || [],
+        ownerships: ownerships || [],
+        ownerIds
+      };
+    },
+    enabled: !!userId && !!supabase,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: true,
+  });
 }
 
-// If using React Query, you can clear all watchlist-related queries like this:
-// import { useQueryClient } from '@tanstack/react-query';
-// const queryClient = useQueryClient();
-// queryClient.invalidateQueries(['watchlists']);
-// queryClient.clear(); 
+// Helper to invalidate watchlist cache
+export function useInvalidateWatchlists() {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: ['watchlists'] });
+} 

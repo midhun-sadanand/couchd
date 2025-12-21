@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, Input, AutoComplete, useToasts, useTheme, Note, Toggle } from '@geist-ui/core';
 import { useRouter } from 'next/navigation';
+import { X } from 'lucide-react';
 
 interface AddWatchlistModalProps {
   user: {
@@ -15,15 +15,22 @@ interface AddWatchlistModalProps {
   watchlists: any[];
 }
 
-const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ user, visible, onClose, options, setOptions, setWatchlists, watchlists }) => {
+const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ 
+  user, 
+  visible, 
+  onClose, 
+  options, 
+  setOptions, 
+  setWatchlists, 
+  watchlists 
+}) => {
   const [watchlistName, setWatchlistName] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isPublic, setIsPublic] = useState(false);
-  const { setToast } = useToasts();
-  const theme = useTheme();
+  const [isCreating, setIsCreating] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -33,7 +40,7 @@ const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ user, visible, on
   }, [visible]);
 
   const createWatchlist = async () => {
-    if (!watchlistName) {
+    if (!watchlistName.trim()) {
       setErrorMessage('Watchlist name cannot be empty.');
       return;
     }
@@ -41,61 +48,64 @@ const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ user, visible, on
       setErrorMessage(`A watchlist named '${watchlistName}' already exists!`);
       return;
     }
+    
+    setIsCreating(true);
+    setErrorMessage('');
+
     try {
       const response = await fetch('/api/watchlists', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: watchlistName,
           description,
           isPublic,
           userId: user.id,
+          tags,
         }),
       });
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to create watchlist');
       }
+
       const newWatchlist = await response.json();
       setWatchlists([...watchlists, newWatchlist]);
       router.push(`/watchlist/${newWatchlist.id}`);
-      setToast({
-        text: `Watchlist '${watchlistName}' created successfully!`,
-        type: 'success',
-      });
       resetModal();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to create watchlist');
+    } finally {
+      setIsCreating(false);
     }
   };
 
-  const handleTagInput = (currentValue: string) => {
-    setTagInput(currentValue);
-    if (!currentValue.trim()) {
-      setOptions(options.length ? options : []);
+  const handleTagInput = (value: string) => {
+    setTagInput(value);
+    if (!value.trim()) {
+      setOptions([]);
       return;
     }
     const relatedOptions = [...new Set(watchlists.flatMap((list: any) => list.tags || []))]
-      .filter((tag: string) => tag.toLowerCase().includes(currentValue.toLowerCase()))
+      .filter((tag: string) => tag.toLowerCase().includes(value.toLowerCase()))
       .map((tag: string) => ({ label: tag, value: tag }));
-    const createOption = { value: currentValue.trim(), label: `Add "${currentValue.trim()}"` };
-    setOptions(relatedOptions.length ? [...relatedOptions, createOption] : [createOption]);
+    setOptions(relatedOptions);
   };
 
   const addTag = (tag: string) => {
-    if (tag && !tags.includes(tag.trim())) {
-      setTags(prevTags => [...prevTags, tag.trim()]);
+    const trimmed = tag.trim();
+    if (trimmed && !tags.includes(trimmed)) {
+      setTags(prev => [...prev, trimmed]);
     }
     setTagInput('');
+    setOptions([]);
   };
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter' && tagInput) {
+    if (event.key === 'Enter' && tagInput.trim()) {
       event.preventDefault();
       addTag(tagInput);
-      setTimeout(() => setOptions([]), 100);
     }
   };
 
@@ -114,112 +124,149 @@ const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({ user, visible, on
     onClose();
   };
 
+  if (!visible) return null;
+
   return (
-    <Modal visible={visible} onClose={resetModal} width="40rem">
-      <div className="modal-header">
-        <Modal.Title>Create A New Watchlist</Modal.Title>
-        <div className="toggle-wrapper">
-          <Toggle initialChecked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} />
-          <span className="toggle-label">{isPublic ? 'Public' : 'Private'}</span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm">
+      <div className="bg-[#1a1a1a] rounded-2xl p-8 w-full max-w-2xl relative shadow-2xl border border-[#333333]">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-eina-bold text-white">Create A New Watchlist</h2>
+          <div className="flex items-center gap-4">
+            {/* Private/Public Toggle */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsPublic(!isPublic)}
+                className={`relative w-12 h-6 rounded-full transition-colors ${
+                  isPublic ? 'bg-[#4a4a4a]' : 'bg-[#2a2a2a]'
+                } border border-[#3a3a3a]`}
+              >
+                <div
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                    isPublic ? 'translate-x-6' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+              <span className="text-sm text-[#cccccc] font-eina">{isPublic ? 'Public' : 'Private'}</span>
+            </div>
+            <button 
+              onClick={resetModal}
+              className="text-[#666666] hover:text-white transition-colors text-2xl font-light w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#2a2a2a]"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+        {/* Error Message */}
+        {errorMessage && (
+          <div className="mb-4 px-4 py-3 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg">
+            <p className="text-[#d4a5a5] text-sm font-eina">{errorMessage}</p>
+          </div>
+        )}
+
+        {/* Form */}
+        <div className="space-y-5">
+          {/* Watchlist Name */}
+          <div>
+            <label className="block text-[#cccccc] text-sm font-eina-bold mb-2">
+              Watchlist Name
+            </label>
+            <input
+              type="text"
+              value={watchlistName}
+              onChange={(e) => setWatchlistName(e.target.value)}
+              placeholder="Enter Watchlist Name"
+              className="w-full bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg text-white placeholder-[#666666] px-4 py-3 focus:outline-none focus:border-[#4a4a4a] focus:bg-[#2f2f2f] transition-all font-eina"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-[#cccccc] text-sm font-eina-bold mb-2">
+              Description
+            </label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Enter Description"
+              className="w-full bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg text-white placeholder-[#666666] px-4 py-3 focus:outline-none focus:border-[#4a4a4a] focus:bg-[#2f2f2f] transition-all font-eina"
+            />
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label className="block text-[#cccccc] text-sm font-eina-bold mb-2">
+              Tags
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => handleTagInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Enter tag and press enter"
+                className="w-full bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg text-white placeholder-[#666666] px-4 py-3 focus:outline-none focus:border-[#4a4a4a] focus:bg-[#2f2f2f] transition-all font-eina"
+              />
+              
+              {/* Tag suggestions dropdown */}
+              {options.length > 0 && tagInput && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg shadow-2xl max-h-40 overflow-y-auto z-10">
+                  {options.map((option, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => addTag(option.value)}
+                      className="w-full px-4 py-2 text-left text-white hover:bg-[#3a3a3a] transition-colors text-sm font-eina"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Selected tags */}
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {tags.map((tag, index) => (
+                  <div 
+                    key={index} 
+                    className="flex items-center gap-2 px-3 py-1.5 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg text-white text-sm font-eina"
+                  >
+                    {tag}
+                    <button
+                      onClick={() => removeTag(index)}
+                      className="text-[#999999] hover:text-white transition-colors"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer Buttons */}
+        <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-[#3a3a3a]">
+          <button
+            onClick={resetModal}
+            className="px-6 py-2.5 bg-[#2a2a2a] border border-[#3a3a3a] text-white rounded-lg hover:bg-[#363636] transition-colors font-einasemibold"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={createWatchlist}
+            disabled={isCreating || !watchlistName.trim()}
+            className="px-6 py-2.5 bg-[#3a3a3a] text-white rounded-lg hover:bg-[#454545] disabled:bg-[#2a2a2a] disabled:text-[#666666] disabled:cursor-not-allowed transition-colors font-einasemibold"
+          >
+            {isCreating ? 'Creating...' : 'Create'}
+          </button>
         </div>
       </div>
-      <Modal.Content>
-        {errorMessage && (
-          <Note className="custom-error-note" label={false} type="error">
-            {errorMessage}
-          </Note>
-        )}
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label htmlFor="watchlist-name" className="input-label">Watchlist Name</label>
-          <Input
-            id="watchlist-name"
-            width="100%"
-            placeholder="Enter Watchlist Name"
-            value={watchlistName}
-            onChange={(e) => setWatchlistName(e.target.value)}
-            onPointerEnterCapture={() => {}}
-            onPointerLeaveCapture={() => {}}
-            crossOrigin="anonymous"
-          />
-        </div>
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label htmlFor="watchlist-description" className="input-label">Description</label>
-          <Input
-            id="watchlist-description"
-            width="100%"
-            placeholder="Enter Description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            onPointerEnterCapture={() => {}}
-            onPointerLeaveCapture={() => {}}
-            crossOrigin="anonymous"
-          />
-        </div>
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label htmlFor="watchlist-tags" className="input-label">Tags</label>
-          <AutoComplete
-            id="watchlist-tags"
-            width="100%"
-            options={options}
-            placeholder="Enter tag and press enter"
-            onSearch={handleTagInput}
-            clearable
-            disableFreeSolo
-            value={tagInput}
-            onChange={setTagInput}
-            onKeyPress={handleKeyPress}
-            onPointerEnterCapture={() => {}}
-            onPointerLeaveCapture={() => {}}
-            crossOrigin="anonymous"
-          />
-        </div>
-        <div className="flex flex-wrap mt-2">
-          {tags.map((tag, index) => (
-            <div key={index} className="modal-tag flex items-center mr-2 mb-2">
-              {tag}
-              <Button
-                auto
-                type="abort"
-                onClick={() => removeTag(index)}
-                className="tag-button"
-                onPointerEnterCapture={() => {}}
-                onPointerLeaveCapture={() => {}}
-                placeholder=""
-              >
-                &times;
-              </Button>
-            </div>
-          ))}
-        </div>
-      </Modal.Content>
-      <Modal.Action onClick={resetModal} type="abort" onPointerEnterCapture={() => {}} onPointerLeaveCapture={() => {}} placeholder="">Cancel</Modal.Action>
-      <Modal.Action onClick={createWatchlist} onPointerEnterCapture={() => {}} onPointerLeaveCapture={() => {}} placeholder="">Create</Modal.Action>
-      <style jsx>{`
-        .modal-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          width: 100%;
-        }
-        .toggle-wrapper {
-          display: flex;
-          align-items: center;
-        }
-        .toggle-label {
-          margin-left: 8px;
-          font-size: 14px;
-          color: ${theme.palette.accents_6};
-          margin-top: 0;
-        }
-        .input-label {
-          display: block;
-          margin-bottom: 0.25rem;
-          color: ${theme.palette.accents_6};
-          font-size: 1rem;
-        }
-      `}</style>
-    </Modal>
+    </div>
   );
 };
 
-export default AddWatchlistModal; 
+export default AddWatchlistModal;

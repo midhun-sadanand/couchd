@@ -336,7 +336,7 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
       {/* Subtle clickable edge when sidebar is closed */}
       {!sidebarOpen && (
         <div
-          className="fixed top-14 right-0 w-2 bg-[#181818] cursor-pointer z-50 rounded-l-lg"
+          className="fixed top-14 right-0 w-2 bg-[#1a1a1a] cursor-pointer z-50 rounded-l-lg"
           style={{
             margin: `${SIDEBAR_MARGIN}px 0 ${SIDEBAR_MARGIN}px 0`,
             height: SIDEBAR_HEIGHT,
@@ -346,7 +346,7 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
         />
       )}
       <div
-        className={`fixed top-14 right-0 bg-[#181818] px-3 m-2 shadow-lg flex flex-col mb-4 border border-[#232323] z-50 transition-transform duration-300 ${sidebarOpen ? 'translate-x-[-10px]' : 'translate-x-full'}`}
+        className={`fixed top-14 right-0 bg-[#1a1a1a] px-4 m-2 shadow-2xl flex flex-col mb-4 border border-[#333333] z-50 transition-transform duration-300 ${sidebarOpen ? 'translate-x-[-10px]' : 'translate-x-full'}`}
         style={{
           width: SIDEBAR_WIDTH,
           minWidth: SIDEBAR_WIDTH,
@@ -367,57 +367,57 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mt-2 mb-4 select-none" style={{ minHeight: 32 }}>
-          <h2 className="text-xl text-white font-semibold">Friends</h2>
-          <button onClick={e => { e.stopPropagation(); closeSidebar(); }} className="text-white hover:bg-[#232323] rounded p-1 transition-colors">
-            <X size={22} />
+        <div className="flex items-center justify-between mt-3 mb-4 select-none" style={{ minHeight: 32 }}>
+          <h2 className="text-xl text-white font-eina-bold">Friends</h2>
+          <button onClick={e => { e.stopPropagation(); closeSidebar(); }} className="text-[#666666] hover:text-white hover:bg-[#2a2a2a] rounded-full p-1.5 transition-all">
+            <X size={20} />
           </button>
         </div>
         {/* Friends List */}
         <div className="flex-1 overflow-y-auto">
-          <h3 className="text-base text-white font-semibold mb-2">Your Friends</h3>
-          <ul className="flex flex-col gap-2 mb-2">
+          <h3 className="text-sm text-[#cccccc] font-eina-bold mb-3">Your Friends</h3>
+          <ul className="flex flex-col gap-2 mb-4">
             {friendsProfiles.length > 0 ? (
               friendsProfiles.map(friend => (
-                <li key={friend.id} className="flex items-center gap-3 bg-[#232323] rounded-lg px-3 py-2">
+                <li key={friend.id} className="flex items-center gap-3 bg-[#2a2a2a] rounded-lg px-3 py-2.5 border border-[#3a3a3a] hover:bg-[#2f2f2f] transition-colors">
                   <img
                     src={friend.avatar_url || '/default-avatar.png'}
                     alt={friend.username}
-                    className="w-9 h-9 rounded-full object-cover border border-[#444]"
+                    className="w-9 h-9 rounded-full object-cover border border-[#4a4a4a]"
                     onError={e => (e.currentTarget.src = '/default-avatar.png')}
                   />
-                  <span className="text-white font-medium truncate">{friend.username}</span>
+                  <span className="text-white font-eina truncate">{friend.username}</span>
                 </li>
               ))
             ) : (
-              <li className="text-gray-400">No friends yet.</li>
+              <li className="text-[#666666] text-sm px-2 py-3 text-center">No friends yet.</li>
             )}
           </ul>
 
           {/* Add Friends Section */}
-          <hr className="w-48 border-t border-[#333] mb-2" style={{ margin: '0 auto', marginTop: 20, marginBottom: 0}} />
+          <hr className="w-full border-t border-[#3a3a3a] my-4" />
           <div className="mb-4">
-            <h3 className="text-base text-white font-semibold mb-2 mt-2">Add Friends</h3>
+            <h3 className="text-sm text-[#cccccc] font-eina-bold mb-3">Add Friends</h3>
             <div className="relative">
               <input
                 type="text"
                 value={friendName}
                 onChange={searchFriends}
                 placeholder="Search by username..."
-                className="w-full px-3 py-2 bg-[#232323] border border-[#444] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-gray-500 transition-colors"
+                className="w-full px-3 py-2.5 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg text-white placeholder-[#666666] focus:outline-none focus:border-[#4a4a4a] focus:bg-[#2f2f2f] transition-all font-eina text-sm"
                 onClick={e => e.stopPropagation()}
               />
               
               {/* Search Results Dropdown */}
               {showDropdown && searchResultsState.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-[#222] border border-[#444] rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg shadow-2xl z-10 max-h-40 overflow-y-auto">
                   {searchResultsState.map(user => (
                     <button
                       key={user.id}
-                      className="w-full px-3 py-2 text-left text-white hover:bg-[#333] transition-colors flex items-center gap-2"
+                      className="w-full px-3 py-2 text-left text-white hover:bg-[#3a3a3a] transition-colors flex items-center gap-2 font-eina text-sm"
                       onClick={e => { e.stopPropagation(); handleSelectFriend(user.id); }}
                     >
-                      <div className="w-6 h-6 bg-[#444] rounded-full flex items-center justify-center text-xs text-gray-300">
+                      <div className="w-6 h-6 bg-[#3a3a3a] rounded-full flex items-center justify-center text-xs text-[#cccccc]">
                         {user.username.charAt(0).toUpperCase()}
                       </div>
                       <span className="truncate">{user.username}</span>
@@ -431,75 +431,79 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
             <button
               onClick={e => { e.stopPropagation(); sendFriendRequest(); }}
               disabled={!friendName.trim()}
-              className="w-full mt-2 px-3 py-2 bg-[#363636] text-white font-semibold rounded-lg hover:bg-[#444] disabled:bg-[#2a2a2a] disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+              className="w-full mt-3 px-3 py-2.5 bg-[#3a3a3a] text-white font-einasemibold rounded-lg hover:bg-[#454545] disabled:bg-[#2a2a2a] disabled:text-[#666666] disabled:cursor-not-allowed transition-all text-sm"
             >
               Send Friend Request
             </button>
             
             {/* Error Display */}
             {error && (
-              <div className="mt-2 px-3 py-2 bg-red-900/30 border border-red-700/50 rounded-lg">
-                <p className="text-red-400 text-sm">{error}</p>
+              <div className="mt-3 px-3 py-2 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg">
+                <p className="text-[#d4a5a5] text-xs font-eina">{error}</p>
               </div>
             )}
             
             {/* Success Display */}
             {successMessage && (
-              <div className="mt-2 px-3 py-2 bg-green-900/30 border border-green-700/50 rounded-lg">
-                <p className="text-green-400 text-sm">{successMessage}</p>
+              <div className="mt-3 px-3 py-2 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg">
+                <p className="text-[#a5d4b4] text-xs font-eina">{successMessage}</p>
               </div>
             )}
           </div>
 
           {/* Incoming Friend Requests Toggle */}
-          <hr className="w-48 border-t border-[#333] mb-2" style={{ margin: '0 auto', marginTop: 0, marginBottom: 0}} />
+          <hr className="w-full border-t border-[#3a3a3a] my-4" />
           <div className="mb-2">
             <button
-              className="flex items-center gap-2 text-white font-semibold text-base focus:outline-none w-full mt-2 px-2 py-2 rounded hover:bg-[#232323] transition-colors"
+              className="flex items-center gap-2 text-[#cccccc] font-eina-bold text-sm focus:outline-none w-full px-2 py-2 rounded-lg hover:bg-[#2a2a2a] transition-colors"
               style={{ justifyContent: 'space-between' }}
               onClick={e => { e.stopPropagation(); setShowRequests(v => !v); }}
             >
               <span className="flex items-center gap-2">
                 Incoming Requests
-                <span className="text-xs text-gray-400 font-normal">({friendRequests.length})</span>
+                <span className="text-xs text-[#666666] font-eina">({friendRequests.length})</span>
               </span>
               <span className={`transition-transform duration-300 ${showRequests ? '' : ''}`}>
-                {showRequests ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                {showRequests ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </span>
             </button>
             {showRequests && (
-              <div className="flex flex-col gap-3 mt-2">
+              <div className="flex flex-col gap-2 mt-3">
                 {friendRequests.length > 0 ? (
                   friendRequests.map((req: any) => (
-                    <div key={req.id} className="friend-card flex items-center bg-[#222] rounded-lg shadow border border-[#232323] px-3 py-2 gap-3">
-                      <img
-                        src={req.sender?.avatar_url || '/default-avatar.png'}
-                        alt={req.sender?.username || 'Avatar'}
-                        className="w-12 h-12 rounded-full object-cover border border-[#444]"
-                        onError={e => (e.currentTarget.src = '/default-avatar.png')}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-white font-semibold truncate">{req.sender?.username || 'Unknown'}</div>
-                        {req.sender?.mutual_friends && req.sender.mutual_friends > 0 && (
-                          <div className="text-xs text-gray-400 truncate">{req.sender.mutual_friends} mutual friends</div>
-                        )}
+                    <div key={req.id} className="friend-card flex flex-col bg-[#2a2a2a] rounded-lg border border-[#3a3a3a] px-3 py-3 gap-2">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={req.sender?.avatar_url || '/default-avatar.png'}
+                          alt={req.sender?.username || 'Avatar'}
+                          className="w-10 h-10 rounded-full object-cover border border-[#4a4a4a]"
+                          onError={e => (e.currentTarget.src = '/default-avatar.png')}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-white font-eina-bold text-sm truncate">{req.sender?.username || 'Unknown'}</div>
+                          {req.sender?.mutual_friends && req.sender.mutual_friends > 0 && (
+                            <div className="text-xs text-[#666666] truncate font-eina">{req.sender.mutual_friends} mutual friends</div>
+                          )}
+                        </div>
                       </div>
-                      <button
-                        className="px-4 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors mr-2"
-                        onClick={e => { e.stopPropagation(); handleAcceptRequest(req.id); }}
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        className="px-4 py-1 rounded bg-[#363636] text-white font-semibold hover:bg-[#232323] transition-colors"
-                        onClick={e => { e.stopPropagation(); handleRejectRequest(req.id); }}
-                      >
-                        Delete
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          className="flex-1 px-3 py-1.5 rounded-lg bg-[#3a3a3a] text-white font-einasemibold hover:bg-[#454545] transition-colors text-xs"
+                          onClick={e => { e.stopPropagation(); handleAcceptRequest(req.id); }}
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          className="flex-1 px-3 py-1.5 rounded-lg bg-[#2a2a2a] border border-[#3a3a3a] text-white font-einasemibold hover:bg-[#363636] transition-colors text-xs"
+                          onClick={e => { e.stopPropagation(); handleRejectRequest(req.id); }}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-gray-400 text-sm px-2 py-3 text-center">No pending requests</div>
+                  <div className="text-[#666666] text-xs px-2 py-3 text-center font-eina">No pending requests</div>
                 )}
               </div>
             )}

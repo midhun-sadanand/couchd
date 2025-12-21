@@ -1482,17 +1482,17 @@ main {
 }
 
 .status-to-consume {
-  background-color: #f87171;
-  color: #fff;
+  background-color: #34d399;
+  color: #232323;
 }
 
 .status-consuming {
   background-color: #fbbf24;
-  color: #fff;
+  color: #232323;
 }
 
 .status-consumed {
-  background-color: #34d399;
+  background-color: #f87171;
   color: #fff;
 }
 
@@ -1687,10 +1687,75 @@ header.profile-header {
   }
 }
 
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .animate-fade-in-up {
   animation: fadeInUp 0.3s cubic-bezier(0.4,0,0.2,1) both;
 }
 .animate-fade-out-down {
   animation: fadeOutDown 0.3s cubic-bezier(0.4,0,0.2,1) both;
+}
+.animate-slide-down {
+  animation: slideDown 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+/* Responsive text utilities */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* Fluid typography for better scaling */
+.fluid-text-xs {
+  font-size: clamp(0.65rem, 0.5vw + 0.5rem, 0.75rem);
+}
+
+.fluid-text-sm {
+  font-size: clamp(0.75rem, 0.5vw + 0.6rem, 0.875rem);
+}
+
+.fluid-text-base {
+  font-size: clamp(0.875rem, 0.5vw + 0.75rem, 1rem);
+}
+
+.fluid-text-lg {
+  font-size: clamp(1rem, 1vw + 0.75rem, 1.125rem);
+}
+
+.fluid-text-xl {
+  font-size: clamp(1.125rem, 1.5vw + 0.75rem, 1.25rem);
+}
+
+.fluid-text-2xl {
+  font-size: clamp(1.25rem, 2vw + 0.75rem, 1.5rem);
+}
+
+.fluid-text-3xl {
+  font-size: clamp(1.5rem, 2.5vw + 0.75rem, 1.875rem);
 }
 

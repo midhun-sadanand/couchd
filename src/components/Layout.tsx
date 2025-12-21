@@ -7,6 +7,7 @@ import ProfileHeader from './ProfileHeader';
 import { useSupabaseClient } from '@/utils/auth';
 import AuthModal from './AuthModal';
 import { MediaItem } from '@/types';
+import { useRealtimeUpdates } from '@/hooks/useRealtimeSubscriptions';
 
 type Props = {
   children: React.ReactNode;
@@ -36,6 +37,9 @@ const Layout: React.FC<Props> = ({ children }) => {
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
 
   const supabase = useSupabaseClient();
+  
+  // Enable realtime updates for critical data
+  useRealtimeUpdates();
 
   const handleAuthClick = (view: 'sign_in' | 'sign_up') => {
     setAuthView(view);

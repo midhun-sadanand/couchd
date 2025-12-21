@@ -159,9 +159,9 @@ export default function YouTubeCard({
 
   const statusColorClass = (status: StatusType) => {
     switch (status) {
-      case 'to consume': return 'bg-[#34d399]'; // green
+      case 'to consume': return 'bg-[#f87171]'; // red
       case 'consuming': return 'bg-[#fbbf24]'; // yellow
-      case 'consumed': return 'bg-[#f87171]'; // red
+      case 'consumed': return 'bg-[#34d399]'; // green
       default: return 'bg-gray-500';
     }
   };
@@ -266,7 +266,7 @@ export default function YouTubeCard({
                           key={option}
                           onClick={e => { e.stopPropagation(); handleStatusChange(option); toggleDropdown(); }}
                           className={`block w-full text-left px-4 py-2 text-xs font-semibold hover:bg-[#4b4b4b] ${
-                            option === 'to consume' ? 'text-[#34d399]' : option === 'consuming' ? 'text-[#fbbf24]' : option === 'consumed' ? 'text-[#f87171]' : 'text-[#232323]'
+                            option === 'to consume' ? 'text-[#f87171]' : option === 'consuming' ? 'text-[#fbbf24]' : option === 'consumed' ? 'text-[#34d399]' : 'text-[#232323]'
                           } ${idx === 0 ? 'first:rounded-t-md' : ''} ${idx === statusOptions.length - 1 ? 'last:rounded-b-md' : ''}`}
                         >
                           {option}

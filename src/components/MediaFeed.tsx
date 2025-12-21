@@ -9,6 +9,7 @@ import NotesInput from './NotesInput';
 import { debounce } from 'lodash';
 import { Rnd } from 'react-rnd';
 import MediaInfoPanel from './MediaInfoPanel';
+import { useUpdateMedia, useUpdateMediaRating } from '@/hooks/useMediaMutations';
 
 interface MediaFeedProps {
   userId: string;
@@ -45,19 +46,48 @@ const BOTTOM_PADDING = 24; // Minimum distance from bottom of any panel to conta
 const STACK_BREAKPOINT = 1024;   // px – start stacking below this width
 
 const getDefaultLayout = (width: number, height: number = 800) => {
-  const innerWidth = width - CONTAINER_PADDING * 2;
+  // Ensure padding on all 4 sides
+  const totalHorizontalPadding = CONTAINER_PADDING * 2; // Left and right padding
+  const innerWidth = width - totalHorizontalPadding;
   const innerHeight = height - CONTAINER_PADDING * 2;
+  const gap = 24;
+  
   if (width < STACK_BREAKPOINT) {
-    // Mobile: stacked, each panel takes full width, half height
+    // Mobile: stacked, each panel takes full width with padding on all sides
+    const panelWidth = innerWidth;
     return {
-      notes: { x: CONTAINER_PADDING, y: CONTAINER_PADDING, width: innerWidth, height: Math.max(innerHeight * 0.4, 260) },
-      video: { x: CONTAINER_PADDING, y: Math.max(innerHeight * 0.4, 260) + CONTAINER_PADDING + 20, width: innerWidth, height: Math.max(innerHeight * 0.5, 220) }
+      notes: { 
+        x: CONTAINER_PADDING, 
+        y: CONTAINER_PADDING, 
+        width: panelWidth, 
+        height: Math.max(innerHeight * 0.4, 260) 
+      },
+      video: { 
+        x: CONTAINER_PADDING, 
+        y: Math.max(innerHeight * 0.4, 260) + CONTAINER_PADDING + 20, 
+        width: panelWidth, 
+        height: Math.max(innerHeight * 0.5, 220) 
+      }
     };
   } else {
-    // Desktop: side by side, both panels larger
+    // Desktop: side by side with padding on all sides
+    const availableWidth = innerWidth - gap;
+    const notesWidth = Math.floor(availableWidth * 0.62);
+    const videoWidth = availableWidth - notesWidth;
+    
     return {
-      notes: { x: CONTAINER_PADDING, y: CONTAINER_PADDING, width: Math.max(innerWidth * 0.65, 420), height: Math.max(innerHeight * 0.7, 340) },
-      video: { x: CONTAINER_PADDING + Math.max(innerWidth * 0.65, 420) + 24, y: CONTAINER_PADDING, width: Math.max(innerWidth * 0.35 - 24, 340), height: Math.max(innerHeight * 0.7, 220) }
+      notes: { 
+        x: CONTAINER_PADDING, 
+        y: CONTAINER_PADDING, 
+        width: Math.max(notesWidth, 380), 
+        height: Math.max(innerHeight * 0.7, 340) 
+      },
+      video: { 
+        x: CONTAINER_PADDING + Math.max(notesWidth, 380) + gap, 
+        y: CONTAINER_PADDING, 
+        width: Math.max(videoWidth, 320), 
+        height: Math.max(innerHeight * 0.7, 220) 
+      }
     };
   }
 };
@@ -100,61 +130,52 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
   const [showYouTube, setShowYouTube] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerSize, setContainerSize] = useState({ width: 1200, height: 800 });
-  const initialLayout = getDefaultLayout(1200, 800);
+  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
   const [notesRect, setNotesRect] = useState({
-    x: initialLayout.notes.x,
-    y: initialLayout.notes.y,
-    w: initialLayout.notes.width,
-    h: initialLayout.notes.height
+    x: CONTAINER_PADDING,
+    y: CONTAINER_PADDING,
+    w: 400,
+    h: 300
   });
   const [videoRect, setVideoRect] = useState({
-    x: initialLayout.video.x,
-    y: initialLayout.video.y,
-    w: initialLayout.video.width,
-    h: initialLayout.video.height
+    x: CONTAINER_PADDING,
+    y: CONTAINER_PADDING + 320,
+    w: 400,
+    h: 280
   });
 
-  // Responsive: update layout on resize
-  useEffect(() => {
+  // Responsive: update layout on resize - use useLayoutEffect for immediate update
+  useLayoutEffect(() => {
     function update() {
       if (!containerRef.current) return;
       const width = containerRef.current.clientWidth;
       const height = Math.max(700, window.innerHeight - 240);
-      setContainerSize(s => ({ ...s, width, height }));
-      // Responsive rearrangement
+      
+      // Update container size
+      setContainerSize({ width, height });
+      
+      // Get responsive layout
       const layout = getDefaultLayout(width, height);
-      // If switching to mobile, stack vertically
-      if (width < STACK_BREAKPOINT) {
-        setNotesRect({
-          x: layout.notes.x,
-          y: layout.notes.y,
-          w: layout.notes.width,
-          h: layout.notes.height
-        });
-        setVideoRect({
-          x: layout.video.x,
-          y: layout.video.y,
-          w: layout.video.width,
-          h: layout.video.height
-        });
-      } else {
-        // Desktop: side by side
-        setNotesRect(r => ({
-          x: layout.notes.x,
-          y: layout.notes.y,
-          w: layout.notes.width,
-          h: layout.notes.height
-        }));
-        setVideoRect(r => ({
-          x: layout.video.x,
-          y: layout.video.y,
-          w: layout.video.width,
-          h: layout.video.height
-        }));
-      }
+      
+      // Update panel positions and sizes
+      setNotesRect({
+        x: layout.notes.x,
+        y: layout.notes.y,
+        w: layout.notes.width,
+        h: layout.notes.height
+      });
+      setVideoRect({
+        x: layout.video.x,
+        y: layout.video.y,
+        w: layout.video.width,
+        h: layout.video.height
+      });
     }
+    
+    // Run immediately on mount
     update();
+    
+    // Also run on resize
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
@@ -215,20 +236,36 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
     fetchDetails();
   }, [selectedMedia, supabase]);
 
+  // Use separate mutation for instant rating updates
+  const updateRatingMutation = useUpdateMediaRating();
+
+  // Auto-save rating when it changes (with optimistic update)
+  useEffect(() => {
+    if (!selectedMedia) return;
+    
+    const timeoutId = setTimeout(() => {
+      updateRatingMutation.mutate({
+        itemId: selectedMedia.id,
+        rating
+      });
+    }, 500); // Save 500ms after rating change
+    
+    return () => clearTimeout(timeoutId);
+  }, [rating, selectedMedia]);
+
+  // Use optimistic mutation for media updates
+  const updateMediaMutation = useUpdateMedia();
+
   // Save notes and rating for selected media (onBlur only)
   const saveMediaNotes = async () => {
     if (!selectedMedia) return;
     setMediaNotesSaving(true);
     try {
-      const { error } = await supabase
-        .from('media_items')
-        .update({
-          notes,
-          rating,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedMedia.id);
-      if (error) throw error;
+      await updateMediaMutation.mutateAsync({
+        itemId: selectedMedia.id,
+        notes,
+        rating
+      });
     } catch (error) {
       console.error('Error saving media details:', error);
     } finally {
@@ -258,6 +295,8 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
   // Minimize logic
   const [notesMin, setNotesMin] = useState(false);
   const [videoMin, setVideoMin] = useState(false);
+  const [savedNotesRect, setSavedNotesRect] = useState(notesRect);
+  const [savedVideoRect, setSavedVideoRect] = useState(videoRect);
 
   // Sync container height in real time
   const syncContainer = (
@@ -286,6 +325,47 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
     return () => window.removeEventListener('resize', updateMobile);
   }, []);
 
+  // When one panel is minimized, expand the other to fill space
+  useEffect(() => {
+    if (isMobile) return; // Skip on mobile
+
+    const layout = getDefaultLayout(containerSize.width, containerSize.height);
+    
+    if (notesMin && !videoMin) {
+      // Video expands to fill full width with proper padding on all sides
+      const maxWidth = containerSize.width - CONTAINER_PADDING * 2;
+      setVideoRect({
+        x: CONTAINER_PADDING,
+        y: CONTAINER_PADDING,
+        w: Math.max(340, maxWidth),
+        h: videoRect.h
+      });
+    } else if (videoMin && !notesMin) {
+      // Notes expands to fill full width with proper padding on all sides
+      const maxWidth = containerSize.width - CONTAINER_PADDING * 2;
+      setNotesRect({
+        x: CONTAINER_PADDING,
+        y: CONTAINER_PADDING,
+        w: Math.max(340, maxWidth),
+        h: notesRect.h
+      });
+    } else if (!notesMin && !videoMin) {
+      // Both visible - side by side, non-overlapping
+      setNotesRect(r => ({
+        x: layout.notes.x,
+        y: layout.notes.y,
+        w: layout.notes.width,
+        h: r.h
+      }));
+      setVideoRect(r => ({
+        x: layout.video.x,
+        y: layout.video.y,
+        w: layout.video.width,
+        h: r.h
+      }));
+    }
+  }, [notesMin, videoMin, isMobile, containerSize.width, containerSize.height]);
+
   // YouTube video player logic
   const isYouTube = selectedMedia && selectedMedia.medium && selectedMedia.medium.toLowerCase().includes('youtube');
   let youTubeId = '';
@@ -310,11 +390,19 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
   }, [youTubeId, isMobile, containerSize.width, containerSize.height]);
 
   return (
-    <div ref={containerRef} className="w-full bg-[#1a1a1a] rounded-lg p-6 min-h-screen" style={{ minHeight: containerSize.height, position: 'relative' }}>
-      <div className="rnd-bounds absolute inset-0" style={{ pointerEvents: 'none', padding: CONTAINER_PADDING }} />
+    <div ref={containerRef} className="w-full bg-[#1a1a1a] rounded-lg min-h-screen" style={{ minHeight: containerSize.height, position: 'relative', padding: `${CONTAINER_PADDING}px` }}>
+      <div className="rnd-bounds absolute" style={{ pointerEvents: 'none', top: CONTAINER_PADDING, left: CONTAINER_PADDING, right: CONTAINER_PADDING, bottom: CONTAINER_PADDING }} />
       {/* HOME NOTES: Show when no media item is selected */}
       {(!selectedMedia) ? (
-        <div className="w-full bg-[#232323] rounded-lg p-6 shadow-lg flex flex-col" style={{ height: 'calc(100vh - 12rem)' }}>
+        <div 
+          className="bg-[#232323] rounded-lg p-6 shadow-lg flex flex-col" 
+          style={{ 
+            height: 'calc(100vh - 12rem)',
+            marginLeft: 0,
+            marginRight: 0,
+            width: '100%'
+          }}
+        >
           <div className="flex items-center justify-between mb-2" style={{ height: HEADER_HEIGHT }}>
             <h3 className="text-lg font-semibold text-white">Your Notes</h3>
           </div>
@@ -328,7 +416,7 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
         </div>
       ) : (
         <>
-          {/* Mobile: Video above Notes if YouTube, else default order */}
+          {/* Mobile: Video above Notes - stacked vertically */}
           {isMobile ? (
             <>
               {/* Video Pane */}
@@ -337,56 +425,36 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
                   bounds=".rnd-bounds"
                   position={{ x: videoRect.x, y: videoRect.y }}
                   size={{ width: videoRect.w, height: videoRect.h }}
-                  onDrag={(e, d) => {
-                    const vr = { ...videoRect, x: d.x, y: d.y };
-                    setVideoRect(vr); syncContainer(notesRect, vr);
-                    ensurePanelInViewAndExpand(vr, containerRef, setContainerSize);
-                  }}
+                  disableDragging={true}
+                  enableResizing={{ bottom: true }}
                   onResize={(e, dir, ref, delta, pos) => {
-                    if (isYouTube) {
-                      const paneW = ref.offsetWidth;
-                      const vidH = paneW / VIDEO_ASPECT;
-                      const totalH = vidH + HEADER_HEIGHT + VERTICAL_PADDING;
-                      const vr = { x: pos.x, y: pos.y, w: paneW, h: totalH };
-                      setVideoRect(vr);
-                      syncContainer(notesRect, vr);
-                      ensurePanelInViewAndExpand(vr, containerRef, setContainerSize);
-                    } else {
-                      const vr = { x: pos.x, y: pos.y, w: ref.offsetWidth, h: ref.offsetHeight };
-                      setVideoRect(vr);
-                      syncContainer(notesRect, vr);
-                      ensurePanelInViewAndExpand(vr, containerRef, setContainerSize);
-                    }
-                  }}
-                  onDragStop={(e, d) => {
-                    setVideoRect(r => ({ ...r, x: snapToGrid(d.x, GRID_SIZE), y: snapToGrid(d.y, GRID_SIZE) }));
+                    const maxWidth = containerSize.width - CONTAINER_PADDING * 2;
+                    setVideoRect(r => ({ ...r, w: Math.min(ref.offsetWidth, maxWidth), h: ref.offsetHeight }));
                   }}
                   onResizeStop={(e, dir, ref, delta, pos) => {
-                    const paneW = snapToGrid(ref.offsetWidth, GRID_SIZE);
-                    let totalH;
-                    if (isYouTube) {
-                      const vidH = paneW / VIDEO_ASPECT;
-                      totalH = snapToGrid(vidH + HEADER_HEIGHT + VERTICAL_PADDING, GRID_SIZE);
-                    } else {
-                      totalH = snapToGrid(ref.offsetHeight, GRID_SIZE);
-                    }
-                    setVideoRect(r => ({
-                      ...r,
-                      x: snapToGrid(pos.x, GRID_SIZE),
-                      y: snapToGrid(pos.y, GRID_SIZE),
-                      w: paneW,
-                      h: totalH
-                    }));
+                    const maxWidth = containerSize.width - CONTAINER_PADDING * 2;
+                    const vr = { ...videoRect, w: Math.min(videoRect.w, maxWidth), h: snapToGrid(ref.offsetHeight, GRID_SIZE) };
+                    setVideoRect(vr);
+                    // Auto-position notes below video
+                    setNotesRect(n => ({ ...n, y: vr.y + vr.h + 20 }));
+                    syncContainer(notesRect, vr);
                   }}
                   minWidth={320}
                   minHeight={HEADER_HEIGHT + VERTICAL_PADDING + 50}
+                  maxWidth={containerSize.width - CONTAINER_PADDING * 2}
                   className="absolute"
                   style={{ zIndex: 5 }}
                 >
                   <div className="h-full flex flex-col bg-[#232323] rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2" style={{ height: HEADER_HEIGHT }}>
                       <h3 className="text-white text-lg font-semibold">{isYouTube ? 'Video' : 'Info'}</h3>
-                      <button onClick={() => setVideoMin(true)}><Minimize2 size={18} className="text-gray-400" /></button>
+                      <button 
+                        onClick={() => setVideoMin(true)} 
+                        className="hover:bg-[#2a2a2a] p-1.5 rounded transition-colors"
+                        title="Minimize video/info"
+                      >
+                        <Minimize2 size={18} className="text-gray-400 hover:text-white" />
+                      </button>
                     </div>
                     <div className="relative w-full" style={{ height: `calc(100% - ${HEADER_HEIGHT + VERTICAL_PADDING}px)` }}>
                       {isYouTube && youTubeId ? (
@@ -406,49 +474,21 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
                   bounds=".rnd-bounds"
                   position={{ x: notesRect.x, y: notesRect.y }}
                   size={{ width: notesRect.w, height: notesRect.h }}
-                  onDrag={(e, d) => {
-                    const nr = { ...notesRect, x: d.x, y: d.y };
-                    setNotesRect(nr); syncContainer(nr, videoRect);
-                    ensurePanelInViewAndExpand(nr, containerRef, setContainerSize);
-                  }}
+                  disableDragging={true}
+                  enableResizing={{ bottom: true }}
                   onResize={(e, dir, ref, delta, pos) => {
-                    if (isYouTube) {
-                      const paneW = ref.offsetWidth;
-                      const vidH = paneW / VIDEO_ASPECT;
-                      const totalH = vidH + HEADER_HEIGHT + VERTICAL_PADDING;
-                      const vr = { x: pos.x, y: pos.y, w: paneW, h: totalH };
-                      setVideoRect(vr);
-                      syncContainer(notesRect, vr);
-                      ensurePanelInViewAndExpand(vr, containerRef, setContainerSize);
-                    } else {
-                      const vr = { x: pos.x, y: pos.y, w: ref.offsetWidth, h: ref.offsetHeight };
-                      setVideoRect(vr);
-                      syncContainer(notesRect, vr);
-                      ensurePanelInViewAndExpand(vr, containerRef, setContainerSize);
-                    }
-                  }}
-                  onDragStop={(e, d) => {
-                    setNotesRect(r => ({ ...r, x: snapToGrid(d.x, GRID_SIZE), y: snapToGrid(d.y, GRID_SIZE) }));
+                    const maxWidth = containerSize.width - CONTAINER_PADDING * 2;
+                    setNotesRect(r => ({ ...r, w: Math.min(ref.offsetWidth, maxWidth), h: ref.offsetHeight }));
                   }}
                   onResizeStop={(e, dir, ref, delta, pos) => {
-                    const paneW = snapToGrid(ref.offsetWidth, GRID_SIZE);
-                    let totalH;
-                    if (isYouTube) {
-                      const vidH = paneW / VIDEO_ASPECT;
-                      totalH = snapToGrid(vidH + HEADER_HEIGHT + VERTICAL_PADDING, GRID_SIZE);
-                    } else {
-                      totalH = snapToGrid(ref.offsetHeight, GRID_SIZE);
-                    }
-                    setVideoRect(r => ({
-                      ...r,
-                      x: snapToGrid(pos.x, GRID_SIZE),
-                      y: snapToGrid(pos.y, GRID_SIZE),
-                      w: paneW,
-                      h: totalH
-                    }));
+                    const maxWidth = containerSize.width - CONTAINER_PADDING * 2;
+                    const nr = { ...notesRect, w: Math.min(notesRect.w, maxWidth), h: snapToGrid(ref.offsetHeight, GRID_SIZE) };
+                    setNotesRect(nr);
+                    syncContainer(nr, videoRect);
                   }}
                   minWidth={300}
                   minHeight={200}
+                  maxWidth={containerSize.width - CONTAINER_PADDING * 2}
                   className="absolute"
                   style={{ zIndex: 10 }}
                   cancel=".no-drag"
@@ -469,11 +509,24 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
                         <div className="no-drag">
                           <Rating rating={rating} onRatingChange={setRating} circleSize={20} circleGap={4} hideValue />
                         </div>
-                        <button onClick={() => setNotesMin(true)}><Minimize2 size={18} className="text-gray-400" /></button>
+                        <button 
+                          onClick={() => setNotesMin(true)} 
+                          className="hover:bg-[#2a2a2a] p-1.5 rounded transition-colors"
+                          title="Minimize notes"
+                        >
+                          <Minimize2 size={18} className="text-gray-400 hover:text-white" />
+                        </button>
+                        <button 
+                          onClick={() => setSelectedMedia?.(null)} 
+                          className="hover:bg-[#2a2a2a] p-1.5 rounded transition-colors"
+                          title="Close"
+                        >
+                          <X size={18} className="text-gray-400 hover:text-white" />
+                        </button>
                       </div>
                     </div>
                     <div className="flex-1 overflow-auto">
-                      <NotesInput initialNotes={notes} onChange={setNotes} fullHeight />
+                      <NotesInput initialNotes={notes} onChange={setNotes} onBlur={saveMediaNotes} fullHeight />
                     </div>
                   </div>
                 </Rnd>
@@ -488,48 +541,51 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
                   position={{ x: notesRect.x, y: notesRect.y }}
                   size={{ width: notesRect.w, height: notesRect.h }}
                   onDrag={(e, d) => {
-                    const nr = { ...notesRect, x: d.x, y: d.y };
-                    setNotesRect(nr); syncContainer(nr, videoRect);
-                    ensurePanelInViewAndExpand(nr, containerRef, setContainerSize);
+                    setNotesRect(r => ({ ...r, x: d.x, y: d.y }));
                   }}
                   onResize={(e, dir, ref, delta, pos) => {
-                    if (isYouTube) {
-                      const paneW = ref.offsetWidth;
-                      const vidH = paneW / VIDEO_ASPECT;
-                      const totalH = vidH + HEADER_HEIGHT + VERTICAL_PADDING;
-                      const vr = { x: pos.x, y: pos.y, w: paneW, h: totalH };
-                      setVideoRect(vr);
-                      syncContainer(notesRect, vr);
-                      ensurePanelInViewAndExpand(vr, containerRef, setContainerSize);
-                    } else {
-                      const vr = { x: pos.x, y: pos.y, w: ref.offsetWidth, h: ref.offsetHeight };
-                      setVideoRect(vr);
-                      syncContainer(notesRect, vr);
-                      ensurePanelInViewAndExpand(vr, containerRef, setContainerSize);
+                    const newW = ref.offsetWidth;
+                    const newX = pos.x;
+                    
+                    // If resizing right and would overlap video, push video right
+                    if (!videoMin && newX + newW > videoRect.x - 12) {
+                      const newVideoX = newX + newW + 24;
+                      const maxVideoX = containerSize.width - CONTAINER_PADDING * 2 - videoRect.w;
+                      if (newVideoX <= maxVideoX) {
+                        setVideoRect(v => ({ ...v, x: newVideoX }));
+                      }
                     }
+                    
+                    setNotesRect({ x: pos.x, y: pos.y, w: newW, h: ref.offsetHeight });
                   }}
                   onDragStop={(e, d) => {
-                    setNotesRect(r => ({ ...r, x: snapToGrid(d.x, GRID_SIZE), y: snapToGrid(d.y, GRID_SIZE) }));
+                    const nr = { ...notesRect, x: snapToGrid(d.x, GRID_SIZE), y: snapToGrid(d.y, GRID_SIZE) };
+                    
+                    // Ensure no overlap after drag
+                    if (!videoMin && nr.x + nr.w > videoRect.x - 12) {
+                      const newVideoX = nr.x + nr.w + 24;
+                      const maxVideoX = containerSize.width - CONTAINER_PADDING * 2 - videoRect.w;
+                      if (newVideoX <= maxVideoX) {
+                        setVideoRect(v => ({ ...v, x: newVideoX }));
+                      }
+                    }
+                    
+                    setNotesRect(nr);
+                    syncContainer(nr, videoRect);
                   }}
                   onResizeStop={(e, dir, ref, delta, pos) => {
-                    const paneW = snapToGrid(ref.offsetWidth, GRID_SIZE);
-                    let totalH;
-                    if (isYouTube) {
-                      const vidH = paneW / VIDEO_ASPECT;
-                      totalH = snapToGrid(vidH + HEADER_HEIGHT + VERTICAL_PADDING, GRID_SIZE);
-                    } else {
-                      totalH = snapToGrid(ref.offsetHeight, GRID_SIZE);
-                    }
-                    setVideoRect(r => ({
-                      ...r,
+                    const nr = {
                       x: snapToGrid(pos.x, GRID_SIZE),
                       y: snapToGrid(pos.y, GRID_SIZE),
-                      w: paneW,
-                      h: totalH
-                    }));
+                      w: snapToGrid(ref.offsetWidth, GRID_SIZE),
+                      h: snapToGrid(ref.offsetHeight, GRID_SIZE)
+                    };
+                    setNotesRect(nr);
+                    syncContainer(nr, videoRect);
                   }}
                   minWidth={300}
                   minHeight={200}
+                  maxWidth={!videoMin ? containerSize.width - CONTAINER_PADDING * 2 - 344 : containerSize.width - CONTAINER_PADDING * 2}
                   className="absolute"
                   style={{ zIndex: 10 }}
                   cancel=".no-drag"
@@ -550,11 +606,24 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
                         <div className="no-drag">
                           <Rating rating={rating} onRatingChange={setRating} circleSize={20} circleGap={4} hideValue />
                         </div>
-                        <button onClick={() => setNotesMin(true)}><Minimize2 size={18} className="text-gray-400" /></button>
+                        <button 
+                          onClick={() => setNotesMin(true)} 
+                          className="hover:bg-[#2a2a2a] p-1.5 rounded transition-colors"
+                          title="Minimize notes"
+                        >
+                          <Minimize2 size={18} className="text-gray-400 hover:text-white" />
+                        </button>
+                        <button 
+                          onClick={() => setSelectedMedia?.(null)} 
+                          className="hover:bg-[#2a2a2a] p-1.5 rounded transition-colors"
+                          title="Close"
+                        >
+                          <X size={18} className="text-gray-400 hover:text-white" />
+                        </button>
                       </div>
                     </div>
                     <div className="flex-1 overflow-auto">
-                      <NotesInput initialNotes={notes} onChange={setNotes} fullHeight />
+                      <NotesInput initialNotes={notes} onChange={setNotes} onBlur={saveMediaNotes} fullHeight />
                     </div>
                   </div>
                 </Rnd>
@@ -565,55 +634,58 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
                   position={{ x: videoRect.x, y: videoRect.y }}
                   size={{ width: videoRect.w, height: videoRect.h }}
                   onDrag={(e, d) => {
-                    const vr = { ...videoRect, x: d.x, y: d.y };
-                    setVideoRect(vr); syncContainer(notesRect, vr);
-                    ensurePanelInViewAndExpand(vr, containerRef, setContainerSize);
+                    setVideoRect(r => ({ ...r, x: d.x, y: d.y }));
                   }}
                   onResize={(e, dir, ref, delta, pos) => {
-                    if (isYouTube) {
-                      const paneW = ref.offsetWidth;
-                      const vidH = paneW / VIDEO_ASPECT;
-                      const totalH = vidH + HEADER_HEIGHT + VERTICAL_PADDING;
-                      const vr = { x: pos.x, y: pos.y, w: paneW, h: totalH };
-                      setVideoRect(vr);
-                      syncContainer(notesRect, vr);
-                      ensurePanelInViewAndExpand(vr, containerRef, setContainerSize);
-                    } else {
-                      const vr = { x: pos.x, y: pos.y, w: ref.offsetWidth, h: ref.offsetHeight };
-                      setVideoRect(vr);
-                      syncContainer(notesRect, vr);
-                      ensurePanelInViewAndExpand(vr, containerRef, setContainerSize);
+                    const newW = ref.offsetWidth;
+                    const newX = pos.x;
+                    
+                    // If resizing left and would overlap notes, push notes left
+                    if (!notesMin && newX < notesRect.x + notesRect.w + 12) {
+                      const newNotesW = Math.max(300, newX - notesRect.x - 24);
+                      setNotesRect(n => ({ ...n, w: newNotesW }));
                     }
+                    
+                    setVideoRect({ x: pos.x, y: pos.y, w: newW, h: ref.offsetHeight });
                   }}
                   onDragStop={(e, d) => {
-                    setVideoRect(r => ({ ...r, x: snapToGrid(d.x, GRID_SIZE), y: snapToGrid(d.y, GRID_SIZE) }));
+                    const vr = { ...videoRect, x: snapToGrid(d.x, GRID_SIZE), y: snapToGrid(d.y, GRID_SIZE) };
+                    
+                    // Ensure no overlap after drag
+                    if (!notesMin && vr.x < notesRect.x + notesRect.w + 12) {
+                      const newNotesW = Math.max(300, vr.x - notesRect.x - 24);
+                      setNotesRect(n => ({ ...n, w: newNotesW }));
+                    }
+                    
+                    setVideoRect(vr);
+                    syncContainer(notesRect, vr);
                   }}
                   onResizeStop={(e, dir, ref, delta, pos) => {
-                    const paneW = snapToGrid(ref.offsetWidth, GRID_SIZE);
-                    let totalH;
-                    if (isYouTube) {
-                      const vidH = paneW / VIDEO_ASPECT;
-                      totalH = snapToGrid(vidH + HEADER_HEIGHT + VERTICAL_PADDING, GRID_SIZE);
-                    } else {
-                      totalH = snapToGrid(ref.offsetHeight, GRID_SIZE);
-                    }
-                    setVideoRect(r => ({
-                      ...r,
+                    const vr = {
                       x: snapToGrid(pos.x, GRID_SIZE),
                       y: snapToGrid(pos.y, GRID_SIZE),
-                      w: paneW,
-                      h: totalH
-                    }));
+                      w: snapToGrid(ref.offsetWidth, GRID_SIZE),
+                      h: snapToGrid(ref.offsetHeight, GRID_SIZE)
+                    };
+                    setVideoRect(vr);
+                    syncContainer(notesRect, vr);
                   }}
                   minWidth={320}
                   minHeight={HEADER_HEIGHT + VERTICAL_PADDING + 50}
+                  maxWidth={!notesMin ? containerSize.width - CONTAINER_PADDING * 2 - 324 : containerSize.width - CONTAINER_PADDING * 2}
                   className="absolute"
-                  style={{ zIndex: 5 }}
+                  style={{ zIndex: notesMin ? 10 : 5 }}
                 >
                   <div className="h-full flex flex-col bg-[#232323] rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2" style={{ height: HEADER_HEIGHT }}>
                       <h3 className="text-white text-lg font-semibold">{isYouTube ? 'Video' : 'Info'}</h3>
-                      <button onClick={() => setVideoMin(true)}><Minimize2 size={18} className="text-gray-400" /></button>
+                      <button 
+                        onClick={() => setVideoMin(true)} 
+                        className="hover:bg-[#2a2a2a] p-1.5 rounded transition-colors"
+                        title="Minimize video/info"
+                      >
+                        <Minimize2 size={18} className="text-gray-400 hover:text-white" />
+                      </button>
                     </div>
                     <div className="relative w-full" style={{ height: `calc(100% - ${HEADER_HEIGHT + VERTICAL_PADDING}px)` }}>
                       {isYouTube && youTubeId ? (
@@ -631,22 +703,30 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
           )}
         </>
       )}
-      {/* Floating Layout Button: show if either pane is minimized */}
-      {(notesMin || videoMin) && (
-        <button
-          onClick={() => {
-            setNotesMin(false);
-            setVideoMin(false);
-            syncContainer(
-              notesMin ? { ...notesRect, h: 300 } : notesRect,
-              videoMin ? { ...videoRect, h: (videoRect.w / VIDEO_ASPECT + HEADER_HEIGHT + VERTICAL_PADDING) } : videoRect
-            );
-          }}
-          className="fixed bottom-4 right-4 bg-[#232323] p-2.5 rounded-full shadow-lg hover:bg-[#333] border border-[#444] z-20 transition ease-in-out"
-          title="Show Notes & Video"
-        >
-          <GeistLayout size={22} color="white" />
-        </button>
+      {/* Minimized Panel Indicators */}
+      {notesMin && (
+        <div className="fixed bottom-4 left-4 bg-[#232323] px-4 py-2 rounded-lg shadow-lg border border-[#444] z-20 flex items-center gap-3">
+          <span className="text-white text-sm font-eina">Notes minimized</span>
+          <button 
+            onClick={() => setNotesMin(false)} 
+            className="hover:bg-[#3a3a3a] p-1 rounded transition-colors"
+            title="Restore notes"
+          >
+            <Maximize2 size={16} className="text-gray-400 hover:text-white" />
+          </button>
+        </div>
+      )}
+      {videoMin && selectedMedia && (
+        <div className="fixed bottom-4 right-4 bg-[#232323] px-4 py-2 rounded-lg shadow-lg border border-[#444] z-20 flex items-center gap-3">
+          <span className="text-white text-sm font-eina">{isYouTube ? 'Video' : 'Info'} minimized</span>
+          <button 
+            onClick={() => setVideoMin(false)} 
+            className="hover:bg-[#3a3a3a] p-1 rounded transition-colors"
+            title={`Restore ${isYouTube ? 'video' : 'info'}`}
+          >
+            <Maximize2 size={16} className="text-gray-400 hover:text-white" />
+          </button>
+        </div>
       )}
     </div>
   );

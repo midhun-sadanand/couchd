@@ -149,17 +149,18 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
   const avatarUrl = userProfile.avatar_url || DEFAULT_AVATAR;
 
   return (
-    <div className="p-4 w-full mx-auto">
-      <div className="flex flex-row items-start mb-4 gap-4 w-full justify-between">
-        <div className="flex items-center flex-shrink min-w-0">
+    <div className="p-2 sm:p-4 w-full mx-auto">
+      <div className="flex flex-col sm:flex-row items-start mb-4 gap-3 sm:gap-4 w-full">
+        {/* Profile Info Section */}
+        <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
           <div
-            className={`relative group ${isCurrentUser ? 'cursor-pointer' : ''}`}
+            className={`relative group flex-shrink-0 ${isCurrentUser ? 'cursor-pointer' : ''}`}
             onClick={isCurrentUser ? onEditProfile : undefined}
           >
             <img
               src={avatarUrl}
               alt={userProfile.username}
-              className="w-14 h-14 md:w-20 md:h-20 object-cover rounded-full mr-4 transition-all duration-200"
+              className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 object-cover rounded-full transition-all duration-200"
               onError={(e) => {
                 if (!e.currentTarget.src.endsWith(DEFAULT_AVATAR)) {
                   e.currentTarget.src = DEFAULT_AVATAR;
@@ -167,46 +168,52 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
               }}
             />
             {isCurrentUser && (
-              <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 rounded-full flex items-center justify-center transition-opacity mr-4">
-                <span className="text-white text-xs md:text-sm">Edit Profile</span>
+              <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 rounded-full flex items-center justify-center transition-opacity">
+                <span className="text-white text-[10px] sm:text-xs">Edit</span>
               </div>
             )}
           </div>
-          <div className="min-w-0">
-            <h2 className="truncate text-2xl md:text-3xl text-left text-[#e6e6e6] font-bold transition-all duration-200">
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-lg sm:text-xl lg:text-2xl xl:text-3xl text-left text-[#e6e6e6] font-eina-bold transition-all duration-200">
               {userProfile.username}
             </h2>
             {userProfile.bio && (
-              <p className="text-gray-400 mt-2 text-left text-xs md:text-base transition-all duration-200">{userProfile.bio}</p>
+              <p className="text-gray-400 mt-1 text-left text-xs sm:text-sm lg:text-base transition-all duration-200 line-clamp-2 font-eina">{userProfile.bio}</p>
             )}
-            <div className="flex space-x-4 mt-2">
-              <div>
-                <span className="text-xl text-[#e6e6e6] font-bold">
+            <div className="flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-1 mt-2">
+              <div className="whitespace-nowrap">
+                <span className="text-base sm:text-lg lg:text-xl text-[#e6e6e6] font-eina-bold">
                   {watchlistCount}
                 </span>
-                <span className="text-sm text-gray-400 ml-1">Watchlists</span>
+                <span className="text-xs sm:text-sm text-gray-400 ml-1 font-eina hidden sm:inline">Watchlists</span>
+                <span className="text-xs sm:text-sm text-gray-400 ml-1 font-eina sm:hidden">Lists</span>
               </div>
-              <div>
-                <span className="text-xl text-[#e6e6e6] font-bold">
+              <div className="whitespace-nowrap">
+                <span className="text-base sm:text-lg lg:text-xl text-[#e6e6e6] font-eina-bold">
                   {mediaCount}
                 </span>
-                <span className="text-sm text-gray-400 ml-1">Media Consumed</span>
+                <span className="text-xs sm:text-sm text-gray-400 ml-1 font-eina hidden lg:inline">Media Consumed</span>
+                <span className="text-xs sm:text-sm text-gray-400 ml-1 font-eina lg:hidden">Media</span>
               </div>
             </div>
           </div>
         </div>
-        <div className=" justify-end mt-5 min-w-0" style={{maxWidth: '350px'}}>
-          <ProfileSearchBar
-            value={searchInput}
-            onChange={handleSearchInput}
-            results={searchInput.trim() ? searchResults : recentItems}
-            onSelect={item => { 
-              setSelectedMedia(item);
-              setTimeout(() => setSearchInput(''), 100); // Clear input after selection
-            }}
-            isLoading={isSearching}
-            showRecentOnFocus={true}
-          />
+        
+        {/* Search Bar Section - Aligned to the right */}
+        <div className="w-full sm:w-auto sm:flex-shrink-0 sm:ml-auto sm:mt-3" style={{maxWidth: '100%'}}>
+          <div className="sm:min-w-[250px] sm:max-w-[350px]">
+            <ProfileSearchBar
+              value={searchInput}
+              onChange={handleSearchInput}
+              results={searchInput.trim() ? searchResults : recentItems}
+              onSelect={item => { 
+                setSelectedMedia(item);
+                setTimeout(() => setSearchInput(''), 100);
+              }}
+              isLoading={isSearching}
+              showRecentOnFocus={true}
+            />
+          </div>
         </div>
       </div>
       <div className="w-full">

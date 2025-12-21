@@ -63,9 +63,9 @@ const HomepageHeader: React.FC<Props> = ({ onSignIn, onSignUp }) => {
           <Clock />
         </div>
         <nav className="flex items-center absolute" style={{right: '1.5rem', top: '50%', transform: 'translateY(-50%)'}}>
-          {!loading && !user && (
+          {!user && (
             <div className="text-[#888888]">
-              <HeaderTabs {...tabProps} />
+              <HeaderTabs {...tabProps} fallback={loading} />
             </div>
           )}
         </nav>

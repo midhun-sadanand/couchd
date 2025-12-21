@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useUser } from '../utils/auth';
-import { useSupabase } from '../utils/auth';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSupabaseClient } from '../utils/auth';
 
 interface MediaItem {
   id: string;
@@ -14,36 +13,40 @@ interface MediaItem {
 }
 
 export function useMediaItems(watchlistId: string) {
-  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const { user, loading } = useUser();
-  const { client: supabase, isLoading: supabaseLoading } = useSupabase();
+  const supabase = useSupabaseClient();
 
-  useEffect(() => {
-    if (supabaseLoading || loading || !supabase) {
-      setIsLoading(true);
-      return;
-    }
-    const fetchMediaItems = async () => {
-      if (!user || !watchlistId) return;
-      try {
-        setIsLoading(true);
-        const { data, error } = await supabase
-          .from('media_items')
-          .select('*')
-          .eq('watchlist_id', watchlistId)
-          .order('created_at', { ascending: false });
-        if (error) throw error;
-        setMediaItems(data || []);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch media items'));
-      } finally {
-        setIsLoading(false);
+  return useQuery<MediaItem[], Error>({
+    queryKey: ['mediaItems', watchlistId],
+    queryFn: async () => {
+      if (!watchlistId || !supabase) {
+        return [];
       }
-    };
-    fetchMediaItems();
-  }, [user, watchlistId, supabase, supabaseLoading, loading]);
 
-  return { mediaItems, isLoading: isLoading || supabaseLoading || loading, error };
+      const { data, error } = await supabase
+        .from('media_items')
+        .select('*')
+        .eq('watchlist_id', watchlistId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!watchlistId && !!supabase,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: true,
+  });
+}
+
+// Helper to invalidate media items cache
+export function useInvalidateMediaItems() {
+  const queryClient = useQueryClient();
+  return (watchlistId?: string) => {
+    if (watchlistId) {
+      queryClient.invalidateQueries({ queryKey: ['mediaItems', watchlistId] });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['mediaItems'] });
+    }
+  };
 } 

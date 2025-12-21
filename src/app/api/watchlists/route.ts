@@ -1,4 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import { NextResponse } from 'next/server';
+
+// Enable ISR with 10 minute revalidation
+export const revalidate = 600;
+export const dynamic = 'force-cache';
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -12,8 +17,18 @@ export async function GET(req: Request) {
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
-  if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
-  return new Response(JSON.stringify(watchlists || []));
+    
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const response = NextResponse.json(watchlists || []);
+  
+  // Add cache headers
+  response.headers.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1200');
+  response.headers.set('CDN-Cache-Control', 'public, s-maxage=600');
+  
+  return response;
 }
 
 export async function POST(req: Request) {
