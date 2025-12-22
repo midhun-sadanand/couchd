@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true
   },
   
-  transpilePackages: ['@hello-pangea/dnd'],
+  transpilePackages: ['@hello-pangea/dnd', '@geist-ui/core', '@geist-ui/icons'],
   
   // Aggressive caching headers
   async headers() {

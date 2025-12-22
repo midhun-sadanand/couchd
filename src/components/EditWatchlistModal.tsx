@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSupabase } from '../utils/auth'; // Import the useSupabase hook
 import ShareWatchlist from './ShareWatchlist';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface User {
   id: string;
@@ -44,6 +45,7 @@ const EditWatchlistModal: React.FC<EditWatchlistModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const { client: supabase } = useSupabase();
+  const queryClient = useQueryClient();
   const [showShareModal, setShowShareModal] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -248,6 +250,10 @@ const EditWatchlistModal: React.FC<EditWatchlistModalProps> = ({
       if (updateError) {
         throw new Error(`Error updating watchlist: ${updateError.message}`);
       }
+
+      // Invalidate cache to refetch updated data
+      queryClient.invalidateQueries({ queryKey: ['watchlist', watchlistId] });
+      queryClient.invalidateQueries({ queryKey: ['watchlists'] });
 
       // Optimistically update the UI
       onSubmit(newName, newDescription, newTags, publicUrl);

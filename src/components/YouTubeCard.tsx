@@ -61,9 +61,8 @@ export default function YouTubeCard({
   const [localRating, setLocalRating] = useState<number>(typeof rating === 'number' ? rating : 0);
   const [localStatus, setLocalStatus] = useState<StatusType>(status as StatusType);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const hasChanges = useRef(false);
-  const statusButtonRef = useRef<HTMLButtonElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Update local state when props change
@@ -89,24 +88,22 @@ export default function YouTubeCard({
     };
   }, []);
 
-  // Click outside handler for dropdown
+  // Close dropdown on outside click
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        statusButtonRef.current &&
-        !statusButtonRef.current.contains(event.target as Node)
-      ) {
-        toggleDropdown();
+    function handleClickOutside(event: MouseEvent) {
+      if (!(event.target as HTMLElement).closest(`#status-dropdown-${id}`)) {
+        setStatusDropdownOpen(false);
       }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
+    }
+    if (statusDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [toggleDropdown]);
+  }, [statusDropdownOpen, id]);
 
   const pushChanges = async () => {
     if (localStatus !== status && id) {
@@ -247,12 +244,12 @@ export default function YouTubeCard({
                 <button
                   className={`px-3 py-1 ${statusColorClass(localStatus)} rounded text-[#232323] text-xs font-semibold focus:outline-none w-[100px]`}
                   type="button"
-                  onClick={e => { e.stopPropagation(); toggleDropdown(); }}
+                  onClick={e => { e.stopPropagation(); setStatusDropdownOpen(!statusDropdownOpen); }}
                 >
                   {localStatus}
                 </button>
                 <AnimatePresence>
-                  {isDropdownOpen && (
+                  {statusDropdownOpen && (
                     <motion.div
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -264,7 +261,7 @@ export default function YouTubeCard({
                       {statusOptions.map((option, idx) => (
                         <button
                           key={option}
-                          onClick={e => { e.stopPropagation(); handleStatusChange(option); toggleDropdown(); }}
+                          onClick={e => { e.stopPropagation(); handleStatusChange(option); setStatusDropdownOpen(false); }}
                           className={`block w-full text-left px-4 py-2 text-xs font-semibold hover:bg-[#4b4b4b] ${
                             option === 'to consume' ? 'text-[#f87171]' : option === 'consuming' ? 'text-[#fbbf24]' : option === 'consumed' ? 'text-[#34d399]' : 'text-[#232323]'
                           } ${idx === 0 ? 'first:rounded-t-md' : ''} ${idx === statusOptions.length - 1 ? 'last:rounded-b-md' : ''}`}

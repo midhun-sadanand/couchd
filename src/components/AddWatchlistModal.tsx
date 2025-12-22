@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 
 interface AddWatchlistModalProps {
@@ -32,6 +33,7 @@ const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
   const [isPublic, setIsPublic] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!visible) {
@@ -72,6 +74,10 @@ const AddWatchlistModal: React.FC<AddWatchlistModalProps> = ({
 
       const newWatchlist = await response.json();
       setWatchlists([...watchlists, newWatchlist]);
+      
+      // Invalidate watchlists cache to refetch data
+      queryClient.invalidateQueries({ queryKey: ['watchlists', user.id] });
+      
       router.push(`/watchlist/${newWatchlist.id}`);
       resetModal();
     } catch (error) {

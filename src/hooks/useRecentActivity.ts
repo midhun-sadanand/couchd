@@ -32,10 +32,11 @@ export function useRecentActivity(userId: string | undefined, limit: number = 10
       return data || [];
     },
     enabled: !!userId && !!supabase,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 15 * 60 * 1000,
+    staleTime: 30 * 60 * 1000, // 30 minutes - recent activity can be slightly stale
+    gcTime: 2 * 60 * 60 * 1000, // 2 hours cache retention
     refetchOnMount: false,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false, // Disable refetch on focus
+    refetchOnReconnect: false, // Disable refetch on reconnect
   });
 }
 

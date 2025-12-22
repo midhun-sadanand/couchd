@@ -21,8 +21,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         client={queryClient}
         persistOptions={{
           persister,
-          maxAge: 1000 * 60 * 60 * 24, // 24 hours
-          buster: 'v1', // Increment to invalidate all cached data
+          maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days - persist cache longer
+          buster: 'v3', // Ultra-aggressive caching with 1-hour stale times
         }}
       >
         <SupabaseProvider>

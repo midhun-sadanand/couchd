@@ -12,6 +12,9 @@ const LetterboxdIcon = () => (
     </svg>
 );
 const WikipediaIcon = () => <span className="font-serif font-bold text-xl leading-none">W</span>;
+const MyFlixerzIcon = () => (
+  <img src="/images/myflixerz-logo.png" alt="MyFlixerz" className="w-5 h-5 object-contain" />
+);
 
 interface MediaInfoPanelProps {
   mediaItem: MediaItem;
@@ -21,18 +24,21 @@ const MediaInfoPanel: React.FC<MediaInfoPanelProps> = ({ mediaItem }) => {
   const { title, creator, synopsis, thumbnail_url, url } = mediaItem;
   const posterUrl = thumbnail_url || (url && !url.includes('youtube.com') ? url : null);
 
-  const generateLink = (platform: 'letterboxd' | 'rottentomatoes' | 'wikipedia' | 'imdb') => {
+  const generateLink = (platform: 'letterboxd' | 'rottentomatoes' | 'wikipedia' | 'imdb' | 'myflixerz') => {
     const query = encodeURIComponent(`${title} ${creator || ''}`.trim());
     const movieQuery = encodeURIComponent(title);
+    const myflixerzQuery = title.toLowerCase().replace(/\s+/g, '-'); // Convert to lowercase with hyphens
     switch (platform) {
       case 'letterboxd':
         return `https://letterboxd.com/search/films/${movieQuery}/`;
       case 'rottentomatoes':
         return `https://www.rottentomatoes.com/search?search=${movieQuery}`;
       case 'imdb':
-          return `https://www.imdb.com/find?q=${query}`;
+        return `https://www.imdb.com/find?q=${query}`;
       case 'wikipedia':
         return `https://en.wikipedia.org/wiki/Special:Search?search=${query}`;
+      case 'myflixerz':
+        return `https://myflixerz.to/search/${myflixerzQuery}`;
     }
   };
 
@@ -66,6 +72,9 @@ const MediaInfoPanel: React.FC<MediaInfoPanelProps> = ({ mediaItem }) => {
           </a>
           <a href={generateLink('wikipedia')} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center h-10 w-10 bg-[#333] rounded-full hover:bg-[#444] transition-colors" title="Wikipedia">
             <WikipediaIcon />
+          </a>
+          <a href={generateLink('myflixerz')} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center h-10 w-10 bg-[#333] rounded-full hover:bg-[#444] transition-colors" title="MyFlixerz">
+            <MyFlixerzIcon />
           </a>
         </div>
       </div>

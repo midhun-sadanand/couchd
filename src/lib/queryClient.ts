@@ -1,20 +1,20 @@
 import { QueryClient } from "@tanstack/react-query";
 
-// Enterprise-grade React Query configuration
+// Enterprise-grade React Query configuration with ultra-aggressive caching
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Cache Configuration
-      staleTime: 5 * 60 * 1000, // 5 minutes - data considered fresh
-      gcTime: 30 * 60 * 1000, // 30 minutes - cache retention (formerly cacheTime)
+      // Cache Configuration - Ultra-aggressive caching for maximum performance
+      staleTime: 60 * 60 * 1000, // 60 minutes (1 hour) - data considered fresh
+      gcTime: 4 * 60 * 60 * 1000, // 4 hours - cache retention in memory
       
-      // Refetch Strategy
-      refetchOnWindowFocus: true, // Refetch when window regains focus
-      refetchOnReconnect: true, // Refetch on network reconnect
+      // Refetch Strategy - Less aggressive to reduce DB calls
+      refetchOnWindowFocus: false, // Don't refetch on window focus (was true)
+      refetchOnReconnect: false, // Don't refetch on network reconnect (was true)
       refetchOnMount: false, // Don't refetch if data is fresh
       
       // Retry Logic
-      retry: 3,
+      retry: 2, // Reduced from 3 to minimize failed request overhead
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       
       // Performance

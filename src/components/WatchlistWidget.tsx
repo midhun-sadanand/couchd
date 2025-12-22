@@ -55,7 +55,7 @@ const WatchlistWidget: React.FC<WatchlistWidgetProps> = ({
           .order('created_at', { ascending: false });
         return data || [];
       },
-      staleTime: 5 * 60 * 1000,
+      staleTime: 60 * 60 * 1000, // Match global 1-hour cache
     });
   };
 

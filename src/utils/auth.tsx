@@ -108,13 +108,53 @@ export const useUser = () => {
       setLoading(true);
       return;
     }
+    
+    const fetchUserProfile = async (authUser: any) => {
+      if (!authUser) {
+        setUser(null);
+        return;
+      }
+      
+      try {
+        console.log('🔍 Fetching profile for user:', authUser.id, authUser.email);
+        // Fetch profile data to get username
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('username, avatar_url, bio')
+          .eq('id', authUser.id)
+          .single();
+        
+        console.log('📝 Profile data:', profile, 'Error:', profileError);
+        
+        // Merge auth user with profile data
+        const mergedUser = {
+          ...authUser,
+          username: profile?.username || authUser.email?.split('@')[0] || 'Guest',
+          avatar_url: profile?.avatar_url,
+          bio: profile?.bio,
+        };
+        
+        console.log('✅ Final user object:', { id: mergedUser.id, username: mergedUser.username, email: mergedUser.email });
+        setUser(mergedUser);
+      } catch (error) {
+        console.error('❌ Error fetching user profile:', error);
+        // Fallback to auth user with email as username
+        const fallbackUser = {
+          ...authUser,
+          username: authUser.email?.split('@')[0] || 'Guest',
+        };
+        console.log('⚠️ Using fallback user:', { id: fallbackUser.id, username: fallbackUser.username });
+        setUser(fallbackUser);
+      }
+    };
+    
     let subscription: any;
     supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
-      setUser(session?.user ?? null);
+      fetchUserProfile(session?.user ?? null);
       setLoading(false);
     });
     const { data } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-      setUser(session?.user ?? null);
+      fetchUserProfile(session?.user ?? null);
       setLoading(false);
     });
     subscription = data?.subscription;

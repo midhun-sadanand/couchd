@@ -550,6 +550,7 @@ const MediaPage: React.FC = () => {
             {isModalOpen && (
               <SearchModal
                 onSelect={async (item: any, type: string) => {
+                  console.log('🎬 Adding item, user object:', { id: user?.id, username: user?.username, email: user?.email });
                   if (!user) return;
                   let newMedia;
                   let releaseDate = item.release_date || '';

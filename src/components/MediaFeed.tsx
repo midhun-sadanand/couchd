@@ -22,16 +22,16 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const layouts = {
   lg: [
-    { i: 'notes', x: 0, y: 0, w: 8, h: 12, minW: 4, minH: 8 },
-    { i: 'video', x: 8, y: 0, w: 4, h: 9, minW: 3, minH: 5 }
+    { i: 'video', x: 0, y: 0, w: 8, h: 12, minW: 4, minH: 8 },
+    { i: 'notes', x: 8, y: 0, w: 4, h: 12, minW: 3, minH: 8 }
   ],
   md: [
-    { i: 'notes', x: 0, y: 0, w: 8, h: 12, minW: 4, minH: 8 },
-    { i: 'video', x: 8, y: 0, w: 4, h: 9, minW: 3, minH: 5 }
+    { i: 'video', x: 0, y: 0, w: 8, h: 12, minW: 4, minH: 8 },
+    { i: 'notes', x: 8, y: 0, w: 4, h: 12, minW: 3, minH: 8 }
   ],
   sm: [
-    { i: 'notes', x: 0, y: 0, w: 1, h: 12, minW: 1, minH: 8 },
-    { i: 'video', x: 0, y: 12, w: 1, h: 9,  minW: 1, minH: 5 }
+    { i: 'video', x: 0, y: 0, w: 1, h: 9,  minW: 1, minH: 5 },
+    { i: 'notes', x: 0, y: 9, w: 1, h: 12, minW: 1, minH: 8 }
   ],
 };
 const breakpoints = { lg: 1200, md: 996, sm: 768 };
@@ -71,21 +71,22 @@ const getDefaultLayout = (width: number, height: number = 800) => {
     };
   } else {
     // Desktop: side by side with padding on all sides
+    // Video on left (larger), notes on right (smaller)
     const availableWidth = innerWidth - gap;
-    const notesWidth = Math.floor(availableWidth * 0.62);
-    const videoWidth = availableWidth - notesWidth;
+    const videoWidth = Math.floor(availableWidth * 0.62); // Video takes 62% (larger)
+    const notesWidth = availableWidth - videoWidth; // Notes takes remaining 38% (smaller)
     
     return {
-      notes: { 
+      video: { 
         x: CONTAINER_PADDING, 
         y: CONTAINER_PADDING, 
-        width: Math.max(notesWidth, 380), 
+        width: Math.max(videoWidth, 380), 
         height: Math.max(innerHeight * 0.7, 340) 
       },
-      video: { 
-        x: CONTAINER_PADDING + Math.max(notesWidth, 380) + gap, 
+      notes: { 
+        x: CONTAINER_PADDING + Math.max(videoWidth, 380) + gap, 
         y: CONTAINER_PADDING, 
-        width: Math.max(videoWidth, 320), 
+        width: Math.max(notesWidth, 320), 
         height: Math.max(innerHeight * 0.7, 220) 
       }
     };
@@ -131,17 +132,17 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
-  const [notesRect, setNotesRect] = useState({
-    x: CONTAINER_PADDING,
-    y: CONTAINER_PADDING,
-    w: 400,
-    h: 300
-  });
   const [videoRect, setVideoRect] = useState({
     x: CONTAINER_PADDING,
-    y: CONTAINER_PADDING + 320,
-    w: 400,
-    h: 280
+    y: CONTAINER_PADDING,
+    w: 500,
+    h: 350
+  });
+  const [notesRect, setNotesRect] = useState({
+    x: CONTAINER_PADDING + 524,
+    y: CONTAINER_PADDING,
+    w: 300,
+    h: 350
   });
 
   // Responsive: update layout on resize - use useLayoutEffect for immediate update
@@ -158,17 +159,17 @@ const MediaFeed: React.FC<MediaFeedProps> = ({ userId, selectedMedia, setSelecte
       const layout = getDefaultLayout(width, height);
       
       // Update panel positions and sizes
-      setNotesRect({
-        x: layout.notes.x,
-        y: layout.notes.y,
-        w: layout.notes.width,
-        h: layout.notes.height
-      });
       setVideoRect({
         x: layout.video.x,
         y: layout.video.y,
         w: layout.video.width,
         h: layout.video.height
+      });
+      setNotesRect({
+        x: layout.notes.x,
+        y: layout.notes.y,
+        w: layout.notes.width,
+        h: layout.notes.height
       });
     }
     

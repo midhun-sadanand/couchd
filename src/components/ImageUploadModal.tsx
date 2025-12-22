@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSupabaseClient } from '@/utils/auth';
+import { useQueryClient } from '@tanstack/react-query';
 import debounce from 'lodash/debounce';
 
 interface ImageUploadModalProps {
@@ -27,6 +28,7 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
   watchlistImage,
 }) => {
   const supabase = useSupabaseClient();
+  const queryClient = useQueryClient();
   const [image, setImage] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState(watchlistName);
@@ -188,6 +190,11 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
       if (shareError) {
         console.error('Error updating sharing settings:', shareError.message);
       }
+
+      // Invalidate cache to refetch updated data
+      queryClient.invalidateQueries({ queryKey: ['watchlist', watchlistId] });
+      queryClient.invalidateQueries({ queryKey: ['watchlists'] });
+      queryClient.invalidateQueries({ queryKey: ['sharedUsers'] });
 
       onImageUpload(publicUrl);
       onClose();

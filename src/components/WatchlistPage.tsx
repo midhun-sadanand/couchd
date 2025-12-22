@@ -104,9 +104,10 @@ const WatchlistPage: React.FC<WatchlistPageProps> = ({ isFriendSidebarOpen = fal
           .delete()
           .match({ id: deletedId });
         if (watchlistError) throw watchlistError;
-        // Optionally: delete from ownership/sharing tables if needed
-        // Refetch or invalidate query here if using react-query
-        window.location.reload(); // Quick fix for now
+        
+        // Invalidate watchlists cache instead of reloading
+        queryClient.invalidateQueries({ queryKey: ['watchlists', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['watchlist', deletedId] });
       } catch (error: any) {
         console.error('Error deleting list:', error.message);
       }

@@ -10,6 +10,19 @@ import ReactDOM from 'react-dom';
 import { ExternalLink } from '@geist-ui/icons';
 import { useRouter } from 'next/navigation';
 
+const IMDbIcon = () => <span className="font-bold text-xs leading-none text-black bg-yellow-400 px-1 rounded-sm">IMDb</span>;
+const RottenTomatoesIcon = () => <span className="text-sm leading-none">🍅</span>;
+const LetterboxdIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="6" cy="6" r="5" fill="white"/>
+    <circle cx="18" cy="6" r="5" fill="white"/>
+    <circle cx="6" cy="18" r="5" fill="white"/>
+    <circle cx="18" cy="18" r="5" fill="white"/>
+  </svg>
+);
+const WikipediaIcon = () => <span className="font-serif font-bold text-sm leading-none text-white">W</span>;
+const MyFlixerzIcon = () => <img src="/images/myflixerz-logo.png" alt="MyFlixerz" className="w-3.5 h-3.5 object-contain" />;
+
 interface MovieCardProps {
   item: MediaItem;
   onDelete: () => void;
@@ -156,6 +169,24 @@ export default function MovieCard({
     router.push(`/profile/${added_by}?mediaId=${id}&tab=profile`);
   };
 
+  const generateLink = (platform: 'letterboxd' | 'rottentomatoes' | 'wikipedia' | 'imdb' | 'myflixerz') => {
+    const query = encodeURIComponent(`${title} ${creator || ''}`.trim());
+    const movieQuery = encodeURIComponent(title);
+    const myflixerzQuery = title.toLowerCase().replace(/\s+/g, '-');
+    switch (platform) {
+      case 'letterboxd':
+        return `https://letterboxd.com/search/films/${movieQuery}/`;
+      case 'rottentomatoes':
+        return `https://www.rottentomatoes.com/search?search=${movieQuery}`;
+      case 'imdb':
+        return `https://www.imdb.com/find?q=${query}`;
+      case 'wikipedia':
+        return `https://en.wikipedia.org/wiki/Special:Search?search=${query}`;
+      case 'myflixerz':
+        return `https://myflixerz.to/search/${myflixerzQuery}`;
+    }
+  };
+
   // Modal for delete confirmation
   const deleteModal = showDeleteConfirm ? (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -266,6 +297,21 @@ export default function MovieCard({
                     <Rating rating={localRating} onRatingChange={handleRatingChange} />
                   </div>
                   <div className="flex items-center gap-2">
+                    <a href={generateLink('imdb')} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="flex items-center justify-center w-7 h-7 bg-[#2a2a2a] rounded-full hover:bg-[#3a3a3a] transition-colors" title="IMDb">
+                      <IMDbIcon />
+                    </a>
+                    <a href={generateLink('letterboxd')} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="flex items-center justify-center w-7 h-7 bg-[#2a2a2a] rounded-full hover:bg-[#3a3a3a] transition-colors" title="Letterboxd">
+                      <LetterboxdIcon />
+                    </a>
+                    <a href={generateLink('rottentomatoes')} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="flex items-center justify-center w-7 h-7 bg-[#2a2a2a] rounded-full hover:bg-[#3a3a3a] transition-colors" title="Rotten Tomatoes">
+                      <RottenTomatoesIcon />
+                    </a>
+                    <a href={generateLink('wikipedia')} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="flex items-center justify-center w-7 h-7 bg-[#2a2a2a] rounded-full hover:bg-[#3a3a3a] transition-colors" title="Wikipedia">
+                      <WikipediaIcon />
+                    </a>
+                    <a href={generateLink('myflixerz')} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="flex items-center justify-center w-7 h-7 bg-[#2a2a2a] rounded-full hover:bg-[#3a3a3a] transition-colors" title="MyFlixerz">
+                      <MyFlixerzIcon />
+                    </a>
                     <button
                       onClick={handleProfileRedirect}
                       className="p-1 text-gray-400 hover:text-gray-300 transition-colors duration-150 opacity-80 hover:opacity-100"

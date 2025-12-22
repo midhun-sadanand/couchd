@@ -86,10 +86,11 @@ export function useFriendsProfiles(userId: string | undefined) {
       return profiles || [];
     },
     enabled: !!userId && !!supabase,
-    staleTime: 15 * 60 * 1000, // 15 minutes
-    gcTime: 30 * 60 * 1000,
+    staleTime: 60 * 60 * 1000, // 60 minutes (1 hour) - friends list changes infrequently
+    gcTime: 4 * 60 * 60 * 1000, // 4 hours - longer cache retention
     refetchOnMount: false,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false, // Disable refetch on focus
+    refetchOnReconnect: false, // Disable refetch on reconnect
   });
 }
 
