@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useUser } from '@/utils/auth';
 import { useSupabaseClient } from '@/utils/auth';
 import WatchlistWidget from './WatchlistWidget';
 import AddWatchlistModal from './AddWatchlistModal';
 import { Plus } from '@geist-ui/icons';
+import { ProfileUIContext } from './Layout';
 
 interface WatchlistListProps {
   userId?: string;
@@ -15,6 +16,7 @@ interface WatchlistListProps {
 
 const WatchlistList: React.FC<WatchlistListProps> = ({ userId, isFriendSidebarOpen = false, isLibrarySidebarOpen = false }) => {
   const { user, loading: userLoading } = useUser();
+  const { isMobile } = useContext(ProfileUIContext);
   const supabase = useSupabaseClient();
   const [watchlists, setWatchlists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -210,8 +212,9 @@ const WatchlistList: React.FC<WatchlistListProps> = ({ userId, isFriendSidebarOp
     if ((userId || user) && supabase) fetchWatchlists();
   }, [userId, user, supabase]);
 
-  // Responsive grid columns
+  // Responsive grid columns - mobile always gets 1 column
   const calculateGridCols = (width: number) => {
+    if (isMobile) return 1;
     if (width >= 1200) return 4;
     if (width >= 960) return 3;
     if (width >= 720) return 2;
@@ -271,24 +274,24 @@ const WatchlistList: React.FC<WatchlistListProps> = ({ userId, isFriendSidebarOp
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-[#232323]" style={{ padding: '0 16px' }}>
-      <h1 className="text-6xl my-10 text-[#e6e6e6] font-bold text-center">
+    <div className="min-h-screen flex flex-col items-center bg-[#232323]" style={{ padding: isMobile ? '0 12px' : '0 16px' }}>
+      <h1 className={`${isMobile ? 'text-3xl my-6' : 'text-6xl my-10'} text-[#e6e6e6] font-bold text-center`}>
         Your Watchlists
       </h1>
       {/* Tab Selector */}
-      <div className="flex space-x-2 mb-8">
+      <div className="flex space-x-2 mb-8 overflow-x-auto w-full max-w-[1200px]">
         {tabButton('All', 'all')}
         {tabButton('Created by You', 'created')}
         {tabButton('Shared with You', 'shared')}
       </div>
       <div
-        className="grid gap-4"
+        className="grid gap-3"
         style={{
-          gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
+          gridTemplateColumns: isMobile ? '1fr' : `repeat(${gridCols}, minmax(0, 1fr))`,
           width: '100%',
           maxWidth: '1200px',
           justifyContent: 'center',
-          justifyItems: 'center',
+          justifyItems: isMobile ? 'stretch' : 'center',
         }}
       >
         {displayWatchlists.length === 0 ? (
@@ -319,12 +322,19 @@ const WatchlistList: React.FC<WatchlistListProps> = ({ userId, isFriendSidebarOp
       </div>
       {/* Floating Add Button */}
       <button
-        className="plus-button fixed bottom-8 right-8 bg-[#232323] rounded-full shadow-lg p-4 hover:bg-[#333] transition"
+        className="plus-button fixed rounded-full shadow-lg p-4 hover:bg-[#333] transition"
         onClick={() => setShowModal(true)}
-        style={{ zIndex: 50 }}
+        style={{ 
+          zIndex: 50, 
+          bottom: isMobile ? '72px' : '32px',
+          right: isMobile ? '16px' : '32px',
+          backgroundColor: '#363636',
+          minWidth: '56px',
+          minHeight: '56px',
+        }}
         aria-label="Add Watchlist"
       >
-        <Plus color="#e6e6e6" size={32} />
+        <Plus color="#e6e6e6" size={isMobile ? 28 : 32} />
       </button>
       <AddWatchlistModal
         user={user}

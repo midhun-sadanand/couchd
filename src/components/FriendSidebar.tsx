@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { X, ChevronDown, ChevronUp } from '@geist-ui/icons';
 import { useSupabaseClient } from '../utils/auth';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import MobileDrawer from './MobileDrawer';
+import { ProfileUIContext } from './Layout';
 
 const SIDEBAR_WIDTH = 240; // w-60
 const SIDEBAR_MARGIN = 16;
@@ -45,6 +47,7 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
 }) => {
   // Debug: Log the userId
   console.log('FriendSidebar userId:', userId);
+  const { isMobile } = useContext(ProfileUIContext);
   const [friendName, setFriendName] = useState('');
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -330,7 +333,149 @@ const FriendSidebar: React.FC<FriendSidebarProps> = ({
 
   if (!userId) return <div>Loading...</div>;
 
-  // Always render the sidebar and the subtle edge bar
+  // Mobile drawer content (reused for both mobile and desktop)
+  const sidebarContent = (
+    <div className="flex-1 overflow-y-auto px-4 py-4">
+      <h3 className="text-sm text-[#cccccc] font-eina-bold mb-3">Your Friends</h3>
+      <ul className="flex flex-col gap-2 mb-4">
+        {friendsProfiles.length > 0 ? (
+          friendsProfiles.map(friend => (
+            <li key={friend.id} className="flex items-center gap-3 bg-[#2a2a2a] rounded-lg px-3 py-3 border border-[#3a3a3a] hover:bg-[#2f2f2f] transition-colors" style={{ minHeight: '48px' }}>
+              <img
+                src={friend.avatar_url || '/default-avatar.png'}
+                alt={friend.username}
+                className="w-10 h-10 rounded-full object-cover border border-[#4a4a4a]"
+                onError={e => (e.currentTarget.src = '/default-avatar.png')}
+              />
+              <span className="text-white font-eina truncate">{friend.username}</span>
+            </li>
+          ))
+        ) : (
+          <div className="text-[#666666] text-xs px-2 py-3 text-center font-eina">No friends yet. Search below to add some!</div>
+        )}
+      </ul>
+
+      {/* Search Section */}
+      <hr className="w-full border-t border-[#3a3a3a] my-4" />
+      <div className="mb-4">
+        <input
+          type="text"
+          value={friendName}
+          onChange={e => searchFriend(e.target.value)}
+          placeholder="Search users..."
+          className="w-full px-3 py-3 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg text-white placeholder-[#666666] font-eina text-sm focus:outline-none focus:border-[#4a4a4a]"
+          style={{ minHeight: '48px', fontSize: '16px' }}
+        />
+        {showDropdown && searchResultsState.length > 0 && (
+          <div className="mt-2 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+            {searchResultsState.map((user: any) => (
+              <button
+                key={user.id}
+                onClick={() => handleSelectFriend(user.id)}
+                className="w-full px-3 py-3 text-left text-white hover:bg-[#3a3a3a] transition-colors border-b border-[#333] last:border-0"
+                style={{ minHeight: '48px' }}
+              >
+                {user.username}
+              </button>
+            ))}
+          </div>
+        )}
+        <button
+          className="w-full mt-3 px-4 py-3 bg-[#3a3a3a] text-white font-einasemibold rounded-lg hover:bg-[#454545] transition-colors"
+          onClick={handleSendRequest}
+          style={{ minHeight: '48px' }}
+        >
+          Send Friend Request
+        </button>
+        {error && (
+          <div className="mt-3 px-3 py-2 bg-[#3a2a2a] border border-[#4a3a3a] rounded-lg">
+            <p className="text-[#f4a6a6] text-xs font-eina">{error}</p>
+          </div>
+        )}
+        {successMessage && (
+          <div className="mt-3 px-3 py-2 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg">
+            <p className="text-[#a5d4b4] text-xs font-eina">{successMessage}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Incoming Friend Requests */}
+      <hr className="w-full border-t border-[#3a3a3a] my-4" />
+      <div className="mb-2">
+        <button
+          className="flex items-center gap-2 text-[#cccccc] font-eina-bold text-sm focus:outline-none w-full px-2 py-3 rounded-lg hover:bg-[#2a2a2a] transition-colors"
+          style={{ justifyContent: 'space-between', minHeight: '48px' }}
+          onClick={e => { e.stopPropagation(); setShowRequests(v => !v); }}
+        >
+          <span className="flex items-center gap-2">
+            Incoming Requests
+            <span className="text-xs text-[#666666] font-eina">({friendRequests.length})</span>
+          </span>
+          <span className={`transition-transform duration-300`}>
+            {showRequests ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </span>
+        </button>
+        {showRequests && (
+          <div className="flex flex-col gap-2 mt-3">
+            {friendRequests.length > 0 ? (
+              friendRequests.map((req: any) => (
+                <div key={req.id} className="friend-card flex flex-col bg-[#2a2a2a] rounded-lg border border-[#3a3a3a] px-3 py-3 gap-3">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={req.sender?.avatar_url || '/default-avatar.png'}
+                      alt={req.sender?.username || 'Avatar'}
+                      className="w-10 h-10 rounded-full object-cover border border-[#4a4a4a]"
+                      onError={e => (e.currentTarget.src = '/default-avatar.png')}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white font-eina-bold text-sm truncate">{req.sender?.username || 'Unknown'}</div>
+                      {req.sender?.mutual_friends && req.sender.mutual_friends > 0 && (
+                        <div className="text-xs text-[#666666] truncate font-eina">{req.sender.mutual_friends} mutual friends</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      className="flex-1 px-4 py-2.5 rounded-lg bg-[#3a3a3a] text-white font-einasemibold hover:bg-[#454545] transition-colors text-sm"
+                      onClick={e => { e.stopPropagation(); handleAcceptRequest(req.id); }}
+                      style={{ minHeight: '44px' }}
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      className="flex-1 px-4 py-2.5 rounded-lg bg-[#2a2a2a] border border-[#3a3a3a] text-white font-einasemibold hover:bg-[#363636] transition-colors text-sm"
+                      onClick={e => { e.stopPropagation(); handleRejectRequest(req.id); }}
+                      style={{ minHeight: '44px' }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-[#666666] text-xs px-2 py-3 text-center font-eina">No pending requests</div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Return mobile drawer if on mobile
+  if (isMobile) {
+    return (
+      <MobileDrawer
+        isOpen={sidebarOpen}
+        onClose={closeSidebar}
+        side="right"
+        title="Friends"
+      >
+        {sidebarContent}
+      </MobileDrawer>
+    );
+  }
+
+  // Desktop sidebar
   return (
     <>
       {/* Subtle clickable edge when sidebar is closed */}

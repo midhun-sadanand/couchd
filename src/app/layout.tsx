@@ -53,6 +53,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  themeColor: '#232323', // Sets the browser chrome color and overscroll background on mobile
 }
 
 export default function RootLayout({
@@ -61,8 +62,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full" suppressHydrationWarning>
-      <body className="antialiased min-h-screen bg-white text-gray-900">
+    <html lang="en" className="h-full bg-[#232323]" suppressHydrationWarning>
+      <body className="antialiased min-h-screen bg-[#232323] text-gray-900">
         <Providers>
           <Layout>{children}</Layout>
         </Providers>

@@ -1,8 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import { Sidebar } from '@geist-ui/icons';
 import { useRouter } from 'next/navigation';
 import { useCachedProfileData } from '@/hooks/useCachedProfileData';
 import { useSignOut } from '@/utils/auth';
+import MobileDrawer from './MobileDrawer';
+import { ProfileUIContext } from './Layout';
 
 const COLLAPSED_WIDTH = 78; // 75% of 104
 const IMAGE_SIZE = 48; // 75% of 64
@@ -32,6 +34,7 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
 }) => {
   const router = useRouter();
   const { userProfile } = useCachedProfileData();
+  const { isMobile } = useContext(ProfileUIContext);
   const signOut = useSignOut();
   const [popoverOpen, setPopoverOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -75,6 +78,78 @@ const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [popoverOpen]);
 
+  // Mobile drawer content
+  const drawerContent = (
+    <div className="flex flex-col h-full p-4">
+      {/* Profile section at top */}
+      <div className="flex items-center gap-3 pb-4 border-b border-[#2a2a2a] mb-4">
+        <img
+          src={avatarUrl}
+          alt={userProfile?.username || 'Profile'}
+          className="w-16 h-16 rounded-full object-cover border-2 border-[#444] shadow"
+          onError={e => (e.currentTarget.src = '/default-avatar.png')}
+        />
+        <div className="flex-1 min-w-0">
+          <h3 className="text-white font-eina-bold text-base truncate">{userProfile?.username}</h3>
+          <button
+            onClick={() => {
+              signOut();
+              toggleSidebar();
+            }}
+            className="text-sm text-[#888888] hover:text-white transition-colors mt-1"
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+
+      {/* Watchlists */}
+      <div className="flex-1 overflow-y-auto">
+        <h4 className="text-xs uppercase text-[#888888] mb-3 font-eina-bold">Your Watchlists</h4>
+        <div className="space-y-2">
+          {watchlists.map(list => (
+            <button
+              key={list.id}
+              onClick={() => {
+                router.push(`/watchlist/${list.id}`);
+                toggleSidebar();
+              }}
+              className="flex items-center gap-3 w-full p-2 rounded-lg hover:bg-[#2a2a2a] transition-colors text-left"
+              style={{ minHeight: '48px' }}
+            >
+              <img
+                src={list.image || 'https://via.placeholder.com/150'}
+                alt={list.name}
+                className="w-10 h-10 rounded object-cover border border-[#333]"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-sm truncate">{list.name}</p>
+                {list.ownerName && list.ownerName !== username && (
+                  <p className="text-xs text-[#888888] truncate">by {list.ownerName}</p>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Return mobile drawer if on mobile
+  if (isMobile) {
+    return (
+      <MobileDrawer
+        isOpen={sidebarOpen}
+        onClose={toggleSidebar}
+        side="left"
+        title="Library"
+      >
+        {drawerContent}
+      </MobileDrawer>
+    );
+  }
+
+  // Desktop sidebar
   return (
     <div className="relative z-40">
       {/* subtle edge only when fully closed */}

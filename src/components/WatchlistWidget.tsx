@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Folder } from 'lucide-react';
 import EditNameModal from './EditWatchlistModal';
 import { useSupabaseClient } from '../utils/auth';
+import { ProfileUIContext } from './Layout';
 
 interface WatchlistWidgetProps {
   username: string;
@@ -33,6 +34,7 @@ const WatchlistWidget: React.FC<WatchlistWidgetProps> = ({
   const router = useRouter();
   const supabase = useSupabaseClient();
   const queryClient = useQueryClient();
+  const { isMobile } = useContext(ProfileUIContext);
   const titleRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<HTMLDivElement>(null);
@@ -165,6 +167,100 @@ const WatchlistWidget: React.FC<WatchlistWidgetProps> = ({
 
   const totalCount = unwatchedCount + watchingCount + watchedCount;
 
+  // Mobile layout: horizontal card
+  if (isMobile) {
+    return (
+      <>
+        <div
+          ref={widgetRef}
+          onClick={handleClick}
+          className="watchlist-widget bg-[#1a1a1a] rounded-lg shadow-lg cursor-pointer relative flex gap-3 p-3 active:bg-[#202020] transition-colors"
+          style={{ minHeight: '120px' }}
+        >
+          {/* Image on left */}
+          <div className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden bg-[#2a2a2a]">
+            {image ? (
+              <img
+                src={image}
+                alt={currentName}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/96?text=No+Image';
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Folder size={36} className="text-gray-600" strokeWidth={1.5} />
+              </div>
+            )}
+          </div>
+
+          {/* Content on right */}
+          <div className="flex-1 min-w-0 flex flex-col">
+            {/* Title */}
+            <h3 className="text-base font-eina-bold text-white line-clamp-1 mb-1">
+              {currentName}
+            </h3>
+
+            {/* Description */}
+            {description && (
+              <p className="text-xs text-gray-400 line-clamp-2 mb-2 font-eina">
+                {description}
+              </p>
+            )}
+
+            {/* Stats */}
+            <div className="mt-auto flex gap-2 text-xs">
+              <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded font-eina-bold">
+                {unwatchedCount}
+              </span>
+              <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded font-eina-bold">
+                {watchingCount}
+              </span>
+              <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded font-eina-bold">
+                {watchedCount}
+              </span>
+            </div>
+          </div>
+
+          {/* Options menu button */}
+          <button
+            className="absolute top-2 right-2 p-2 rounded-full bg-black/30 backdrop-blur-sm active:bg-black/50 transition-colors"
+            onClick={handleDropdownClick}
+            style={{ minWidth: '36px', minHeight: '36px' }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4 text-white/80">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+            </svg>
+          </button>
+
+          {/* Dropdown menu */}
+          {dropdownOpen && (
+            <div
+              className="absolute top-12 right-2 w-48 bg-[#1a1a1a] rounded-lg shadow-2xl py-1 z-40 border border-[#3a3a3a]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button className="block w-full text-left px-4 py-3 text-sm text-gray-300 active:bg-[#2a2a2a] transition-colors font-eina" onClick={(e) => { e.stopPropagation(); handleEditNameClick(); }} style={{ minHeight: '44px' }}>Edit Name</button>
+              <button className="block w-full text-left px-4 py-3 text-sm text-gray-300 active:bg-[#2a2a2a] transition-colors font-eina" onClick={(e) => { e.stopPropagation(); }} style={{ minHeight: '44px' }}>Edit Description</button>
+              <button className="block w-full text-left px-4 py-3 text-sm text-gray-300 active:bg-[#2a2a2a] transition-colors font-eina" onClick={(e) => { e.stopPropagation(); }} style={{ minHeight: '44px' }}>Edit Tags</button>
+              <button className="block w-full text-left px-4 py-3 text-sm text-red-400 active:bg-[#2a2a2a] transition-colors font-eina" onClick={(e) => { e.stopPropagation(); deleteWatchlist(watchlistId); }} style={{ minHeight: '44px' }}>Remove</button>
+            </div>
+          )}
+        </div>
+        <EditNameModal
+          isOpen={isEditNameModalOpen}
+          onClose={() => setEditNameModalOpen(false)}
+          currentName={currentName}
+          onSubmit={handleEditNameSubmit}
+          currentDescription={''}
+          currentTags={[]}
+          watchlistId={watchlistId}
+        />
+      </>
+    );
+  }
+
+  // Desktop layout: square card
   return (
     <>
       <div className="flex flex-col" style={{ width: '220px' }}>
