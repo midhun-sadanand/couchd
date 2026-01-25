@@ -4,6 +4,7 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "outputDirectory": ".next",
+  "rootDirectory": ".",
   "headers": [
     {
       "source": "/favicon.ico",
